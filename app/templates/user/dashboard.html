@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+    {{ super() }}
+    <!-- Dashboard specific CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='user/dashboard/dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="data-entry-dashboard w-100">
+    <div class="dashboard-header">
+        <h1>Data Entry Dashboard</h1>
+        <div class="date-selector">
+            <form id="dateForm" class="d-flex align-items-center gap-3">
+                <label for="dateSelect" class="form-label visually-hidden">Select reporting period</label>
+                <input type="month" 
+                       id="dateSelect" 
+                       name="date" 
+                       value="{{ selected_date.strftime('%Y-%m') }}"
+                       class="form-control"
+                       aria-label="Select reporting period">
+                <button type="button" 
+                        class="btn btn-outline-secondary" 
+                        id="prevMonth" 
+                        aria-label="Previous month">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button type="button" 
+                        class="btn btn-outline-secondary" 
+                        id="nextMonth" 
+                        aria-label="Next month">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="dashboard-tabs">
+        <button class="tab-btn active" data-tab="entry">Data Entry</button>
+        <button class="tab-btn" data-tab="history">Historical Data</button>
+    </div>
+
+    <div class="dashboard-content w-100">
+        <div id="entryTab" class="tab-content active">
+            {% if data_points %}
+                <form method="POST" action="{{ url_for('user.submit_data') }}" id="dataEntryForm" class="w-100">
+                    <input type="hidden" name="reporting_date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Data Point Name</th>
+                                    <th>Value Type</th>
+                                    <th>Unit</th>
+                                    <th>Value</th>
+                                    <th>Attachments</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for dp in data_points %}
+                                    {% if not dp.is_computed %}
+                                        <!-- Regular data point row -->
+                                        <tr class="data-row">
+                                            <td data-label="Data Point Name">
+                                                <div class="data-point-name">
+                                                    <span class="status-indicator status-{{ dp.status }}"></span>
+                                                    {{ dp.name }}
+                                                    {% if dp.description %}
+                                                    <span class="help-tooltip">
+                                                        <i class="fas fa-question-circle"></i>
+                                                        <span class="tooltip-text">{{ dp.description }}</span>
+                                                    </span>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                            <td data-label="Value Type">{{ dp.value_type }}</td>
+                                            <td data-label="Unit">{{ dp.unit }}</td>
+                                            <td data-label="Value">
+                                                <div class="editable-cell" data-id="{{ dp.id }}">
+                                                    <input type="{% if dp.value_type == 'numeric' %}number{% else %}text{% endif %}"
+                                                           class="data-input {% if dp.value_type == 'numeric' %}numeric-input{% else %}text-input{% endif %}"
+                                                           name="data_point_{{ dp.id }}"
+                                                           value="{{ entity_data_entries.get(dp.id, {}).get('raw_value', '') }}"
+                                                           {% if dp.value_type == 'numeric' %}step="any"{% endif %}
+                                                           aria-label="{{ dp.name }} value input">
+                                                    {% if entity_data_entries.get(dp.id, {}).get('calculated_value') %}
+                                                        <div class="calculated-value">
+                                                            Calculated: {{ entity_data_entries[dp.id]['calculated_value'] }}
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                            <td data-label="Attachments">
+                                                <div class="attachment-cell" data-id="{{ dp.id }}">
+                                                    <div class="attachment-list"></div>
+                                                    <label class="upload-btn">
+                                                        <i class="fas fa-paperclip"></i>
+                                                        <input type="file" 
+                                                               class="file-input" 
+                                                               multiple 
+                                                               accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                                                               style="display: none;">
+                                                    </label>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% else %}
+                                        <!-- Computed field row group -->
+                                        <tr class="computed-field-row">
+                                            <td data-label="Data Point Name">
+                                                <div class="data-point-name" data-field-id="{{ dp.id }}">
+                                                    <span class="status-indicator status-{{ dp.status }}"></span>
+                                                    <button type="button" class="expand-btn" aria-label="Toggle dependencies">
+                                                        <i class="fas fa-chevron-right"></i>
+                                                    </button>
+                                                    {{ dp.name }}
+                                                    {% if dp.description %}
+                                                    <span class="help-tooltip">
+                                                        <i class="fas fa-calculator"></i>
+                                                        <span class="tooltip-text">
+                                                            {{ dp.description }}
+                                                            <br>
+                                                            Formula: {{ dp.formula }}
+                                                            <br>
+                                                            Dependencies:
+                                                            {% for dep in dp.dependencies %}
+                                                                <br>{{ dep.variable_name }}: {{ dep.field_name }}
+                                                            {% endfor %}
+                                                        </span>
+                                                    </span>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                            <td data-label="Value Type">{{ dp.value_type }}</td>
+                                            <td data-label="Unit">{{ dp.unit }}</td>
+                                            <td data-label="Value">
+                                                <div class="computed-value-display" data-field-id="{{ dp.id }}">
+                                                    {% set entry = entity_data_entries.get(dp.id, {}) %}
+                                                    {% if entry.get('calculated_value') is not none %}
+                                                        {{ "%.2f"|format(entry.calculated_value) }}
+                                                    {% else %}
+                                                        <span class="text-muted">Pending calculation...</span>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                            <td data-label="Attachments">-</td>
+                                        </tr>
+                                        <!-- Dependencies rows -->
+                                        {% if dp.is_computed and dp.dependencies %}
+                                            {% for dep in dp.dependencies %}
+                                            <tr class="dependency-row" data-parent="{{ dp.id }}" style="display: none;">
+                                                <td data-label="Data Point Name" class="dependency-cell">
+                                                    <div class="data-point-name">
+                                                        <span class="dependency-indicator">{{ dep.variable_name }}</span>
+                                                        {{ dep.field_name }}
+                                                    </div>
+                                                </td>
+                                                <td data-label="Value Type">Raw Input</td>
+                                                <td data-label="Unit">{{ dp.unit }}</td>
+                                                <td data-label="Value">
+                                                    <div class="editable-cell" data-id="{{ dep.field_id }}">
+                                                        <input type="number"
+                                                               class="data-input numeric-input"
+                                                               name="data_point_{{ dep.field_id }}"
+                                                               value="{{ entity_data_entries.get(dep.field_id, {}).get('raw_value', '') }}"
+                                                               step="any"
+                                                               aria-label="{{ dep.field_name }} value input">
+                                                    </div>
+                                                </td>
+                                                <td data-label="Attachments">
+                                                    <div class="attachment-cell" data-id="{{ dep.field_id }}">
+                                                        <div class="attachment-list"></div>
+                                                        <label class="upload-btn">
+                                                            <i class="fas fa-paperclip"></i>
+                                                            <input type="file" 
+                                                                   class="file-input" 
+                                                                   multiple 
+                                                                   accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                                                                   style="display: none;">
+                                                        </label>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="submit-btn" id="submitBtn">Save Data</button>
+                    </div>
+                </form>
+            {% else %}
+                <div class="no-data-message">
+                    <p>No assigned data points found.</p>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div id="historyTab" class="tab-content">
+            <div class="history-filters">
+                <select id="historyDataPoint" class="form-control">
+                    <option value="">All Data Points</option>
+                    {% for dp in data_points %}
+                        <option value="{{ dp.id }}">{{ dp.name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="date-range">
+                    <input type="month" id="historyStartDate" class="form-control">
+                    <span>to</span>
+                    <input type="month" id="historyEndDate" class="form-control">
+                </div>
+            </div>
+            <div id="historyData" class="history-data">
+                <!-- Historical data will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block afterbody %}
+    {{ super() }}
+    <script type="module">
+        import { PopupManager } from '{{ url_for("static", filename="js/popup.js") }}';
+        import { initializeDashboard } from '{{ url_for("static", filename="user/dashboard/dashboard.js") }}';
+        
+        // Initialize when document is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            PopupManager.init();
+            initializeDashboard(PopupManager);
+        });
+    </script>
+{% endblock %} 

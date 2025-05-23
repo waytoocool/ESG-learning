@@ -1,0 +1,105 @@
+<!-- // templates/login.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Login - ESG Datavault</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/popup.css') }}">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <h1 class="login-header">Welcome to <span>ESG Datavault</span></h1>
+            <form class="login-form" method="POST" action="{{ url_for('auth.login') }}">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="text" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn">Login</button>
+            </form>
+            <div class="forgot-password">
+                <a href="{{ url_for('auth.forgot_password') }}">Forgot Password?</a>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 ESG Datavault. All rights reserved.</p>
+    </footer>
+
+        <!-- Move script to end of body and add defer attribute -->
+    <script type="module" defer>
+        import { PopupManager } from '/static/js/popup.js';
+
+        // Initialize popup system
+        document.addEventListener('DOMContentLoaded', () => {
+            PopupManager.init();
+            
+            const loginForm = document.querySelector('.login-form');
+            
+            loginForm?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                try {
+                    const formData = new FormData(e.target);
+                    const response = await fetch('{{ url_for("auth.login") }}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin'
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        PopupManager.showPopup('Success', 'Login successful', 'success');
+                        // Redirect after showing success message
+                        setTimeout(() => {
+                            window.location.href = data.redirect || '/';
+                        }, 1500);
+                    } else {
+                        PopupManager.showPopup('Error', data.message || 'Invalid credentials', 'error');
+                    }
+                } catch (error) {
+                    console.error('Login error:', error);
+                    PopupManager.showPopup('Error', 'An error occurred during login. Please try again.', 'error');
+                }
+            });
+
+            // Show flash messages if any
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        PopupManager.showPopup(
+                            category.charAt(0).toUpperCase() + category.slice(1),
+                            message,
+                            category
+                        );
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            // Show registration success popup if needed
+            if ("{{ session.pop('registration_success', False) }}" === "True") {
+                PopupManager.showPopup('Success', 'Registration successful! You can now log in.', 'success');
+            }
+        });
+    </script>
+
+</body>
+</html>

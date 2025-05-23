@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin/audit_log/css/audit_log.css') }}">
+
+{% endblock %}
+
+{% block content %}
+<div class="audit-log-container">
+    <h1>Audit Log</h1>
+    
+    <div class="filters">
+        <input type="text" id="searchInput" placeholder="Search...">
+        <select id="changeTypeFilter">
+            <option value="">All Change Types</option>
+            <option value="Create">Create</option>
+            <option value="Update">Update</option>
+            <option value="Delete">Delete</option>
+        </select>
+        <input type="date" id="dateFilter">
+    </div>
+
+    <div class="table-responsive">
+        <table class="audit-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>User</th>
+                    <th>Change Type</th>
+                    <th>Old Value</th>
+                    <th>New Value</th>
+                    <th>Data Point</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in audit_logs %}
+                <tr>
+                    <td>{{ log.change_date.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>{{ log.user.username }}</td>
+                    <td><span class="change-type {{ log.change_type.lower() }}">{{ log.change_type }}</span></td>
+                    <td>{{ log.old_value if log.old_value is not none else '-' }}</td>
+                    <td>{{ log.new_value if log.new_value is not none else '-' }}</td>
+                    <td>{{ log.esg_data.field.field_name }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block afterbody %}
+<script src="{{ url_for('static', filename='admin/audit_log/js/audit_log.js') }}"></script>
+{% endblock %}

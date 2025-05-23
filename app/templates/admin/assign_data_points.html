@@ -1,0 +1,73 @@
+<!-- // templates/admin/assign_data_points.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="assign-data-points-container">
+    <h1>Data Points Management</h1>
+    
+    <!-- Main view showing selected data points -->
+    <div class="selected-data-points">
+        <button id="openAssignModal" class="btn btn-primary">Select Data Points</button>
+        
+        <div class="selected-points-display">
+            <h2>Selected Data Points</h2>
+            <div class="accordion" id="dataPointsAccordion">
+                <!-- Data points with collapsible panels will be added here dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for selecting data points -->
+    <div id="assignModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Select Data Points</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="selector-container">
+                    <!-- Framework and fields selection -->
+                    <div class="framework-section">
+                        <div class="framework-selector">
+                            <label for="framework_select">Select Framework:</label>
+                            <select id="framework_select" class="form-control">
+                                <option value="">Choose Framework</option>
+                                {% for framework in frameworks %}
+                                    <option value="{{ framework.framework_id }}">{{ framework.framework_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="available-fields" id="availableFields">
+                            <!-- Fields will be populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Selected data points -->
+                    <div class="selected-section">
+                        <h3>Selected Data Points</h3>
+                        <div class="selected-fields" id="selectedFields">
+                            <!-- Selected fields will appear here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="confirmDataPoints" class="btn btn-primary">Confirm Selection</button>
+                <button class="btn btn-secondary close-modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/popup.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='admin/assign_data_points/assign_data_points.css') }}">
+<script type="module">
+    import { PopupManager } from "{{ url_for('static', filename='js/popup.js') }}";
+    window.PopupManager = PopupManager;
+</script>
+<script src="{{ url_for('static', filename='admin/assign_data_points/assign_data_points.js') }}"></script>
+{% endblock %}

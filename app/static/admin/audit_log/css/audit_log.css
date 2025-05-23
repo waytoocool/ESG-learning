@@ -1,0 +1,68 @@
+.audit-log-container {
+    padding: 20px;
+}
+
+.filters {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.filters input,
+.filters select {
+    padding: 8px;
+    border: 1px solid #2F4728;
+    border-radius: 4px;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.audit-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background-color: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.audit-table th,
+.audit-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.audit-table th {
+    background-color: #2F4728;
+    color: white;
+    font-weight: 600;
+}
+
+.audit-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.change-type {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.change-type.create {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.change-type.update {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.change-type.delete {
+    background-color: #fee2e2;
+    color: #991b1b;
+} 

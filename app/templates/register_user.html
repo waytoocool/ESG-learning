@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <style>
+        :root {
+            --primary-dark: #1a472a;
+            --primary-medium: #2d5a3c;
+            --primary-light: #3c7a4d;
+            --accent-green: #50c878;
+            --text-light: #ffffff;
+            --error-red: #ff6b6b;
+            --success-green: #2ecc71;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-medium) 100%);
+            color: var(--text-light);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 2.5em;
+            border-radius: 20px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 2em;
+        }
+
+        .logo-container img {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 1em;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 1.5em;
+            font-size: 2em;
+            color: var(--text-light);
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 1.5em;
+            position: relative;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.7em;
+            font-weight: 500;
+            font-size: 0.95em;
+            color: var(--text-light);
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 1em;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-light);
+            font-size: 1em;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: var(--accent-green);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 0 4px rgba(80, 200, 120, 0.1);
+        }
+
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        button {
+            width: 100%;
+            padding: 1em;
+            background: var(--accent-green);
+            color: var(--primary-dark);
+            font-weight: 600;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            background: var(--success-green);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(46, 204, 113, 0.3);
+        }
+
+        button:disabled {
+            background: rgba(255, 255, 255, 0.2);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .flash-messages {
+            margin-bottom: 2em;
+        }
+
+        .alert {
+            padding: 1em;
+            border-radius: 12px;
+            margin-bottom: 1em;
+            font-weight: 500;
+            text-align: center;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .alert-danger {
+            background: var(--error-red);
+            color: white;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .alert-success {
+            background: var(--success-green);
+            color: white;
+            border-left: 4px solid #27ae60;
+        }
+
+        .password-match-message {
+            font-size: 0.9em;
+            margin-top: 0.5em;
+            padding: 0.5em;
+            border-radius: 8px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .password-match-message.error {
+            background: rgba(255, 107, 107, 0.1);
+            color: var(--error-red);
+        }
+
+        .password-match-message.success {
+            background: rgba(46, 204, 113, 0.1);
+            color: var(--success-green);
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Remove flash messages after 5 seconds
+            setTimeout(function() {
+                const flashMessages = document.querySelectorAll('.alert');
+                flashMessages.forEach(function(message) {
+                    message.style.opacity = '0';
+                    setTimeout(function() {
+                        message.remove();
+                    }, 500);
+                });
+            }, 5000);
+        });
+
+        function validatePasswords() {
+            const password = document.getElementById('password');
+            const confirmPassword = document.getElementById('confirm_password');
+            const message = document.getElementById('password-match-message');
+            const submitButton = document.getElementById('submit-button');
+
+            if (password.value === '' || confirmPassword.value === '') {
+                message.style.display = 'none';
+                submitButton.disabled = true;
+                return false;
+            } else if (password.value !== confirmPassword.value) {
+                message.style.display = 'block';
+                message.className = 'password-match-message error';
+                message.textContent = 'Passwords do not match';
+                submitButton.disabled = true;
+                return false;
+            } else {
+                message.style.display = 'block';
+                message.className = 'password-match-message success';
+                message.textContent = 'Passwords match';
+                submitButton.disabled = false;
+                return true;
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h2>Create Account</h2>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        <form action="{{ url_for('register_user', token=token) }}" method="POST" onsubmit="return validatePasswords()">
+            <div class="form-group">
+                <label for="username">Full Name</label>
+                <input type="text" id="username" name="username" required 
+                       placeholder="Enter your full name" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required 
+                       placeholder="Enter your password" onkeyup="validatePasswords()">
+            </div>
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" required 
+                       placeholder="Retype your password" onkeyup="validatePasswords()">
+                <div id="password-match-message" class="password-match-message"></div>
+            </div>
+            <button type="submit" id="submit-button" disabled>Create Account</button>
+        </form>
+    </div>
+</body>
+</html>
