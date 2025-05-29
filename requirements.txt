@@ -12,4 +12,3 @@ hypercorn
 redis>=4.0.0
 python-dotenv
 uuid
-mimetypes

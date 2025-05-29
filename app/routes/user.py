@@ -8,6 +8,7 @@ import os
 from werkzeug.utils import secure_filename
 from flask import current_app
 from ..models.framework import FrameworkDataField, FieldVariableMapping
+from ..models.entity import Entity
 
 user_bp = Blueprint('user', __name__, url_prefix='/user')
 
@@ -37,24 +38,64 @@ def dashboard():
         selected_date = datetime.strptime(selected_date, '%Y-%m').date() if selected_date else date.today().replace(day=1)
     except ValueError:
         selected_date = date.today().replace(day=1)
-        
-    assigned_data_points = (DataPoint.query
+    
+    # Get the user's entity and its parent entities
+    user_entity = Entity.query.get(current_user.entity_id)
+    parent_entities = []
+    current_entity = user_entity
+    while current_entity.parent_id:
+        parent_entities.append(current_entity.parent_id)
+        current_entity = current_entity.parent
+
+    # First, get all raw input fields and their relationships
+    raw_fields = {}  # Dictionary to store raw fields and the computed fields that depend on them
+    computed_fields = set()  # Set to store all computed field IDs
+    
+    # Get all variable mappings to build dependency relationships
+    variable_mappings = (FieldVariableMapping.query
+        .join(FrameworkDataField, FrameworkDataField.field_id == FieldVariableMapping.raw_field_id)
+        .all())
+    
+    for mapping in variable_mappings:
+        computed_fields.add(mapping.computed_field_id)
+        if mapping.raw_field_id not in raw_fields:
+            raw_fields[mapping.raw_field_id] = {
+                'computed_fields': set(),
+                'variable_names': {}
+            }
+        raw_fields[mapping.raw_field_id]['computed_fields'].add(mapping.computed_field_id)
+        raw_fields[mapping.raw_field_id]['variable_names'][mapping.computed_field_id] = mapping.variable_name
+
+    # Get all data points with proper filtering
+    all_data_points = (DataPoint.query
         .join(DataPoint.framework)
-        .join(FrameworkDataField, DataPoint.id == FrameworkDataField.field_id)
-        .outerjoin(FrameworkDataField.variable_mappings)
-        .filter(DataPoint.entities.any(id=current_user.entity_id))
+        .join(
+            FrameworkDataField,
+            FrameworkDataField.field_id == DataPoint.id
+        )
+        .join(
+            Entity,
+            DataPoint.entities
+        )
+        .filter(
+            Entity.id.in_([current_user.entity_id] + parent_entities)
+        )
         .add_columns(
             FrameworkDataField.description,
             FrameworkDataField.is_computed,
-            FrameworkDataField.formula_expression
+            FrameworkDataField.formula_expression,
+            Entity.id.label('assigned_entity_id'),
+            Entity.name.label('assigned_entity_name')
         )
+        .distinct()
         .all())
 
-    # Group data points by computed/raw and establish relationships
-    data_points_with_deps = []
-    computed_field_deps = {}
+    # Organize data points into categories
+    raw_input_points = []
+    computed_points = []
+    raw_dependencies = {}  # Store raw dependencies and their computed fields
 
-    for dp, desc, is_computed, formula in assigned_data_points:
+    for dp, desc, is_computed, formula, assigned_entity_id, assigned_entity_name in all_data_points:
         point_data = {
             'id': dp.id,
             'name': dp.name,
@@ -64,63 +105,55 @@ def dashboard():
             'is_computed': is_computed,
             'formula': formula,
             'status': get_data_point_status(dp.id, current_user.entity_id, selected_date),
+            'assigned_entity': assigned_entity_name,
             'dependencies': []
         }
-        
-        if is_computed:
-            # Get dependency information for computed fields using correct field names
+
+        if dp.id in raw_fields:  # This is a raw dependency
+            raw_dependencies[dp.id] = {
+                'data': point_data,
+                'computed_fields': raw_fields[dp.id]['computed_fields'],
+                'variable_names': raw_fields[dp.id]['variable_names']
+            }
+        elif dp.id in computed_fields:  # This is a computed field
+            # Get dependencies for this computed field
             deps = (FieldVariableMapping.query
-                   .join(FrameworkDataField, FrameworkDataField.field_id == FieldVariableMapping.raw_field_id)
-                   .filter(FieldVariableMapping.computed_field_id == dp.id)
+                   .filter_by(computed_field_id=dp.id)
                    .all())
-            
-            # Debug print
-            print(f"Dependencies for {dp.name} ({dp.id}):")
-            for dep in deps:
-                print(f"- Raw Field ID: {dep.raw_field_id}, Variable: {dep.variable_name}")
             
             point_data['dependencies'] = [
                 {
-                    'field_id': dep.raw_field_id,  # Changed from field_id to raw_field_id
+                    'field_id': dep.raw_field_id,
                     'field_name': FrameworkDataField.query.get(dep.raw_field_id).field_name,
                     'variable_name': dep.variable_name,
                     'coefficient': dep.coefficient
                 } for dep in deps
             ]
-            computed_field_deps[dp.id] = [d['field_id'] for d in point_data['dependencies']]
-        
-        data_points_with_deps.append(point_data)
+            computed_points.append(point_data)
+        else:  # This is a regular raw input field
+            raw_input_points.append(point_data)
 
-    # Debug print
-    print("\nAll data points with dependencies:")
-    for dp in data_points_with_deps:
-        if dp['is_computed']:
-            print(f"\n{dp['name']} ({dp['id']}):")
-            print(f"Dependencies: {dp['dependencies']}")
+    # Get ESG data entries
+    esg_data_entries = ESGData.query.filter_by(
+        entity_id=current_user.entity_id,
+        reporting_date=selected_date
+    ).all()
 
-    # Update query to filter by reporting_date
-    entity_data_entries = {
-        data_entry.data_point_id: {
-            'raw_value': data_entry.raw_value,
-            'calculated_value': data_entry.calculated_value
+    # Create a properly structured dictionary for entity data entries
+    entity_data_entries = {}
+    for entry in esg_data_entries:
+        entity_data_entries[entry.data_point_id] = {
+            'raw_value': entry.raw_value,
+            'calculated_value': entry.calculated_value,
+            'entity_id': entry.entity_id,
+            'data_id': entry.data_id
         }
-        for data_entry in ESGData.query.filter_by(
-            entity_id=current_user.entity_id,
-            reporting_date=selected_date
-        ).all()
-    }
-
-    # Add debug print
-    print("\nEntity data entries:")
-    for dp_id, values in entity_data_entries.items():
-        print(f"Data Point {dp_id}:")
-        print(f"- Raw Value: {values.get('raw_value')}")
-        print(f"- Calculated Value: {values.get('calculated_value')}")
 
     return render_template('user/dashboard.html',
-                         data_points=data_points_with_deps,
+                         raw_input_points=raw_input_points,
+                         computed_points=computed_points,
+                         raw_dependencies=raw_dependencies,
                          entity_data_entries=entity_data_entries,
-                         computed_field_deps=computed_field_deps,
                          selected_date=selected_date)
 
 def get_data_point_status(data_point_id, entity_id, reporting_date):
@@ -162,12 +195,26 @@ def submit_data():
                 field_id = key.replace('data_point_', '')
                 print(f"\nProcessing field {field_id} with value {value}")
                 
-                if not value:
+                # Skip empty values
+                if not value or not value.strip():
                     continue
                 
-                # Get the FrameworkDataField for this data point
+                # Get the data point and its framework field
+                data_point = DataPoint.query.get(field_id)
                 framework_field = FrameworkDataField.query.filter_by(field_id=field_id).first()
-                if not framework_field:
+                
+                if not data_point or not framework_field:
+                    print(f"Data point or framework field not found for {field_id}")
+                    continue
+
+                # Skip if this is a computed field
+                if framework_field.is_computed:
+                    print(f"Skipping computed field {field_id}")
+                    continue
+
+                # Check if this data point is assigned to the user's entity
+                if current_user.entity_id not in [entity.id for entity in data_point.entities]:
+                    print(f"Data point {field_id} not assigned to user's entity")
                     continue
 
                 # Find or create ESGData entry
@@ -177,16 +224,26 @@ def submit_data():
                     reporting_date=reporting_date
                 ).first()
                 
+                try:
+                    # Convert value based on data point type
+                    if data_point.value_type == 'numeric':
+                        processed_value = float(value)
+                    else:
+                        processed_value = str(value)
+                except ValueError:
+                    print(f"Error converting value '{value}' for field {field_id}")
+                    continue
+
                 old_value = None
                 if esg_data:
                     old_value = esg_data.raw_value
-                    esg_data.raw_value = value
+                    esg_data.raw_value = processed_value
                 else:
                     esg_data = ESGData(
                         entity_id=current_user.entity_id,
                         field_id=field_id,
                         data_point_id=field_id,
-                        raw_value=value,
+                        raw_value=processed_value,
                         reporting_date=reporting_date
                     )
                     db.session.add(esg_data)
@@ -194,14 +251,14 @@ def submit_data():
                 # Commit to ensure the ESG data record exists
                 db.session.commit()
                 
-                # Now create the audit log entry
-                if old_value != value:
+                # Create audit log entry if value changed
+                if old_value != processed_value:
                     audit_log = ESGDataAuditLog(
                         data_id=esg_data.data_id,
                         change_type='Update',
                         changed_by=current_user.id,
-                        old_value=float(old_value) if old_value else None,
-                        new_value=float(value) if value else None
+                        old_value=float(old_value) if old_value and isinstance(old_value, (int, float)) else old_value,
+                        new_value=float(processed_value) if isinstance(processed_value, (int, float)) else processed_value
                     )
                     db.session.add(audit_log)
                     db.session.commit()
@@ -472,3 +529,4 @@ def get_attachments(data_id):
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+        

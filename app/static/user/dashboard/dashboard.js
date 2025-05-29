@@ -421,4 +421,60 @@ export function initializeDashboard(PopupManager) {
             }
         }
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Table sorting
+        const table = document.querySelector('.data-table');
+        const headers = table.querySelectorAll('th.sortable');
+        
+        headers.forEach(header => {
+            header.addEventListener('click', () => {
+                const sortBy = header.dataset.sort;
+                const isAsc = !header.classList.contains('sorted-asc');
+                
+                // Remove existing sort classes
+                headers.forEach(h => {
+                    h.classList.remove('sorted-asc', 'sorted-desc');
+                });
+                
+                // Add new sort class
+                header.classList.add(isAsc ? 'sorted-asc' : 'sorted-desc');
+                
+                // Sort the table
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                
+                rows.sort((a, b) => {
+                    const aVal = a.querySelector(`td[data-label="${sortBy}"]`).textContent;
+                    const bVal = b.querySelector(`td[data-label="${sortBy}"]`).textContent;
+                    return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                });
+                
+                rows.forEach(row => tbody.appendChild(row));
+            });
+        });
+        
+        // Input validation
+        const numericInputs = document.querySelectorAll('.numeric-input');
+        numericInputs.forEach(input => {
+            input.addEventListener('input', function() {
+                const value = this.value;
+                const isValid = !isNaN(value) && value !== '';
+                
+                this.classList.toggle('invalid', !isValid);
+                
+                const validationMessage = this.parentElement.querySelector('.validation-message');
+                if (!isValid) {
+                    if (!validationMessage) {
+                        const message = document.createElement('div');
+                        message.className = 'validation-message';
+                        message.textContent = 'Please enter a valid number';
+                        this.parentElement.appendChild(message);
+                    }
+                } else if (validationMessage) {
+                    validationMessage.remove();
+                }
+            });
+        });
+    });
 }

@@ -42,163 +42,194 @@
 
     <div class="dashboard-content w-100">
         <div id="entryTab" class="tab-content active">
-            {% if data_points %}
+            {% if raw_input_points or computed_points %}
                 <form method="POST" action="{{ url_for('user.submit_data') }}" id="dataEntryForm" class="w-100">
                     <input type="hidden" name="reporting_date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
                     <div class="data-table-container">
+                        <div class="legend">
+                            <span class="legend-item raw" data-tooltip="Raw input values that need to be entered manually">
+                                <i class="fas fa-circle"></i> Raw Input
+                            </span>
+                            <span class="legend-item shared" data-tooltip="Values that are used in multiple calculations">
+                                <i class="fas fa-circle"></i> Shared Dependency
+                            </span>
+                            <span class="legend-item computed" data-tooltip="Values automatically calculated from other inputs">
+                                <i class="fas fa-circle"></i> Computed
+                            </span>
+                        </div>
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th>Data Point Name</th>
-                                    <th>Value Type</th>
-                                    <th>Unit</th>
+                                    <th class="sortable" data-sort="name">Data Point Name <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="entity">Entity <i class="fas fa-sort"></i></th>
+                                    <th class="sortable" data-sort="type">Type <i class="fas fa-sort"></i></th>
                                     <th>Value</th>
+                                    <th>Details</th>
                                     <th>Attachments</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for dp in data_points %}
-                                    {% if not dp.is_computed %}
-                                        <!-- Regular data point row -->
-                                        <tr class="data-row">
-                                            <td data-label="Data Point Name">
-                                                <div class="data-point-name">
-                                                    <span class="status-indicator status-{{ dp.status }}"></span>
-                                                    {{ dp.name }}
-                                                    {% if dp.description %}
-                                                    <span class="help-tooltip">
-                                                        <i class="fas fa-question-circle"></i>
-                                                        <span class="tooltip-text">{{ dp.description }}</span>
-                                                    </span>
-                                                    {% endif %}
+                                {# First show raw input fields #}
+                                {% for dp in raw_input_points %}
+                                    <tr class="data-row" data-id="{{ dp.id }}" data-entity="{{ dp.assigned_entity }}">
+                                        <td data-label="Name">
+                                            <span class="field-type raw"><i class="fas fa-circle"></i></span>
+                                            {{ dp.name }}
+                                        </td>
+                                        <td data-label="Entity">{{ dp.assigned_entity }}</td>
+                                        <td data-label="Type">{{ dp.value_type }}</td>
+                                        <td data-label="Value">
+                                            <div class="editable-cell" data-id="{{ dp.id }}">
+                                                <input type="{% if dp.value_type == 'numeric' %}number{% else %}text{% endif %}"
+                                                       class="data-input {% if dp.value_type == 'numeric' %}numeric-input{% else %}text-input{% endif %}"
+                                                       name="data_point_{{ dp.id }}"
+                                                       value="{{ entity_data_entries.get(dp.id, {}).get('raw_value', '') }}"
+                                                       {% if dp.value_type == 'numeric' %}step="any"{% endif %}
+                                                       aria-label="{{ dp.name }} value input"
+                                                       {% if dp.assigned_entity != current_user.entity.name %}disabled{% endif %}>
+                                            </div>
+                                        </td>
+                                        <td data-label="Details">
+                                        </td>
+                                        <td data-label="Attachments">
+                                            <div class="attachment-section" data-id="{{ dp.id }}">
+                                                <button type="button" 
+                                                        class="btn btn-outline-secondary btn-sm upload-btn"
+                                                        onclick="handleAttachmentClick('{{ dp.id }}')"
+                                                        {% if dp.assigned_entity != current_user.entity.name %}disabled{% endif %}>
+                                                    <i class="fas fa-paperclip"></i>
+                                                </button>
+                                                <div class="attachment-list" id="attachmentList{{ dp.id }}"></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+
+                                {# Then show shared dependencies #}
+                                {% for field_id, dep in raw_dependencies.items() %}
+                                    <tr class="data-row" data-id="{{ field_id }}" data-entity="{{ dep.data.assigned_entity }}">
+                                        <td data-label="Name">
+                                            <span class="field-type shared"><i class="fas fa-circle"></i></span>
+                                            {{ dep.data.name }}
+                                        </td>
+                                        <td data-label="Entity">{{ dep.data.assigned_entity }}</td>
+                                        <td data-label="Type">{{ dep.data.value_type }}</td>
+                                        <td data-label="Value">
+                                            <div class="editable-cell" data-id="{{ field_id }}">
+                                                <input type="{% if dep.data.value_type == 'numeric' %}number{% else %}text{% endif %}"
+                                                       class="data-input {% if dep.data.value_type == 'numeric' %}numeric-input{% else %}text-input{% endif %}"
+                                                       name="data_point_{{ field_id }}"
+                                                       value="{{ entity_data_entries.get(field_id, {}).get('raw_value', '') }}"
+                                                       {% if dep.data.value_type == 'numeric' %}step="any"{% endif %}
+                                                       aria-label="{{ dep.data.name }} value input"
+                                                       {% if dep.data.assigned_entity != current_user.entity.name %}disabled{% endif %}>
+                                            </div>
+                                        </td>
+                                        <td data-label="Details">
+                                            {% if dep.data.is_computed %}
+                                                <div class="computed-dependencies">
+                                                    <p class="mb-1 text-muted">Depends on:</p>
+                                                    <ul class="dependency-list">
+                                                        {% for dependency in dep.data.dependencies %}
+                                                            <li class="dependency-item">{{ dependency.field_name }}</li>
+                                                        {% endfor %}
+                                                    </ul>
                                                 </div>
-                                            </td>
-                                            <td data-label="Value Type">{{ dp.value_type }}</td>
-                                            <td data-label="Unit">{{ dp.unit }}</td>
-                                            <td data-label="Value">
-                                                <div class="editable-cell" data-id="{{ dp.id }}">
-                                                    <input type="{% if dp.value_type == 'numeric' %}number{% else %}text{% endif %}"
-                                                           class="data-input {% if dp.value_type == 'numeric' %}numeric-input{% else %}text-input{% endif %}"
-                                                           name="data_point_{{ dp.id }}"
-                                                           value="{{ entity_data_entries.get(dp.id, {}).get('raw_value', '') }}"
-                                                           {% if dp.value_type == 'numeric' %}step="any"{% endif %}
-                                                           aria-label="{{ dp.name }} value input">
-                                                    {% if entity_data_entries.get(dp.id, {}).get('calculated_value') %}
-                                                        <div class="calculated-value">
-                                                            Calculated: {{ entity_data_entries[dp.id]['calculated_value'] }}
-                                                        </div>
-                                                    {% endif %}
+                                            {% else %}
+                                                <div class="shared-dependency-details">
+                                                    <p class="mb-1 text-muted">Depends on:</p>
+                                                    <span class="depends-on-computed">Energy</span>
                                                 </div>
-                                            </td>
-                                            <td data-label="Attachments">
-                                                <div class="attachment-cell" data-id="{{ dp.id }}">
-                                                    <div class="attachment-list"></div>
-                                                    <label class="upload-btn">
-                                                        <i class="fas fa-paperclip"></i>
-                                                        <input type="file" 
-                                                               class="file-input" 
-                                                               multiple 
-                                                               accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-                                                               style="display: none;">
-                                                    </label>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    {% else %}
-                                        <!-- Computed field row group -->
-                                        <tr class="computed-field-row">
-                                            <td data-label="Data Point Name">
-                                                <div class="data-point-name" data-field-id="{{ dp.id }}">
-                                                    <span class="status-indicator status-{{ dp.status }}"></span>
-                                                    <button type="button" class="expand-btn" aria-label="Toggle dependencies">
-                                                        <i class="fas fa-chevron-right"></i>
-                                                    </button>
-                                                    {{ dp.name }}
-                                                    {% if dp.description %}
-                                                    <span class="help-tooltip">
-                                                        <i class="fas fa-calculator"></i>
-                                                        <span class="tooltip-text">
-                                                            {{ dp.description }}
-                                                            <br>
-                                                            Formula: {{ dp.formula }}
-                                                            <br>
-                                                            Dependencies:
-                                                            {% for dep in dp.dependencies %}
-                                                                <br>{{ dep.variable_name }}: {{ dep.field_name }}
-                                                            {% endfor %}
-                                                        </span>
-                                                    </span>
-                                                    {% endif %}
-                                                </div>
-                                            </td>
-                                            <td data-label="Value Type">{{ dp.value_type }}</td>
-                                            <td data-label="Unit">{{ dp.unit }}</td>
-                                            <td data-label="Value">
-                                                <div class="computed-value-display" data-field-id="{{ dp.id }}">
-                                                    {% set entry = entity_data_entries.get(dp.id, {}) %}
-                                                    {% if entry.get('calculated_value') is not none %}
-                                                        {{ "%.2f"|format(entry.calculated_value) }}
-                                                    {% else %}
-                                                        <span class="text-muted">Pending calculation...</span>
-                                                    {% endif %}
-                                                </div>
-                                            </td>
-                                            <td data-label="Attachments">-</td>
-                                        </tr>
-                                        <!-- Dependencies rows -->
-                                        {% if dp.is_computed and dp.dependencies %}
-                                            {% for dep in dp.dependencies %}
-                                            <tr class="dependency-row" data-parent="{{ dp.id }}" style="display: none;">
-                                                <td data-label="Data Point Name" class="dependency-cell">
-                                                    <div class="data-point-name">
-                                                        <span class="dependency-indicator">{{ dep.variable_name }}</span>
-                                                        {{ dep.field_name }}
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Attachments">
+                                            <div class="attachment-section" data-id="{{ field_id }}">
+                                                <button type="button" 
+                                                        class="btn btn-outline-secondary btn-sm upload-btn"
+                                                        onclick="handleAttachmentClick('{{ field_id }}')"
+                                                        {% if dep.data.assigned_entity != current_user.entity.name %}disabled{% endif %}>
+                                                    <i class="fas fa-paperclip"></i>
+                                                </button>
+                                                <div class="attachment-list" id="attachmentList{{ field_id }}"></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+
+                                {# Finally show computed fields #}
+                                {% for dp in computed_points %}
+                                    <tr class="data-row computed-field-row" data-id="{{ dp.id }}" data-entity="{{ dp.assigned_entity }}">
+                                        <td data-label="Name">
+                                            <span class="field-type computed" data-tooltip="Computed value based on dependencies">
+                                                <i class="fas fa-circle"></i>
+                                            </span>
+                                            {{ dp.name }}
+                                            {% if dp.description %}
+                                            <span class="help-tooltip">
+                                                <i class="fas fa-info-circle"></i>
+                                                <span class="tooltip-text">{{ dp.description }}</span>
+                                            </span>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Entity">{{ dp.assigned_entity }}</td>
+                                        <td data-label="Type">
+                                            <span class="computed-badge" data-tooltip="Value is automatically calculated">Computed</span>
+                                        </td>
+                                        <td data-label="Value">
+                                            <div class="computed-value-display">
+                                                <span class="value">{{ entity_data_entries.get(dp.id, {}).get('calculated_value', 'Not calculated') }}</span>
+                                                {% if dp.unit %}
+                                                <span class="unit">{{ dp.unit }}</span>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td data-label="Details">
+                                            {% if dp.dependencies %}
+                                                <div class="dependency-info">
+                                                    <p class="mb-1 text-muted">Depends on:</p>
+                                                    <ul class="dependency-list">
+                                                        {% for dep in dp.dependencies %}
+                                                            <li class="dependency-item">
+                                                                <span class="dependency-name">{{ dep.field_name }}</span>
+                                                                {% if dep.coefficient != 1 %}
+                                                                <span class="coefficient">(× {{ dep.coefficient }})</span>
+                                                                {% endif %}
+                                                            </li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                    {% if dp.formula_expression %}
+                                                    <div class="formula-display">
+                                                        <small class="text-muted">Formula: {{ dp.formula_expression }}</small>
                                                     </div>
-                                                </td>
-                                                <td data-label="Value Type">Raw Input</td>
-                                                <td data-label="Unit">{{ dp.unit }}</td>
-                                                <td data-label="Value">
-                                                    <div class="editable-cell" data-id="{{ dep.field_id }}">
-                                                        <input type="number"
-                                                               class="data-input numeric-input"
-                                                               name="data_point_{{ dep.field_id }}"
-                                                               value="{{ entity_data_entries.get(dep.field_id, {}).get('raw_value', '') }}"
-                                                               step="any"
-                                                               aria-label="{{ dep.field_name }} value input">
-                                                    </div>
-                                                </td>
-                                                <td data-label="Attachments">
-                                                    <div class="attachment-cell" data-id="{{ dep.field_id }}">
-                                                        <div class="attachment-list"></div>
-                                                        <label class="upload-btn">
-                                                            <i class="fas fa-paperclip"></i>
-                                                            <input type="file" 
-                                                                   class="file-input" 
-                                                                   multiple 
-                                                                   accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-                                                                   style="display: none;">
-                                                        </label>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        {% endif %}
-                                    {% endif %}
+                                                    {% endif %}
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Attachments">
+                                            <div class="attachment-section" data-id="{{ dp.id }}">
+                                                <button type="button" 
+                                                        class="btn btn-outline-secondary btn-sm upload-btn"
+                                                        onclick="handleAttachmentClick('{{ dp.id }}')"
+                                                        {% if dp.assigned_entity != current_user.entity.name %}disabled{% endif %}>
+                                                    <i class="fas fa-paperclip"></i>
+                                                </button>
+                                                <div class="attachment-list" id="attachmentList{{ dp.id }}"></div>
+                                            </div>
+                                        </td>
+                                    </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="submit-btn" id="submitBtn">Save Data</button>
+                        <button type="submit" class="btn btn-primary">Save Data</button>
                     </div>
                 </form>
             {% else %}
-                <div class="no-data-message">
-                    <p>No assigned data points found.</p>
-                </div>
+                <p class="no-data">No assigned data points.</p>
             {% endif %}
         </div>
-        
+
         <div id="historyTab" class="tab-content">
             <div class="history-filters">
                 <select id="historyDataPoint" class="form-control">
@@ -219,6 +250,191 @@
         </div>
     </div>
 </div>
+
+<!-- File upload modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadModalLabel">Upload Attachment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <input type="hidden" id="dataIdInput" name="data_id">
+                    <div class="mb-3">
+                        <label for="fileInput" class="form-label">Choose file</label>
+                        <input type="file" class="form-control" id="fileInput" name="file">
+                    </div>
+                </form>
+                <div id="currentAttachments">
+                    <!-- Current attachments will be listed here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="uploadButton">Upload</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.section-header {
+    margin: 2rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #eee;
+}
+
+.section-header h3 {
+    margin: 0;
+    color: #333;
+    font-size: 1.2rem;
+}
+
+.used-in-calculations {
+    margin-top: 0.5rem;
+}
+
+.used-in-calculations .badge {
+    margin-right: 0.3rem;
+    font-size: 0.8rem;
+}
+
+.computed-reference {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.2rem;
+}
+
+.dependencies-list {
+    font-size: 0.9rem;
+}
+
+.dependency-item {
+    margin-bottom: 0.3rem;
+    padding: 0.2rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+.calculated-value {
+    font-weight: bold;
+    color: #2c5282;
+}
+
+.data-table {
+    margin-bottom: 2rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.data-row.dependency {
+    background-color: #f8f9fa;
+}
+
+.data-row.computed {
+    background-color: #e9ecef;
+}
+
+.legend {
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.legend-item {
+    display: inline-block;
+    margin-right: 1.5rem;
+    font-size: 0.9rem;
+}
+
+.field-type {
+    display: inline-block;
+    margin-right: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.field-type.raw i { color: #28a745; }
+.field-type.shared i { color: #007bff; }
+.field-type.computed i { color: #6c757d; }
+
+.legend-item.raw i { color: #28a745; }
+.legend-item.shared i { color: #007bff; }
+.legend-item.computed i { color: #6c757d; }
+
+.used-in {
+    font-size: 0.9rem;
+}
+
+.used-in .badge {
+    margin-right: 0.3rem;
+}
+
+.formula {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.3rem;
+}
+
+.dependencies-list {
+    font-size: 0.8rem;
+}
+
+.dependency-item {
+    display: inline-block;
+    margin-right: 0.5rem;
+    padding: 0.2rem 0.4rem;
+    background: #f8f9fa;
+    border-radius: 3px;
+}
+
+.calculated-value {
+    font-weight: bold;
+    color: #2c5282;
+}
+
+.data-table td {
+    vertical-align: middle;
+}
+
+.field-info {
+    padding: 0.3rem 0;
+}
+
+.field-info .badge {
+    font-size: 0.8rem;
+    font-weight: normal;
+}
+
+.used-in .badge {
+    margin-right: 0.3rem;
+    background-color: #17a2b8;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: normal;
+}
+
+.formula {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+    padding: 0.3rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+.dependencies-list {
+    font-size: 0.8rem;
+}
+
+.dependency-item {
+    display: inline-block;
+    margin: 0.2rem;
+    padding: 0.2rem 0.5rem;
+    background: #f8f9fa;
+    border-radius: 3px;
+    border: 1px solid #dee2e6;
+}
+</style>
 {% endblock %}
 
 {% block afterbody %}
