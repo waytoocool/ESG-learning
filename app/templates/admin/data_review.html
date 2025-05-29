@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='admin/data_review/css/data_review.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="data-review-container">
+    <div class="header-section">
+        <h1>Data Review & Management</h1>
+        <p>Review and edit ESG data submitted by subsidiaries</p>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="filters-section">
+        <form method="GET" id="filterForm" class="filters-form">
+            <div class="filter-group">
+                <label for="entity_id">Entity:</label>
+                <select name="entity_id" id="entity_id">
+                    <option value="">All Entities</option>
+                    {% for entity in entities %}
+                    <option value="{{ entity.id }}" {% if selected_entity_id == entity.id|string %}selected{% endif %}>
+                        {{ entity.name }} ({{ entity.entity_type }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="framework_id">Framework:</label>
+                <select name="framework_id" id="framework_id">
+                    <option value="">All Frameworks</option>
+                    {% for framework in frameworks %}
+                    <option value="{{ framework.framework_id }}" {% if selected_framework_id == framework.framework_id %}selected{% endif %}>
+                        {{ framework.framework_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="view_type">View Type:</label>
+                <select name="view_type" id="view_type">
+                    <option value="individual" {% if view_type == 'individual' %}selected{% endif %}>Individual</option>
+                    <option value="consolidated" {% if view_type == 'consolidated' %}selected{% endif %}>Consolidated</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="date_from">From Date:</label>
+                <input type="date" name="date_from" id="date_from" value="{{ date_from }}">
+            </div>
+
+            <div class="filter-group">
+                <label for="date_to">To Date:</label>
+                <input type="date" name="date_to" id="date_to" value="{{ date_to }}">
+            </div>
+
+            <div class="filter-actions">
+                <button type="submit" class="filter-btn">Apply Filters</button>
+                <button type="button" class="clear-btn" onclick="clearFilters()">Clear</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Data Table Section -->
+    <div class="data-section">
+        {% if esg_data_records %}
+        <div class="table-controls">
+            <div class="table-info">
+                <span>{{ esg_data_records|length }} records found</span>
+            </div>
+            <div class="export-controls">
+                <button class="export-btn" onclick="exportData()">Export to CSV</button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="data-table" id="dataTable">
+                <thead>
+                    <tr>
+                        <th>Reporting Date</th>
+                        <th>Entity</th>
+                        <th>Framework</th>
+                        <th>Data Field</th>
+                        <th>Type</th>
+                        <th>Value</th>
+                        <th>Attachments</th>
+                        <th>Last Updated</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in esg_data_records %}
+                    <tr data-id="{{ record.data_id }}">
+                        <td>{{ record.reporting_date.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <div class="entity-info">
+                                <strong>{{ record.entity.name }}</strong>
+                                <span class="entity-type">{{ record.entity.entity_type }}</span>
+                            </div>
+                        </td>
+                        <td>{{ record.field.framework.framework_name }}</td>
+                        <td>
+                            <div class="field-info">
+                                <strong>{{ record.field.field_name }}</strong>
+                                {% if record.field.description %}
+                                <span class="field-desc">{{ record.field.description }}</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="field-type {{ 'computed' if record.field.is_computed else 'raw' }}">
+                                {{ 'Computed' if record.field.is_computed else 'Raw' }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="value-container">
+                                <span class="display-value">
+                                    {{ record.calculated_value if record.field.is_computed else record.raw_value }}
+                                </span>
+                                <input type="text" class="edit-value" style="display: none;" 
+                                       value="{{ record.calculated_value if record.field.is_computed else record.raw_value }}">
+                            </div>
+                        </td>
+                        <td>
+                            <div class="attachments-container">
+                                {% if record.attachments %}
+                                <div class="attachment-count">{{ record.attachments|length }} file(s)</div>
+                                <div class="attachment-list">
+                                    {% for attachment in record.attachments %}
+                                    <div class="attachment-item">
+                                        <i class="fas fa-paperclip"></i>
+                                        <span class="attachment-name">{{ attachment.filename }}</span>
+                                        <span class="attachment-size">({{ "%.1f"|format(attachment.file_size/1024) }} KB)</span>
+                                        <button class="view-attachment-btn" onclick="viewAttachment('{{ attachment.id }}')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <span class="no-attachments">No attachments</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>{{ record.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="edit-btn" onclick="editRecord(this)">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button class="save-btn" onclick="saveRecord(this)" style="display: none;">
+                                    <i class="fas fa-save"></i> Save
+                                </button>
+                                <button class="cancel-btn" onclick="cancelEdit(this)" style="display: none;">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="no-data-message">
+            <div class="no-data-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <h3>No Data Found</h3>
+            <p>No ESG data records match your current filters. Try adjusting the filters or check if data has been submitted.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Edit Reason Modal -->
+<div id="editReasonModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Edit Data Record</h3>
+            <span class="close" onclick="closeEditModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="editReason">Reason for Edit (Optional):</label>
+                <textarea id="editReason" placeholder="Enter reason for this change..."></textarea>
+            </div>
+            <div class="current-value">
+                <span>Current Value: <strong id="currentValue"></strong></span>
+            </div>
+            <div class="new-value">
+                <span>New Value: <strong id="newValue"></strong></span>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="confirm-btn" onclick="confirmEdit()">Confirm Edit</button>
+            <button class="cancel-btn" onclick="closeEditModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="spinner"></div>
+    <span>Processing...</span>
+</div>
+{% endblock %}
+
+{% block afterbody %}
+<script src="{{ url_for('static', filename='admin/data_review/js/data_review.js') }}"></script>
+{% endblock %} 

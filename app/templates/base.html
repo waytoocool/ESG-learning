@@ -18,6 +18,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/popup.css') }}">
     
+    {% block extra_css %}{% endblock %}
+    
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     {% block extra_head %}{% endblock %}
     
@@ -34,6 +36,8 @@
                         <li><a href="{{ url_for('admin.data_hierarchy') }}">Data Hierarchy</a></li>
                         <li><a href="{{ url_for('admin.frameworks') }}">Frameworks</a></li>
                         <li><a href="{{ url_for('admin.assign_data_points') }}">Assign Data Points</a></li>
+                        <li><a href="{{ url_for('admin.data_status_matrix') }}">Data Status Matrix</a></li>
+                        <li><a href="{{ url_for('admin.data_review') }}">Data Review</a></li>
                         <li><a href="{{ url_for('admin.audit_log') }}">Audit Log</a></li>
                     {% elif current_user.role == 'User' %}
                         <li><a href="{{ url_for('user.dashboard') }}">Data Entry Dashboard</a></li>
@@ -55,6 +59,7 @@
     
     <!-- Application JS -->
     <script type="module" src="{{ url_for('static', filename='js/popup.js') }}"></script>
+    {% block extra_js %}{% endblock %}
     {% block afterbody %}{% endblock %}
 </body>
 </html>

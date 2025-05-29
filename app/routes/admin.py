@@ -9,9 +9,10 @@ from ..extensions import db
 from ..services.email import send_registration_email
 from ..services.token import generate_registration_token
 from ..services.redis import check_rate_limit
-from ..models.esg_data import ESGDataAuditLog
+from ..models.esg_data import ESGDataAuditLog, ESGData
 import json
 import re
+from datetime import datetime
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -404,8 +405,6 @@ def create_user():
         'message': 'User created successfully. An email has been sent for registration.'
     })
 
-
-
 @admin_bp.route('/resend_verification', methods=['POST'])
 @login_required
 @admin_required  # Restrict access to Admins
@@ -525,6 +524,101 @@ def get_data_point_assignments():
         current_app.logger.error(f'Error fetching data point assignments: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
+@admin_bp.route('/data_review', methods=['GET', 'POST'])
+@admin_required
+def data_review():
+    """Admin route to view and edit ESG data submitted by subsidiaries."""
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            data_id = data.get('data_id')
+            new_value = data.get('new_value')
+            edit_reason = data.get('edit_reason', '')
+            
+            # Get the ESG data record
+            esg_data = ESGData.query.get(data_id)
+            if not esg_data:
+                return jsonify({'success': False, 'message': 'Data record not found'}), 404
+            
+            # Store old value for audit
+            old_value = esg_data.raw_value or esg_data.calculated_value
+            
+            # Update the data
+            if esg_data.field.is_computed:
+                esg_data.calculated_value = float(new_value) if new_value else None
+            else:
+                esg_data.raw_value = new_value
+            
+            # Create audit log entry
+            audit_log = ESGDataAuditLog(
+                data_id=data_id,
+                change_type='Update',
+                changed_by=current_user.id,
+                old_value=float(old_value) if old_value else None,
+                new_value=float(new_value) if new_value else None
+            )
+            
+            db.session.add(audit_log)
+            db.session.commit()
+            
+            return jsonify({'success': True, 'message': 'Data updated successfully'})
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Error updating ESG data: {str(e)}')
+            return jsonify({'success': False, 'message': str(e)}), 500
+    
+    # GET request: display the data review page
+    # Get all entities for filtering
+    entities = Entity.query.all()
+    
+    # Get filter parameters
+    entity_id = request.args.get('entity_id')
+    framework_id = request.args.get('framework_id')
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    view_type = request.args.get('view_type', 'individual')  # 'individual' or 'consolidated'
+    
+    # Build query - Use simple query since relationships are already configured with lazy='joined'
+    query = ESGData.query
+    
+    if entity_id:
+        if view_type == 'consolidated':
+            # For consolidated view, include entity and all its children
+            entity = Entity.query.get(entity_id)
+            if entity:
+                child_ids = [child.id for child in entity.children]
+                child_ids.append(entity.id)
+                query = query.filter(ESGData.entity_id.in_(child_ids))
+        else:
+            # Individual view - specific entity only
+            query = query.filter(ESGData.entity_id == entity_id)
+    
+    if framework_id:
+        query = query.filter(ESGData.field.has(framework_id=framework_id))
+    
+    if date_from:
+        query = query.filter(ESGData.reporting_date >= date_from)
+    
+    if date_to:
+        query = query.filter(ESGData.reporting_date <= date_to)
+    
+    # Order by reporting date and entity
+    esg_data_records = query.order_by(ESGData.reporting_date.desc(), ESGData.entity_id).all()
+    
+    # Get frameworks for filter dropdown
+    frameworks = Framework.query.all()
+    
+    return render_template('admin/data_review.html', 
+                         esg_data_records=esg_data_records,
+                         entities=entities,
+                         frameworks=frameworks,
+                         selected_entity_id=entity_id,
+                         selected_framework_id=framework_id,
+                         date_from=date_from,
+                         date_to=date_to,
+                         view_type=view_type)
+
 @admin_bp.route('/audit_log')
 @admin_required
 def audit_log():
@@ -536,3 +630,146 @@ def audit_log():
         .all()
     
     return render_template('admin/audit_log.html', audit_logs=audit_logs)
+
+@admin_bp.route('/data_status_matrix', methods=['GET'])
+@admin_required
+def data_status_matrix():
+    """Admin route to view data collection status in matrix format."""
+    
+    # Get filter parameters
+    selected_date = request.args.get('reporting_date')
+    if not selected_date:
+        selected_date = datetime.now().strftime('%Y-%m-%d')
+    
+    # Convert to date object for querying
+    try:
+        reporting_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
+    except ValueError:
+        reporting_date = datetime.now().date()
+        selected_date = reporting_date.strftime('%Y-%m-%d')
+    
+    # Get all assigned data points (data points that have entities assigned to them)
+    assigned_data_points = DataPoint.query.filter(DataPoint.entities.any()).all()
+    
+    # Get all entities that have data points assigned
+    entities_with_data_points = Entity.query.filter(Entity.data_points.any()).all()
+    
+    # Create matrix data structure
+    matrix_data = {}
+    
+    for data_point in assigned_data_points:
+        # Get the framework field to determine if it's computed
+        framework_field = FrameworkDataField.query.filter_by(field_id=data_point.id).first()
+        is_computed = framework_field.is_computed if framework_field else False
+        
+        matrix_data[data_point.id] = {
+            'data_point': data_point,
+            'is_computed': is_computed,
+            'entities': {}
+        }
+        
+        # Get entities assigned to this data point
+        assigned_entities = data_point.entities
+        
+        for entity in assigned_entities:
+            # Check if data exists for this data point and entity on the selected date
+            esg_data = ESGData.query.filter_by(
+                data_point_id=data_point.id,
+                entity_id=entity.id,
+                reporting_date=reporting_date
+            ).first()
+            
+            status = 'pending'
+            value = None
+            last_updated = None
+            
+            if esg_data:
+                if esg_data.raw_value is not None or esg_data.calculated_value is not None:
+                    status = 'completed'
+                    value = esg_data.calculated_value if esg_data.field.is_computed else esg_data.raw_value
+                    last_updated = esg_data.updated_at
+                else:
+                    status = 'incomplete'
+            
+            matrix_data[data_point.id]['entities'][entity.id] = {
+                'entity': entity,
+                'status': status,
+                'value': value,
+                'last_updated': last_updated,
+                'esg_data': esg_data
+            }
+    
+    # Calculate summary statistics
+    total_assignments = sum(len(dp_data['entities']) for dp_data in matrix_data.values())
+    completed_assignments = sum(
+        1 for dp_data in matrix_data.values() 
+        for entity_data in dp_data['entities'].values() 
+        if entity_data['status'] == 'completed'
+    )
+    completion_rate = (completed_assignments / total_assignments * 100) if total_assignments > 0 else 0
+    
+    return render_template('admin/data_status_matrix.html',
+                         matrix_data=matrix_data,
+                         entities_with_data_points=entities_with_data_points,
+                         assigned_data_points=assigned_data_points,
+                         selected_date=selected_date,
+                         total_assignments=total_assignments,
+                         completed_assignments=completed_assignments,
+                         completion_rate=completion_rate)
+
+@admin_bp.route('/esg_data_details/<data_id>')
+@admin_required
+def get_esg_data_details(data_id):
+    """API endpoint to get detailed information about an ESG data record."""
+    try:
+        esg_data = ESGData.query.get(data_id)
+        if not esg_data:
+            return jsonify({'success': False, 'message': 'Data record not found'}), 404
+        
+        # Get framework field to check if computed
+        framework_field = FrameworkDataField.query.get(esg_data.data_point_id)
+        is_computed = framework_field.is_computed if framework_field else False
+        
+        # Get current value
+        current_value = esg_data.calculated_value if is_computed else esg_data.raw_value
+        
+        # Get audit trail
+        audit_logs = ESGDataAuditLog.query.filter_by(data_id=data_id)\
+            .order_by(ESGDataAuditLog.change_date.desc())\
+            .limit(10).all()
+        
+        # Get evidence files (if you have this model)
+        evidence_files = []  # Placeholder - add actual evidence file logic if available
+        
+        # Determine status
+        status = 'pending'
+        if esg_data.raw_value is not None or esg_data.calculated_value is not None:
+            status = 'completed'
+        elif esg_data.raw_value == '' or esg_data.calculated_value == '':
+            status = 'incomplete'
+        
+        data_details = {
+            'data_point_name': esg_data.data_point.name if esg_data.data_point else 'N/A',
+            'entity_name': esg_data.entity.name if esg_data.entity else 'N/A',
+            'framework_name': framework_field.framework.framework_name if framework_field and framework_field.framework else 'N/A',
+            'reporting_date': esg_data.reporting_date.isoformat() if esg_data.reporting_date else None,
+            'is_computed': is_computed,
+            'current_value': current_value,
+            'unit': getattr(esg_data.data_point, 'unit', None) if esg_data.data_point else None,
+            'updated_at': esg_data.updated_at.isoformat() if esg_data.updated_at else None,
+            'status': status,
+            'evidence_files': evidence_files,
+            'audit_trail': [{
+                'change_type': log.change_type,
+                'change_date': log.change_date.isoformat() if log.change_date else None,
+                'changed_by_username': log.user.username if log.user else 'System',
+                'old_value': log.old_value,
+                'new_value': log.new_value
+            } for log in audit_logs]
+        }
+        
+        return jsonify({'success': True, 'data': data_details})
+        
+    except Exception as e:
+        current_app.logger.error(f'Error fetching ESG data details: {str(e)}')
+        return jsonify({'success': False, 'message': str(e)}), 500
