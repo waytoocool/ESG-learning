@@ -1,5 +1,6 @@
-// 1. Add tracking of previous points
+// 1. Add tracking of previous points and assignments
 let previousPoints = [];
+let entityAssignments = {};  // Store current entity assignments
 
 async function loadExistingDataPoints() {
     try {
@@ -11,8 +12,15 @@ async function loadExistingDataPoints() {
         const existingPoints = await dataPointsResponse.json();
         const assignments = await assignmentsResponse.json();
         
-        // Store previous points for comparison later
+        // Store previous points and initialize assignments
         previousPoints = existingPoints;
+        // Convert all entity IDs to strings for consistent comparison
+        entityAssignments = Object.fromEntries(
+            Object.entries(assignments).map(([key, values]) => [
+                key,
+                values.map(v => v.toString())
+            ])
+        );
         
         // Clear existing content
         selectedFields.innerHTML = '';
@@ -24,7 +32,7 @@ async function loadExistingDataPoints() {
         });
 
         // Then, create the accordion with assignments
-        await createDataPointsAccordion(existingPoints, assignments);
+        await createDataPointsAccordion(existingPoints);
     } catch (error) {
         console.error('Error loading existing data points:', error);
         showToast('Error loading existing data points', 'error');
@@ -72,46 +80,51 @@ function handleDragEnd(e) {
     this.classList.remove('dragging');
 }
 
-async function createDataPointsAccordion(dataPoints, assignments) {
+async function createDataPointsAccordion(dataPoints) {
     try {
         const entitiesResponse = await fetch('/admin/get_entities');
         const entities = await entitiesResponse.json();
 
-        dataPointsAccordion.innerHTML = dataPoints.map((dp, index) => `
-            <div class="accordion-item" data-field-id="${dp.field_id}">
-                <h2 class="accordion-header" id="heading${dp.field_id}">
+        dataPointsAccordion.innerHTML = dataPoints.map((dp, index) => {
+            const fieldId = dp.field_id || dp.dataset?.fieldId;
+            const currentAssignments = entityAssignments[fieldId] || [];
+            
+            return `
+            <div class="accordion-item" data-field-id="${fieldId}">
+                <h2 class="accordion-header" id="heading${fieldId}">
                     <button class="accordion-button ${index === 0 ? '' : 'collapsed'}" 
                             type="button" 
                             data-bs-toggle="collapse" 
-                            data-bs-target="#collapse${dp.field_id}"
+                            data-bs-target="#collapse${fieldId}"
                             aria-expanded="${index === 0 ? 'true' : 'false'}"
-                            aria-controls="collapse${dp.field_id}">
-                        ${dp.field_name}
+                            aria-controls="collapse${fieldId}">
+                        ${dp.field_name || dp.querySelector('.dp-name').textContent}
                     </button>
                 </h2>
-                <div id="collapse${dp.field_id}" 
+                <div id="collapse${fieldId}" 
                      class="accordion-collapse collapse ${index === 0 ? 'show' : ''}"
-                     aria-labelledby="heading${dp.field_id}"
+                     aria-labelledby="heading${fieldId}"
                      data-bs-parent="#dataPointsAccordion">
                     <div class="accordion-body">
                         <div class="entity-assignment-section">
                             <div class="entity-selector">
                                 <label>Select Entities:</label>
                                 <select multiple class="entity-select form-control" 
-                                        data-field-id="${dp.field_id}">
+                                        data-field-id="${fieldId}">
                                     ${entities.map(entity => `
-                                        <option value="${entity.id}" ${assignments[dp.field_id]?.includes(entity.id) ? 'selected' : ''}>
+                                        <option value="${entity.id}" 
+                                            ${currentAssignments.includes(entity.id.toString()) ? 'selected' : ''}>
                                             ${entity.name}
                                         </option>
                                     `).join('')}
                                 </select>
                                 <div class="selected-entities-count mt-2">
-                                    Selected: <span>${assignments[dp.field_id]?.length || 0}</span> entities
+                                    Selected: <span>${currentAssignments.length}</span> entities
                                 </div>
                             </div>
                             <div class="mt-3">
                                 <button class="save-assignment-btn btn btn-primary" 
-                                        data-field-id="${dp.field_id}">
+                                        data-field-id="${fieldId}">
                                     Save Assignments
                                 </button>
                             </div>
@@ -119,7 +132,7 @@ async function createDataPointsAccordion(dataPoints, assignments) {
                     </div>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
 
         // Initialize Bootstrap collapse functionality
         const accordionItems = document.querySelectorAll('.accordion-collapse');
@@ -141,7 +154,14 @@ function setupAccordionEventListeners() {
     // Add event listeners for entity selects
     document.querySelectorAll('.entity-select').forEach(select => {
         select.addEventListener('change', function() {
-            const count = this.selectedOptions.length;
+            const fieldId = this.dataset.fieldId;
+            // Convert all entity IDs to strings for consistent comparison
+            const selectedEntities = Array.from(this.selectedOptions).map(opt => opt.value.toString());
+            
+            // Update the entityAssignments state
+            entityAssignments[fieldId] = selectedEntities;
+            
+            const count = selectedEntities.length;
             this.closest('.entity-selector')
                 .querySelector('.selected-entities-count span')
                 .textContent = count;
@@ -152,8 +172,7 @@ function setupAccordionEventListeners() {
     document.querySelectorAll('.save-assignment-btn').forEach(btn => {
         btn.addEventListener('click', async function() {
             const fieldId = this.dataset.fieldId;
-            const entitySelect = document.querySelector(`.entity-select[data-field-id="${fieldId}"]`);
-            const selectedEntities = Array.from(entitySelect.selectedOptions).map(opt => opt.value);
+            const selectedEntities = entityAssignments[fieldId] || [];
 
             try {
                 const response = await fetch('/admin/assign_data_points', {
@@ -349,39 +368,46 @@ document.addEventListener('DOMContentLoaded', function() {
             const entities = await entitiesResponse.json();
 
             // Display selected data points as accordion panels
-            dataPointsAccordion.innerHTML = selectedDataPoints.map((dp, index) => `
-                <div class="accordion-item" data-field-id="${dp.dataset.fieldId}">
-                    <h2 class="accordion-header" id="heading${dp.dataset.fieldId}">
+            dataPointsAccordion.innerHTML = selectedDataPoints.map((dp, index) => {
+                const fieldId = dp.dataset.fieldId;
+                const currentAssignments = entityAssignments[fieldId] || [];
+                
+                return `
+                <div class="accordion-item" data-field-id="${fieldId}">
+                    <h2 class="accordion-header" id="heading${fieldId}">
                         <button class="accordion-button ${index === 0 ? '' : 'collapsed'}" 
                                 type="button" 
                                 data-bs-toggle="collapse" 
-                                data-bs-target="#collapse${dp.dataset.fieldId}"
+                                data-bs-target="#collapse${fieldId}"
                                 aria-expanded="${index === 0 ? 'true' : 'false'}"
-                                aria-controls="collapse${dp.dataset.fieldId}">
+                                aria-controls="collapse${fieldId}">
                             ${dp.querySelector('.dp-name').textContent}
                         </button>
                     </h2>
-                    <div id="collapse${dp.dataset.fieldId}" 
+                    <div id="collapse${fieldId}" 
                          class="accordion-collapse collapse ${index === 0 ? 'show' : ''}"
-                         aria-labelledby="heading${dp.dataset.fieldId}"
+                         aria-labelledby="heading${fieldId}"
                          data-bs-parent="#dataPointsAccordion">
                         <div class="accordion-body">
                             <div class="entity-assignment-section">
                                 <div class="entity-selector">
                                     <label>Select Entities:</label>
                                     <select multiple class="entity-select form-control" 
-                                            data-field-id="${dp.dataset.fieldId}">
+                                            data-field-id="${fieldId}">
                                         ${entities.map(entity => `
-                                            <option value="${entity.id}">${entity.name}</option>
+                                            <option value="${entity.id}" 
+                                                ${currentAssignments.includes(entity.id.toString()) ? 'selected' : ''}>
+                                                ${entity.name}
+                                            </option>
                                         `).join('')}
                                     </select>
                                     <div class="selected-entities-count mt-2">
-                                        Selected: <span>0</span> entities
+                                        Selected: <span>${currentAssignments.length}</span> entities
                                     </div>
                                 </div>
                                 <div class="mt-3">
                                     <button class="save-assignment-btn btn btn-primary" 
-                                            data-field-id="${dp.dataset.fieldId}">
+                                            data-field-id="${fieldId}">
                                         Save Assignments
                                     </button>
                                 </div>
@@ -389,7 +415,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
 
             // Initialize Bootstrap collapse functionality for all accordion items
             const accordionItems = document.querySelectorAll('.accordion-collapse');
@@ -402,6 +428,12 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add event listeners for entity selects
             document.querySelectorAll('.entity-select').forEach(select => {
                 select.addEventListener('change', function() {
+                    const fieldId = this.dataset.fieldId;
+                    const selectedEntities = Array.from(this.selectedOptions).map(opt => opt.value);
+                    
+                    // Update the entityAssignments state
+                    entityAssignments[fieldId] = selectedEntities;
+                    
                     const count = this.selectedOptions.length;
                     this.closest('.entity-selector')
                         .querySelector('.selected-entities-count span')
@@ -413,8 +445,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.save-assignment-btn').forEach(btn => {
                 btn.addEventListener('click', async function() {
                     const fieldId = this.dataset.fieldId;
-                    const entitySelect = document.querySelector(`.entity-select[data-field-id="${fieldId}"]`);
-                    const selectedEntities = Array.from(entitySelect.selectedOptions);
+                    const selectedEntities = entityAssignments[fieldId] || [];
                     
                     try {
                         const response = await fetch('/admin/assign_data_points', {
@@ -424,7 +455,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             },
                             body: JSON.stringify({
                                 data_point_id: fieldId,
-                                entity_ids: selectedEntities.map(opt => opt.value)
+                                entity_ids: selectedEntities
                             })
                         });
 
