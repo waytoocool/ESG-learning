@@ -1,4 +1,4 @@
-import { PopupManager } from '../../js/popup.js';
+import { PopupManager } from '../common/popup.js';
 
 export function initializeDashboard(PopupManager) {
     // Initialize tabs
@@ -95,28 +95,29 @@ export function initializeDashboard(PopupManager) {
                     body: new FormData(this)
                 });
 
+                // Handle JSON response
                 const contentType = response.headers.get('content-type');
                 if (contentType && contentType.includes('application/json')) {
                     // If the response is JSON, handle it accordingly
                     const data = await response.json();
                     if (data.success) {
-                        PopupManager.showPopup('Success', data.message || 'Data saved successfully', 'success');
+                        PopupManager.showSuccess('Success', data.message || 'Data saved successfully');
                         if (data.redirect) {
                             window.location.href = data.redirect;
                         }
                     } else {
-                        PopupManager.showPopup('Error', data.error || 'Failed to save data', 'error');
+                        PopupManager.showError('Error', data.error || 'Failed to save data');
                     }
                 } else if (response.redirected) {
                     // Handle redirect with success message
-                    PopupManager.showPopup('Success', 'Data saved successfully', 'success');
+                    PopupManager.showSuccess('Success', 'Data saved successfully');
                     window.location.href = response.url;
                 } else {
-                    PopupManager.showPopup('Error', 'Unexpected response from server', 'error');
+                    PopupManager.showError('Error', 'Unexpected response from server');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                PopupManager.showPopup('Error', 'An error occurred while saving the data. Please try again.', 'error');
+                PopupManager.showError('Error', 'An error occurred while saving the data. Please try again.');
             } finally {
                 submitButton.disabled = false;
                 submitButton.innerHTML = 'Save Data';
@@ -161,13 +162,13 @@ export function initializeDashboard(PopupManager) {
                     const result = await response.json();
                     if (result.success) {
                         updateAttachmentsList(cell, dataId);
-                        PopupManager.showPopup('Success', `File ${file.name} uploaded successfully`, 'success');
+                        PopupManager.showSuccess('Upload Success', `File ${file.name} uploaded successfully`);
                     } else {
-                        PopupManager.showPopup('Error', `Error uploading ${file.name}: ${result.error}`, 'error');
+                        PopupManager.showError('Upload Error', `Error uploading ${file.name}: ${result.error}`);
                     }
                 } catch (error) {
                     console.error('Upload error:', error);
-                    PopupManager.showPopup('Error', `Error uploading ${file.name}`, 'error');
+                    PopupManager.showError('Upload Error', `Error uploading ${file.name}`);
                 }
             }
             
@@ -414,10 +415,10 @@ export function initializeDashboard(PopupManager) {
         if (displayElement) {
             if (value !== null && value !== undefined) {
                 displayElement.textContent = Number(value).toFixed(2);
-                PopupManager.showPopup('Success', 'Computed value updated', 'notice');
+                PopupManager.showInfo('Success', 'Computed value updated');
             } else {
                 displayElement.innerHTML = '<span class="text-muted">Pending calculation...</span>';
-                PopupManager.showPopup('Notice', 'Waiting for all required values', 'notice');
+                PopupManager.showWarning('Notice', 'Waiting for all required values');
             }
         }
     }

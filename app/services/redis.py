@@ -16,19 +16,24 @@ def init_redis(app):
     global redis_client
     
     redis_url = app.config.get('REDIS_URL', 'redis://localhost:6379/0')
-    redis_client = redis.Redis.from_url(
-        redis_url,
-        decode_responses=True,
-        socket_timeout=5
-    )
     
-    # Test the connection
-    try:
-        redis_client.ping()
-        app.logger.info("Redis connection established")
-    except redis.ConnectionError as e:
-        app.logger.error(f"Redis connection failed: {str(e)}")
+    # Only attempt Redis connection if explicitly configured or in production
+    if app.config.get('REDIS_ENABLED', False):
+        try:
+            redis_client = redis.Redis.from_url(
+                redis_url,
+                decode_responses=True,
+                socket_timeout=5
+            )
+            redis_client.ping()
+            app.logger.info("Redis connection established")
+        except redis.ConnectionError as e:
+            app.logger.warning(f"Redis connection failed: {str(e)} - Continuing without Redis")
+            redis_client = None
+    else:
+        # Redis disabled - running without rate limiting
         redis_client = None
+        app.logger.info("Redis disabled - Running without rate limiting")
 
 def check_rate_limit(email, limit_key='verification_attempt', timeout=900):  # 15 minutes
     """

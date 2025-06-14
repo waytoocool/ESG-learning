@@ -59,15 +59,78 @@
         </div>
     </div>
 </div>
+
+<!-- Add styles for the new configuration controls -->
+<style>
+.fy-frequency-config {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.fy-frequency-config h5 {
+    color: #495057;
+    margin-bottom: 0.75rem;
+}
+
+.config-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.config-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.config-field label {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+    color: #495057;
+}
+
+.config-field select,
+.config-field input {
+    padding: 0.375rem 0.75rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.fy-display {
+    background-color: #e9ecef;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    color: #495057;
+    text-align: center;
+}
+
+.frequency-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background-color: #007bff;
+    color: white;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+</style>
 {% endblock %}
 
 {% block extra_head %}
 {{ super() }}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/popup.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='admin/assign_data_points/assign_data_points.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/assign_data_points.css') }}">
+{% endblock %}
+
+{% block afterbody %}
 <script type="module">
-    import { PopupManager } from "{{ url_for('static', filename='js/popup.js') }}";
+    import { PopupManager } from "{{ url_for('static', filename='js/common/popup.js') }}";
     window.PopupManager = PopupManager;
 </script>
-<script src="{{ url_for('static', filename='admin/assign_data_points/assign_data_points.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin/assign_data_points.js') }}"></script>
 {% endblock %}

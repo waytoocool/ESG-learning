@@ -10,9 +10,11 @@ from ..services.email import send_registration_email
 from ..services.token import generate_registration_token
 from ..services.redis import check_rate_limit
 from ..models.esg_data import ESGDataAuditLog, ESGData
+from ..models.data_assignment import DataPointAssignment
+from ..services.aggregation import aggregation_service
 import json
 import re
-from datetime import datetime
+from datetime import datetime, date
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -345,20 +347,51 @@ def assign_data_points():
             data_point_id = data.get('data_point_id')
             entity_ids = data.get('entity_ids', [])
             
+            # New FY and frequency parameters
+            fy_start_month = data.get('fy_start_month', 4)  # Default April
+            fy_start_year = data.get('fy_start_year')
+            fy_end_year = data.get('fy_end_year') 
+            frequency = data.get('frequency', 'Annual')
+            
             try:
+                # Validate required parameters
+                if not fy_start_year or not fy_end_year:
+                    return jsonify({
+                        'success': False, 
+                        'message': 'Financial year start and end years are required'
+                    }), 400
+                
                 # Get the data point
                 data_point = DataPoint.query.get(data_point_id)
-                if data_point:
-                    # Get the entities
-                    entities = Entity.query.filter(Entity.id.in_(entity_ids)).all()
-                    # Assign entities to the data point
-                    data_point.entities = entities
-                    db.session.commit()
-                    return jsonify({'success': True})
+                if not data_point:
+                    return jsonify({'success': False, 'message': 'Data point not found'}), 404
                 
-                return jsonify({'success': False, 'message': 'Data point not found'}), 404
+                # Remove existing assignments for this data point
+                DataPointAssignment.query.filter_by(data_point_id=data_point_id).delete()
+                
+                # Create new assignments with FY and frequency configuration
+                for entity_id in entity_ids:
+                    assignment = DataPointAssignment(
+                        data_point_id=data_point_id,
+                        entity_id=entity_id,
+                        fy_start_month=int(fy_start_month),
+                        fy_start_year=int(fy_start_year),
+                        fy_end_year=int(fy_end_year),
+                        frequency=frequency,
+                        assigned_by=current_user.id
+                    )
+                    db.session.add(assignment)
+                
+                # Also maintain the old entity relationship for backward compatibility
+                entities = Entity.query.filter(Entity.id.in_(entity_ids)).all()
+                data_point.entities = entities
+                
+                db.session.commit()
+                return jsonify({'success': True})
+                
             except Exception as e:
                 db.session.rollback()
+                current_app.logger.error(f'Error in assign_data_points: {str(e)}')
                 return jsonify({'success': False, 'message': str(e)}), 500
     
     # For GET request
@@ -524,6 +557,57 @@ def get_data_point_assignments():
         current_app.logger.error(f'Error fetching data point assignments: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
+@admin_bp.route('/get_assignment_configurations')
+@admin_required  
+def get_assignment_configurations():
+    """Get detailed assignment configurations including FY and frequency."""
+    try:
+        assignments = DataPointAssignment.query.filter_by(is_active=True).all()
+        
+        # Group by data point
+        configurations = {}
+        for assignment in assignments:
+            if assignment.data_point_id not in configurations:
+                configurations[assignment.data_point_id] = {
+                    'entities': [],
+                    'fy_start_month': assignment.fy_start_month,
+                    'fy_start_year': assignment.fy_start_year,
+                    'fy_end_year': assignment.fy_end_year,
+                    'frequency': assignment.frequency,
+                    'fy_display': assignment.get_fy_display()
+                }
+            configurations[assignment.data_point_id]['entities'].append(assignment.entity_id)
+        
+        return jsonify(configurations)
+    except Exception as e:
+        current_app.logger.error(f'Error fetching assignment configurations: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/get_valid_dates/<data_point_id>/<int:entity_id>')
+@admin_required
+def get_valid_dates(data_point_id, entity_id):
+    """Get valid reporting dates for a specific data point and entity."""
+    try:
+        assignment = DataPointAssignment.query.filter_by(
+            data_point_id=data_point_id,
+            entity_id=entity_id,
+            is_active=True
+        ).first()
+        
+        if not assignment:
+            return jsonify({'error': 'Assignment not found'}), 404
+        
+        valid_dates = assignment.get_valid_reporting_dates()
+        
+        return jsonify({
+            'valid_dates': [date.isoformat() for date in valid_dates],
+            'frequency': assignment.frequency,
+            'fy_display': assignment.get_fy_display()
+        })
+    except Exception as e:
+        current_app.logger.error(f'Error fetching valid dates: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
 @admin_bp.route('/data_review', methods=['GET', 'POST'])
 @admin_required
 def data_review():
@@ -657,8 +741,7 @@ def data_status_matrix():
     # Create matrix data structure
     matrix_data = {}
     
-    for data_point in assigned_data_points:
-        # Get the framework field to determine if it's computed
+    for data_point in assigned_data_points:        # Get the framework field to determine if it's computed
         framework_field = FrameworkDataField.query.filter_by(field_id=data_point.id).first()
         is_computed = framework_field.is_computed if framework_field else False
         
@@ -773,3 +856,273 @@ def get_esg_data_details(data_id):
     except Exception as e:
         current_app.logger.error(f'Error fetching ESG data details: {str(e)}')
         return jsonify({'success': False, 'message': str(e)}), 500
+
+def recompute_field_value_admin(computed_field_id, entity_id, reporting_date):
+    """
+    Admin utility function to recompute a field value.
+    Uses the same aggregation service as user routes for consistency.
+    """
+    try:
+        return aggregation_service.compute_field_value(
+            computed_field_id, 
+            entity_id, 
+            reporting_date
+        )
+    except Exception as e:
+        current_app.logger.error(f'Admin: Error computing field value: {str(e)}')
+        return None
+
+def recompute_multiple_fields_admin(field_entity_date_tuples):
+    """
+    Admin utility function to recompute multiple fields efficiently.
+    Uses bulk operations for better performance.
+    """
+    try:
+        return aggregation_service.compute_multiple_fields(field_entity_date_tuples)
+    except Exception as e:
+        current_app.logger.error(f'Admin: Error in bulk field computation: {str(e)}')
+        return {}
+
+def get_field_aggregation_summary_admin(computed_field_id, entity_id, reporting_date):
+    """
+    Admin utility function to get detailed aggregation summary.
+    Useful for transparency and debugging in admin interface.
+    """
+    try:
+        return aggregation_service.get_aggregation_summary(
+            computed_field_id,
+            entity_id,
+            reporting_date
+        )
+    except Exception as e:
+        current_app.logger.error(f'Admin: Error getting aggregation summary: {str(e)}')
+        return {}
+
+@admin_bp.route('/api/aggregation-summary/<computed_field_id>/<int:entity_id>')
+@admin_required
+def get_aggregation_summary(computed_field_id, entity_id):
+    """
+    API endpoint to get detailed aggregation summary for a computed field.
+    Provides transparency on how computed values are calculated.
+    """
+    try:
+        date_str = request.args.get('reporting_date')
+        if not date_str:
+            return jsonify({'error': 'Reporting date is required'}), 400
+        
+        reporting_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        
+        summary = get_field_aggregation_summary_admin(
+            computed_field_id,
+            entity_id,
+            reporting_date
+        )
+        
+        if not summary:
+            return jsonify({'error': 'No aggregation summary available'}), 404
+        
+        return jsonify({
+            'success': True,
+            'summary': summary
+        })
+        
+    except ValueError:
+        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+    except Exception as e:
+        current_app.logger.error(f'Error getting aggregation summary: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/api/recompute-field', methods=['POST'])
+@admin_required
+def recompute_field():
+    """
+    API endpoint to recompute a specific computed field.
+    Useful for fixing data inconsistencies or testing new aggregation rules.
+    """
+    try:
+        data = request.get_json()
+        computed_field_id = data.get('computed_field_id')
+        entity_id = data.get('entity_id')
+        reporting_date_str = data.get('reporting_date')
+        
+        if not all([computed_field_id, entity_id, reporting_date_str]):
+            return jsonify({
+                'success': False,
+                'error': 'computed_field_id, entity_id, and reporting_date are required'
+            }), 400
+        
+        reporting_date = datetime.strptime(reporting_date_str, '%Y-%m-%d').date()
+        
+        # Recompute the field value
+        new_value = recompute_field_value_admin(
+            computed_field_id,
+            entity_id,
+            reporting_date
+        )
+        
+        if new_value is None:
+            return jsonify({
+                'success': False,
+                'error': 'Could not compute field value. Check dependencies and data availability.'
+            }), 400
+        
+        # Update the database
+        computed_data = ESGData.query.filter_by(
+            data_point_id=computed_field_id,
+            entity_id=entity_id,
+            reporting_date=reporting_date
+        ).first()
+        
+        old_value = None
+        if computed_data:
+            old_value = computed_data.calculated_value
+            computed_data.calculated_value = new_value
+        else:
+            computed_data = ESGData(
+                entity_id=entity_id,
+                field_id=computed_field_id,
+                data_point_id=computed_field_id,
+                raw_value=None,
+                calculated_value=new_value,
+                reporting_date=reporting_date
+            )
+            db.session.add(computed_data)
+        
+        db.session.commit()
+        
+        # Create audit log
+        audit_log = ESGDataAuditLog(
+            data_id=computed_data.data_id,
+            change_type='Admin Recompute',
+            changed_by=current_user.id,
+            old_value=old_value,
+            new_value=new_value
+        )
+        db.session.add(audit_log)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Field recomputed successfully',
+            'old_value': old_value,
+            'new_value': new_value
+        })
+        
+    except ValueError:
+        return jsonify({
+            'success': False,
+            'error': 'Invalid date format. Use YYYY-MM-DD'
+        }), 400
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error recomputing field: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@admin_bp.route('/api/bulk-recompute', methods=['POST'])
+@admin_required
+def bulk_recompute_fields():
+    """
+    API endpoint to recompute multiple computed fields efficiently.
+    Useful for batch operations and data fixes.
+    """
+    try:
+        data = request.get_json()
+        computations = data.get('computations', [])
+        
+        if not computations:
+            return jsonify({
+                'success': False,
+                'error': 'No computations specified'
+            }), 400
+        
+        # Validate and prepare computation tuples
+        field_entity_date_tuples = []
+        for comp in computations:
+            if not all(key in comp for key in ['computed_field_id', 'entity_id', 'reporting_date']):
+                return jsonify({
+                    'success': False,
+                    'error': 'Each computation must have computed_field_id, entity_id, and reporting_date'
+                }), 400
+            
+            try:
+                reporting_date = datetime.strptime(comp['reporting_date'], '%Y-%m-%d').date()
+                field_entity_date_tuples.append((
+                    comp['computed_field_id'],
+                    comp['entity_id'],
+                    reporting_date
+                ))
+            except ValueError:
+                return jsonify({
+                    'success': False,
+                    'error': f'Invalid date format in computation: {comp["reporting_date"]}'
+                }), 400
+        
+        # Perform bulk computation
+        computed_results = recompute_multiple_fields_admin(field_entity_date_tuples)
+        
+        # Update database records
+        updated_count = 0
+        errors = []
+        
+        for (field_id, entity_id, reporting_date), new_value in computed_results.items():
+            try:
+                if new_value is not None:
+                    computed_data = ESGData.query.filter_by(
+                        data_point_id=field_id,
+                        entity_id=entity_id,
+                        reporting_date=reporting_date
+                    ).first()
+                    
+                    old_value = None
+                    if computed_data:
+                        old_value = computed_data.calculated_value
+                        computed_data.calculated_value = new_value
+                    else:
+                        computed_data = ESGData(
+                            entity_id=entity_id,
+                            field_id=field_id,
+                            data_point_id=field_id,
+                            raw_value=None,
+                            calculated_value=new_value,
+                            reporting_date=reporting_date
+                        )
+                        db.session.add(computed_data)
+                    
+                    db.session.commit()
+                    
+                    # Create audit log
+                    audit_log = ESGDataAuditLog(
+                        data_id=computed_data.data_id,
+                        change_type='Admin Bulk Recompute',
+                        changed_by=current_user.id,
+                        old_value=old_value,
+                        new_value=new_value
+                    )
+                    db.session.add(audit_log)
+                    db.session.commit()
+                    
+                    updated_count += 1
+                else:
+                    errors.append(f'Could not compute value for field {field_id}, entity {entity_id}, date {reporting_date}')
+                    
+            except Exception as e:
+                errors.append(f'Error updating field {field_id}: {str(e)}')
+                db.session.rollback()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Bulk recomputation completed. Updated {updated_count} fields.',
+            'updated_count': updated_count,
+            'errors': errors
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error in bulk recomputation: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

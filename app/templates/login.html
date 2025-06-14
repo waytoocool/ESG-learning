@@ -8,8 +8,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Login - ESG Datavault</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/popup.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common/popup.css') }}">
 </head>
 <body>
     <div class="login-container">
@@ -38,7 +38,7 @@
 
         <!-- Move script to end of body and add defer attribute -->
     <script type="module" defer>
-        import { PopupManager } from '/static/js/popup.js';
+        import { PopupManager } from '{{ url_for("static", filename="js/common/popup.js") }}';
 
         // Initialize popup system
         document.addEventListener('DOMContentLoaded', () => {
@@ -67,17 +67,17 @@
                     const data = await response.json();
                     
                     if (data.success) {
-                        PopupManager.showPopup('Success', 'Login successful', 'success');
+                        PopupManager.showSuccess('Success', 'Login successful');
                         // Redirect after showing success message
                         setTimeout(() => {
                             window.location.href = data.redirect || '/';
                         }, 1500);
                     } else {
-                        PopupManager.showPopup('Error', data.message || 'Invalid credentials', 'error');
+                        PopupManager.showError('Error', data.message || 'Invalid credentials');
                     }
                 } catch (error) {
                     console.error('Login error:', error);
-                    PopupManager.showPopup('Error', 'An error occurred during login. Please try again.', 'error');
+                    PopupManager.showError('Error', 'An error occurred during login. Please try again.');
                 }
             });
 
@@ -85,18 +85,22 @@
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
-                        PopupManager.showPopup(
-                            category.charAt(0).toUpperCase() + category.slice(1),
-                            message,
-                            category
-                        );
+                        {% if category == 'success' %}
+                            PopupManager.showSuccess('{{ category.title() }}', '{{ message }}');
+                        {% elif category == 'error' %}
+                            PopupManager.showError('{{ category.title() }}', '{{ message }}');
+                        {% elif category == 'warning' %}
+                            PopupManager.showWarning('{{ category.title() }}', '{{ message }}');
+                        {% else %}
+                            PopupManager.showInfo('{{ category.title() }}', '{{ message }}');
+                        {% endif %}
                     {% endfor %}
                 {% endif %}
             {% endwith %}
 
             // Show registration success popup if needed
             if ("{{ session.pop('registration_success', False) }}" === "True") {
-                PopupManager.showPopup('Success', 'Registration successful! You can now log in.', 'success');
+                PopupManager.showSuccess('Success', 'Registration successful! You can now log in.');
             }
         });
     </script>

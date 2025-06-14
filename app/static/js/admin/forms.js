@@ -20,19 +20,19 @@ export function handleFormSubmit(event) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showPopup('Success', data.message, 'success');
+            window.PopupManager?.showSuccess('Success', data.message) || console.log('Success:', data.message);
             document.getElementById("entity-drawer").style.display = "none";
             // Reset form
             form.reset();
             // Reload page after a short delay
             setTimeout(() => window.location.reload(), 1000);
         } else {
-            showPopup('Error', data.message || 'An error occurred while saving the entity.', 'error');
+            window.PopupManager?.showError('Error', data.message || 'An error occurred while saving the entity.') || console.error('Error:', data.message);
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showPopup('Error', 'An error occurred while saving the entity.', 'error');
+        window.PopupManager?.showError('Error', 'An error occurred while saving the entity.') || console.error('Error occurred');
     })
     .finally(() => {
         submitButton.disabled = false;
@@ -67,16 +67,16 @@ export function handleUserFormSubmit(event) {
     })
     .then(data => {
         if (data.success) {
-            showPopup('Success', data.message, 'success');
+            window.PopupManager?.showSuccess('Success', data.message) || console.log('Success:', data.message);
             document.getElementById("user-drawer").style.display = "none";
             setTimeout(() => window.location.reload(), 1000);
         } else {
-            showPopup('Error', data.message, 'error');
+            window.PopupManager?.showError('Error', data.message) || console.error('Error:', data.message);
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showPopup('Error', 'An error occurred while saving the user.', 'error');
+        window.PopupManager?.showError('Error', 'An error occurred while saving the user.') || console.error('Error occurred');
     })
     .finally(() => {
         submitButton.disabled = false;
@@ -92,7 +92,7 @@ function handleVerificationResend(email) {
 
     // Check if there's an active cooldown
     if (localStorage.getItem(cooldownKey)) {
-        showPopup('Notice', 'A verification email was recently sent. Please wait before requesting another one.', 'notice');
+        window.PopupManager?.showWarning('Notice', 'A verification email was recently sent. Please wait before requesting another one.') || console.log('Cooldown active');
         return;
     }
 
@@ -115,7 +115,7 @@ function handleVerificationResend(email) {
                 localStorage.removeItem(cooldownKey);
             }, 15 * 60 * 1000);
 
-            showPopup('Success', 'Verification email has been sent successfully', 'success');
+            window.PopupManager?.showSuccess('Success', 'Verification email has been sent successfully') || console.log('Verification email sent');
 
             // Refresh the display to update the UI
             if (activeNodeId) {
@@ -127,47 +127,11 @@ function handleVerificationResend(email) {
                 }
             }
         } else {
-            showPopup('Error', data.message, 'error');
+            window.PopupManager?.showError('Error', data.message) || console.error('Error:', data.message);
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showPopup('Error', 'An error occurred while resending verification email.', 'error');
+        window.PopupManager?.showError('Error', 'An error occurred while resending verification email.') || console.error('Error occurred');
     });
-}
-
-// This function is responsible for displaying the notification popup
-function showPopup(title, message, type = 'notice') {
-    const popup = document.getElementById('notificationPopup');
-    const titleElement = document.getElementById('popupTitle');
-    const messageElement = document.getElementById('popupMessage');
-
-    // Reset classes
-    popup.className = 'popup-message';
-
-    // Add type class
-    popup.classList.add(type);
-
-    // Set content
-    titleElement.textContent = title;
-    messageElement.textContent = message;
-
-    // Show popup
-    popup.classList.add('show');
-
-    // Auto-hide after 4 seconds
-    setTimeout(() => {
-        closePopup();
-    }, 4000);
-}
-
-// This function is responsible for hiding the notification popup
-function closePopup() {
-    const popup = document.getElementById('notificationPopup');
-    popup.classList.add('hide');
-
-    // Remove show and hide classes after animation
-    popup.addEventListener('animationend', () => {
-        popup.classList.remove('show', 'hide');
-    }, { once: true }); // Ensure event listener is removed after execution
 }

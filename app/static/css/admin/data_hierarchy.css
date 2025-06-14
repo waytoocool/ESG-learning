@@ -105,3 +105,75 @@
   font-size: 0.9em;
   margin-left: 8px;
 }
+
+/* Zoom Controls Styles */
+.zoom-controls {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 1000;
+    border: 2px solid rgba(47, 71, 40, 0.8);
+    border-radius: 8px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.zoom-btn {
+    width: 45px;
+    height: 45px;
+    border: 2px solid #2F4728;
+    border-radius: 6px;
+    background: #2F4728;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    position: relative;
+}
+
+.zoom-btn:hover {
+    background: #243720;
+    border-color: #243720;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.zoom-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.zoom-btn:focus {
+    outline: 3px solid #4CAF50;
+    outline-offset: 2px;
+}
+
+/* Ensure chart container has relative positioning for zoom controls */
+#hierarchy-chart {
+    position: relative;
+}
+
+/* Responsive design for zoom controls */
+@media (max-width: 768px) {
+    .zoom-controls {
+        top: 10px;
+        right: 10px;
+        gap: 5px;
+        padding: 5px;
+    }
+    
+    .zoom-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+}

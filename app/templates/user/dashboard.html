@@ -3,255 +3,201 @@
 {% block extra_head %}
     {{ super() }}
     <!-- Dashboard specific CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='user/dashboard/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user/dashboard.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="data-entry-dashboard w-100">
-    <div class="dashboard-header">
-        <h1>Data Entry Dashboard</h1>
-        <div class="date-selector">
-            <form id="dateForm" class="d-flex align-items-center gap-3">
-                <label for="dateSelect" class="form-label visually-hidden">Select reporting period</label>
-                <input type="month" 
-                       id="dateSelect" 
-                       name="date" 
-                       value="{{ selected_date.strftime('%Y-%m') }}"
-                       class="form-control"
-                       aria-label="Select reporting period">
-                <button type="button" 
-                        class="btn btn-outline-secondary" 
-                        id="prevMonth" 
-                        aria-label="Previous month">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
-                <button type="button" 
-                        class="btn btn-outline-secondary" 
-                        id="nextMonth" 
-                        aria-label="Next month">
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-            </form>
+<div class="data-entry-dashboard">
+    <!-- Page Title with Proper Spacing -->
+    <div class="page-header">
+        <h1 class="page-title">Data Entry Dashboard</h1>
+    </div>
+
+    <!-- Action Bar with Improved Layout - Made Sticky -->
+    <div class="action-bar sticky-header">
+        <div class="container-fluid px-3">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="date-selection-info">
+                        <div id="dateValidationArea" class="validation-area" style="display: none;"></div>
+                        <div id="selectedDateInfo" class="selected-date-info" style="display: none;">
+                            <small class="text-muted">Selected date: <span id="currentSelectedDate"></span></small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="action-buttons-group">
+                        <button type="button" id="showValidDatesBtn" class="btn btn-primary">
+                            <i class="fas fa-calendar-alt"></i> Select Date
+                        </button>
+                        <button type="button" id="csvUploadBtn" class="btn btn-outline-primary">
+                            <i class="fas fa-upload"></i> Upload CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Date Selection Row -->
+            <div class="row mt-3" id="dateSelectionRow" style="display: none;">
+                <div class="col-12">
+                    <div class="date-chips-container">
+                        <div class="date-chips-header">
+                            <small class="text-muted">Select a reporting date:</small>
+                        </div>
+                        <div id="validDatesList" class="date-chips-list"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="dashboard-tabs">
-        <button class="tab-btn active" data-tab="entry">Data Entry</button>
-        <button class="tab-btn" data-tab="history">Historical Data</button>
+    <!-- Compact Progress Tracker Section - Moved Below Header -->
+    <div class="progress-section-compact" id="progressSection" style="display: none;">
+        <div class="container-fluid px-3">
+            <div class="progress-bar-compact">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="progress-info-compact">
+                            <span id="progressText">0 of 0 data points completed</span>
+                            <span class="progress-percentage" id="progressPercentage">0%</span>
+                        </div>
+                        <div class="progress mt-1" style="height: 6px;">
+                            <div class="progress-bar bg-success" role="progressbar" id="progressBar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="completion-indicators" id="completionIndicators">
+                            <!-- Progress indicators will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="dashboard-content w-100">
-        <div id="entryTab" class="tab-content active">
+    <!-- Main Content -->
+    <div class="main-content-area">
+        <div class="container-fluid px-3">
+            <!-- Form Blocker -->
+            <div id="formBlocker" class="form-blocker" style="display: none;">
+                <div class="alert alert-warning">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Select a Valid Date</h5>
+                    <p>Please select a valid reporting date to view and submit data.</p>
+                </div>
+            </div>
+
+            <!-- Data Entry Form -->
             {% if raw_input_points or computed_points %}
-                <form method="POST" action="{{ url_for('user.submit_data') }}" id="dataEntryForm" class="w-100">
-                    <input type="hidden" name="reporting_date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
-                    <div class="data-table-container">
-                        <div class="legend">
-                            <span class="legend-item raw" data-tooltip="Raw input values that need to be entered manually">
-                                <i class="fas fa-circle"></i> Raw Input
-                            </span>
-                            <span class="legend-item shared" data-tooltip="Values that are used in multiple calculations">
-                                <i class="fas fa-circle"></i> Shared Dependency
-                            </span>
-                            <span class="legend-item computed" data-tooltip="Values automatically calculated from other inputs">
-                                <i class="fas fa-circle"></i> Computed
-                            </span>
+                <form method="POST" action="{{ url_for('user.submit_data') }}" id="dataEntryForm">
+                    <input type="hidden" name="reporting_date" id="formReportingDate" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+                    
+                    <div id="dataTableContainer" class="data-table-container">
+                        <div class="table-responsive">
+                            <table class="table table-hover data-table" id="dataPointsTable">
+                                <thead class="table-header-enhanced">
+                                    <tr>
+                                        <th class="fw-bold text-white">DATA POINT</th>
+                                        <th class="fw-bold text-white">ENTITY</th>
+                                        <th class="fw-bold text-white">TYPE</th>
+                                        <th class="fw-bold text-white">FREQUENCY</th>
+                                        <th class="fw-bold text-white">VALUE</th>
+                                        <th class="fw-bold text-white">ATTACHMENTS</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dataPointsTableBody">
+                                    <!-- Data points will be populated by JavaScript -->
+                                </tbody>
+                            </table>
                         </div>
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th class="sortable" data-sort="name">Data Point Name <i class="fas fa-sort"></i></th>
-                                    <th class="sortable" data-sort="entity">Entity <i class="fas fa-sort"></i></th>
-                                    <th class="sortable" data-sort="type">Type <i class="fas fa-sort"></i></th>
-                                    <th>Value</th>
-                                    <th>Details</th>
-                                    <th>Attachments</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {# First show raw input fields #}
-                                {% for dp in raw_input_points %}
-                                    <tr class="data-row" data-id="{{ dp.id }}" data-entity="{{ dp.assigned_entity }}">
-                                        <td data-label="Name">
-                                            <span class="field-type raw"><i class="fas fa-circle"></i></span>
-                                            {{ dp.name }}
-                                        </td>
-                                        <td data-label="Entity">{{ dp.assigned_entity }}</td>
-                                        <td data-label="Type">{{ dp.value_type }}</td>
-                                        <td data-label="Value">
-                                            <div class="editable-cell" data-id="{{ dp.id }}">
-                                                <input type="{% if dp.value_type == 'numeric' %}number{% else %}text{% endif %}"
-                                                       class="data-input {% if dp.value_type == 'numeric' %}numeric-input{% else %}text-input{% endif %}"
-                                                       name="data_point_{{ dp.id }}"
-                                                       value="{{ entity_data_entries.get(dp.id, {}).get('raw_value', '') }}"
-                                                       {% if dp.value_type == 'numeric' %}step="any"{% endif %}
-                                                       aria-label="{{ dp.name }} value input"
-                                                       {% if dp.assigned_entity != current_user.entity.name %}disabled{% endif %}>
-                                            </div>
-                                        </td>
-                                        <td data-label="Details">
-                                        </td>
-                                        <td data-label="Attachments">
-                                            <div class="attachment-section" data-id="{{ dp.id }}">
-                                                <button type="button" 
-                                                        class="btn btn-outline-secondary btn-sm upload-btn"
-                                                        onclick="handleAttachmentClick('{{ dp.id }}')"
-                                                        {% if dp.assigned_entity != current_user.entity.name %}disabled{% endif %}>
-                                                    <i class="fas fa-paperclip"></i>
-                                                </button>
-                                                <div class="attachment-list" id="attachmentList{{ dp.id }}"></div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-
-                                {# Then show shared dependencies #}
-                                {% for field_id, dep in raw_dependencies.items() %}
-                                    <tr class="data-row" data-id="{{ field_id }}" data-entity="{{ dep.data.assigned_entity }}">
-                                        <td data-label="Name">
-                                            <span class="field-type shared"><i class="fas fa-circle"></i></span>
-                                            {{ dep.data.name }}
-                                        </td>
-                                        <td data-label="Entity">{{ dep.data.assigned_entity }}</td>
-                                        <td data-label="Type">{{ dep.data.value_type }}</td>
-                                        <td data-label="Value">
-                                            <div class="editable-cell" data-id="{{ field_id }}">
-                                                <input type="{% if dep.data.value_type == 'numeric' %}number{% else %}text{% endif %}"
-                                                       class="data-input {% if dep.data.value_type == 'numeric' %}numeric-input{% else %}text-input{% endif %}"
-                                                       name="data_point_{{ field_id }}"
-                                                       value="{{ entity_data_entries.get(field_id, {}).get('raw_value', '') }}"
-                                                       {% if dep.data.value_type == 'numeric' %}step="any"{% endif %}
-                                                       aria-label="{{ dep.data.name }} value input"
-                                                       {% if dep.data.assigned_entity != current_user.entity.name %}disabled{% endif %}>
-                                            </div>
-                                        </td>
-                                        <td data-label="Details">
-                                            {% if dep.data.is_computed %}
-                                                <div class="computed-dependencies">
-                                                    <p class="mb-1 text-muted">Depends on:</p>
-                                                    <ul class="dependency-list">
-                                                        {% for dependency in dep.data.dependencies %}
-                                                            <li class="dependency-item">{{ dependency.field_name }}</li>
-                                                        {% endfor %}
-                                                    </ul>
-                                                </div>
-                                            {% else %}
-                                                <div class="shared-dependency-details">
-                                                    <p class="mb-1 text-muted">Depends on:</p>
-                                                    <span class="depends-on-computed">Energy</span>
-                                                </div>
-                                            {% endif %}
-                                        </td>
-                                        <td data-label="Attachments">
-                                            <div class="attachment-section" data-id="{{ field_id }}">
-                                                <button type="button" 
-                                                        class="btn btn-outline-secondary btn-sm upload-btn"
-                                                        onclick="handleAttachmentClick('{{ field_id }}')"
-                                                        {% if dep.data.assigned_entity != current_user.entity.name %}disabled{% endif %}>
-                                                    <i class="fas fa-paperclip"></i>
-                                                </button>
-                                                <div class="attachment-list" id="attachmentList{{ field_id }}"></div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-
-                                {# Finally show computed fields #}
-                                {% for dp in computed_points %}
-                                    <tr class="data-row computed-field-row" data-id="{{ dp.id }}" data-entity="{{ dp.assigned_entity }}">
-                                        <td data-label="Name">
-                                            <span class="field-type computed" data-tooltip="Computed value based on dependencies">
-                                                <i class="fas fa-circle"></i>
-                                            </span>
-                                            {{ dp.name }}
-                                            {% if dp.description %}
-                                            <span class="help-tooltip">
-                                                <i class="fas fa-info-circle"></i>
-                                                <span class="tooltip-text">{{ dp.description }}</span>
-                                            </span>
-                                            {% endif %}
-                                        </td>
-                                        <td data-label="Entity">{{ dp.assigned_entity }}</td>
-                                        <td data-label="Type">
-                                            <span class="computed-badge" data-tooltip="Value is automatically calculated">Computed</span>
-                                        </td>
-                                        <td data-label="Value">
-                                            <div class="computed-value-display">
-                                                <span class="value">{{ entity_data_entries.get(dp.id, {}).get('calculated_value', 'Not calculated') }}</span>
-                                                {% if dp.unit %}
-                                                <span class="unit">{{ dp.unit }}</span>
-                                                {% endif %}
-                                            </div>
-                                        </td>
-                                        <td data-label="Details">
-                                            {% if dp.dependencies %}
-                                                <div class="dependency-info">
-                                                    <p class="mb-1 text-muted">Depends on:</p>
-                                                    <ul class="dependency-list">
-                                                        {% for dep in dp.dependencies %}
-                                                            <li class="dependency-item">
-                                                                <span class="dependency-name">{{ dep.field_name }}</span>
-                                                                {% if dep.coefficient != 1 %}
-                                                                <span class="coefficient">(× {{ dep.coefficient }})</span>
-                                                                {% endif %}
-                                                            </li>
-                                                        {% endfor %}
-                                                    </ul>
-                                                    {% if dp.formula_expression %}
-                                                    <div class="formula-display">
-                                                        <small class="text-muted">Formula: {{ dp.formula_expression }}</small>
-                                                    </div>
-                                                    {% endif %}
-                                                </div>
-                                            {% endif %}
-                                        </td>
-                                        <td data-label="Attachments">
-                                            <div class="attachment-section" data-id="{{ dp.id }}">
-                                                <button type="button" 
-                                                        class="btn btn-outline-secondary btn-sm upload-btn"
-                                                        onclick="handleAttachmentClick('{{ dp.id }}')"
-                                                        {% if dp.assigned_entity != current_user.entity.name %}disabled{% endif %}>
-                                                    <i class="fas fa-paperclip"></i>
-                                                </button>
-                                                <div class="attachment-list" id="attachmentList{{ dp.id }}"></div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Save Data</button>
+                        
+                        <div class="form-actions sticky-bottom">
+                            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                                <i class="fas fa-save"></i> Save Data
+                            </button>
+                        </div>
                     </div>
                 </form>
             {% else %}
-                <p class="no-data">No assigned data points.</p>
+                <div class="alert alert-info">
+                    <h5><i class="fas fa-info-circle"></i> No Data Points Assigned</h5>
+                    <p>You don't have any data points assigned to your entity.</p>
+                </div>
             {% endif %}
         </div>
+    </div>
+</div>
 
-        <div id="historyTab" class="tab-content">
-            <div class="history-filters">
-                <select id="historyDataPoint" class="form-control">
-                    <option value="">All Data Points</option>
-                    {% for dp in data_points %}
-                        <option value="{{ dp.id }}">{{ dp.name }}</option>
-                    {% endfor %}
-                </select>
-                <div class="date-range">
-                    <input type="month" id="historyStartDate" class="form-control">
-                    <span>to</span>
-                    <input type="month" id="historyEndDate" class="form-control">
-                </div>
+<!-- Enhanced CSV Upload Modal -->
+<div class="modal fade" id="csvUploadModal" tabindex="-1" aria-labelledby="csvUploadModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="csvUploadModalLabel">
+                    <i class="fas fa-upload"></i> Upload CSV Data
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div id="historyData" class="history-data">
-                <!-- Historical data will be loaded here -->
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="upload-section">
+                            <h6 class="section-title">Upload CSV File</h6>
+                            <form id="csvUploadForm" enctype="multipart/form-data">
+                                <input type="hidden" id="csvReportingDate" name="reporting_date">
+                                <div class="mb-3">
+                                    <label for="csvFileInput" class="form-label">Choose CSV file</label>
+                                    <input type="file" class="form-control" id="csvFileInput" name="csv_file" accept=".csv" required>
+                                    <div class="form-text">Upload a CSV file with your data entries.</div>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-upload"></i> Upload & Process
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary" id="downloadTemplateFromModal">
+                                        <i class="fas fa-download"></i> Download Template
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="instructions-section">
+                            <h6 class="section-title">Quick Instructions</h6>
+                            <div class="alert alert-info small mb-3">
+                                <i class="fas fa-lightbulb me-2"></i>
+                                <strong>Tip:</strong> Download the template above for the correct format with data points due for your selected date.
+                            </div>
+                            <div class="alert alert-success small mb-3">
+                                <i class="fas fa-check-circle me-2"></i>
+                                <strong>Excel Users:</strong> The template is designed to preserve date formatting (YYYY-MM-DD) when opened in Excel.
+                            </div>
+                            <div class="requirements-list">
+                                <h6 class="small fw-bold text-muted mb-2">CSV FORMAT:</h6>
+                                <ul class="list-unstyled small text-muted">
+                                    <li><i class="fas fa-check text-success me-2"></i><strong>Reporting Date:</strong> YYYY-MM-DD format</li>
+                                    <li><i class="fas fa-check text-success me-2"></i><strong>Data Point Name:</strong> Exact name of the data point</li>
+                                    <li><i class="fas fa-check text-success me-2"></i><strong>Frequency:</strong> Optional - Data point frequency (Annual, Quarterly, etc.)</li>
+                                    <li><i class="fas fa-check text-success me-2"></i><strong>Value:</strong> Numeric or text value</li>
+                                </ul>
+                                <div class="alert alert-warning small mt-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Multiple Dates:</strong> You can include data for multiple dates in one file. Each row will be validated against its date's assignment rules.
+                                </div>
+                                <div class="alert alert-secondary small mt-2">
+                                    <i class="fas fa-calendar-alt me-2"></i>
+                                    <strong>Frequency Column:</strong> The frequency column is optional and informational. If provided, mismatches will generate warnings but won't prevent data upload.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="csvUploadResults" class="mt-3" style="display: none;"></div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- File upload modal -->
+<!-- File upload modal (for individual attachments) -->
 <div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -262,6 +208,7 @@
             <div class="modal-body">
                 <form id="uploadForm" enctype="multipart/form-data">
                     <input type="hidden" id="dataIdInput" name="data_id">
+                    <input type="hidden" id="statusInput" name="status">
                     <div class="mb-3">
                         <label for="fileInput" class="form-label">Choose file</label>
                         <input type="file" class="form-control" id="fileInput" name="file">
@@ -278,175 +225,204 @@
         </div>
     </div>
 </div>
-
-<style>
-.section-header {
-    margin: 2rem 0 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid #eee;
-}
-
-.section-header h3 {
-    margin: 0;
-    color: #333;
-    font-size: 1.2rem;
-}
-
-.used-in-calculations {
-    margin-top: 0.5rem;
-}
-
-.used-in-calculations .badge {
-    margin-right: 0.3rem;
-    font-size: 0.8rem;
-}
-
-.computed-reference {
-    font-size: 0.9rem;
-    color: #666;
-    margin-bottom: 0.2rem;
-}
-
-.dependencies-list {
-    font-size: 0.9rem;
-}
-
-.dependency-item {
-    margin-bottom: 0.3rem;
-    padding: 0.2rem 0;
-    border-bottom: 1px solid #eee;
-}
-
-.calculated-value {
-    font-weight: bold;
-    color: #2c5282;
-}
-
-.data-table {
-    margin-bottom: 2rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-.data-row.dependency {
-    background-color: #f8f9fa;
-}
-
-.data-row.computed {
-    background-color: #e9ecef;
-}
-
-.legend {
-    margin-bottom: 1rem;
-    padding: 0.5rem;
-    background: #f8f9fa;
-    border-radius: 4px;
-}
-
-.legend-item {
-    display: inline-block;
-    margin-right: 1.5rem;
-    font-size: 0.9rem;
-}
-
-.field-type {
-    display: inline-block;
-    margin-right: 0.5rem;
-    font-size: 0.8rem;
-}
-
-.field-type.raw i { color: #28a745; }
-.field-type.shared i { color: #007bff; }
-.field-type.computed i { color: #6c757d; }
-
-.legend-item.raw i { color: #28a745; }
-.legend-item.shared i { color: #007bff; }
-.legend-item.computed i { color: #6c757d; }
-
-.used-in {
-    font-size: 0.9rem;
-}
-
-.used-in .badge {
-    margin-right: 0.3rem;
-}
-
-.formula {
-    font-size: 0.9rem;
-    color: #666;
-    margin-bottom: 0.3rem;
-}
-
-.dependencies-list {
-    font-size: 0.8rem;
-}
-
-.dependency-item {
-    display: inline-block;
-    margin-right: 0.5rem;
-    padding: 0.2rem 0.4rem;
-    background: #f8f9fa;
-    border-radius: 3px;
-}
-
-.calculated-value {
-    font-weight: bold;
-    color: #2c5282;
-}
-
-.data-table td {
-    vertical-align: middle;
-}
-
-.field-info {
-    padding: 0.3rem 0;
-}
-
-.field-info .badge {
-    font-size: 0.8rem;
-    font-weight: normal;
-}
-
-.used-in .badge {
-    margin-right: 0.3rem;
-    background-color: #17a2b8;
-    color: white;
-    font-size: 0.8rem;
-    font-weight: normal;
-}
-
-.formula {
-    font-size: 0.9rem;
-    color: #666;
-    margin-bottom: 0.5rem;
-    padding: 0.3rem 0;
-    border-bottom: 1px solid #eee;
-}
-
-.dependencies-list {
-    font-size: 0.8rem;
-}
-
-.dependency-item {
-    display: inline-block;
-    margin: 0.2rem;
-    padding: 0.2rem 0.5rem;
-    background: #f8f9fa;
-    border-radius: 3px;
-    border: 1px solid #dee2e6;
-}
-</style>
 {% endblock %}
 
 {% block afterbody %}
     {{ super() }}
-    <script type="module">
-        import { PopupManager } from '{{ url_for("static", filename="js/popup.js") }}';
-        import { initializeDashboard } from '{{ url_for("static", filename="user/dashboard/dashboard.js") }}';
+    
+    <!-- Data for JavaScript - Properly escaped JSON -->
+    <script type="application/json" id="dataPointsData">
+        {{ {
+            'rawInputPoints': raw_input_points,
+            'computedPoints': computed_points,
+            'rawDependencies': raw_dependencies,
+            'entityDataEntries': entity_data_entries,
+            'esgDataByDate': esg_data_by_date,
+            'selectedDate': selected_date.strftime('%Y-%m-%d')
+        } | tojson | safe }}
+    </script>
+    
+    <!-- Load PopupManager first -->
+    <script src="{{ url_for('static', filename='js/common/popup.js') }}"></script>
+    
+    <!-- Load other scripts -->
+    <script src="{{ url_for('static', filename='js/user/user_dashboard_dates.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/user/computed_fields.js') }}"></script>
+    
+    <!-- Dashboard Initialization -->
+    <script>
+        // Dashboard initialization class for better organization
+        class DashboardInitializer {
+            constructor() {
+                this.isInitialized = false;
+                this.dataConfig = null;
+            }
+            
+            async init() {
+                if (this.isInitialized) {
+                    console.warn('Dashboard already initialized');
+                    return;
+                }
+                
+                try {
+                    // Load configuration data
+                    this.loadConfigurationData();
+                    
+                    // Initialize PopupManager
+                    if (window.PopupManager) {
+                        window.PopupManager.init();
+                        console.log('✅ PopupManager initialized');
+                    }
+                    
+                    this.isInitialized = true;
+                    console.log('✅ Dashboard initialization completed successfully');
+                    
+                    // Dispatch initialization complete event
+                    document.dispatchEvent(new CustomEvent('dashboardInitialized', {
+                        detail: { config: this.dataConfig }
+                    }));
+                    
+                } catch (error) {
+                    console.error('❌ Dashboard initialization failed:', error);
+                    this.showInitializationError(error);
+                }
+            }
+            
+            loadConfigurationData() {
+                const dataScript = document.getElementById('dataPointsData');
+                if (!dataScript) {
+                    throw new Error('Configuration data not found');
+                }
+                
+                try {
+                    this.dataConfig = JSON.parse(dataScript.textContent);
+                    console.log('📊 Configuration data loaded:', Object.keys(this.dataConfig));
+                    
+                    // Make configuration globally available
+                    window.dashboardConfig = this.dataConfig;
+                } catch (error) {
+                    throw new Error('Failed to parse configuration data: ' + error.message);
+                }
+            }
+            
+            showInitializationError(error) {
+                const errorContainer = document.createElement('div');
+                errorContainer.className = 'alert alert-danger position-fixed';
+                errorContainer.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+                errorContainer.innerHTML = `
+                    <h6><i class="fas fa-exclamation-triangle"></i> Dashboard Error</h6>
+                    <p>Failed to initialize dashboard: ${error.message}</p>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="location.reload()">
+                        <i class="fas fa-refresh"></i> Reload Page
+                    </button>
+                `;
+                document.body.appendChild(errorContainer);
+                
+                // Auto-remove after 10 seconds
+                setTimeout(() => errorContainer.remove(), 10000);
+            }
+        }
         
-        // Initialize when document is loaded
+        // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
-            PopupManager.init();
-            initializeDashboard(PopupManager);
+            const initializer = new DashboardInitializer();
+            initializer.init();
+        });
+    </script>
+    
+    <!-- Component Initialization -->
+    <script>
+        // Component initialization with proper error handling
+        document.addEventListener('dashboardInitialized', function(event) {
+            try {
+                const config = event.detail.config;
+                
+                // Debug: Log the configuration data
+                console.log('🔍 Dashboard configuration received:', config);
+                console.log('🧮 Computed points in config:', config.computedPoints);
+                console.log('📊 Raw input points in config:', config.rawInputPoints);
+                console.log('🔗 Raw dependencies in config:', config.rawDependencies);
+                
+                // Debug: Check if scripts are loaded
+                console.log('🔍 Script loading check:');
+                console.log('  - EnhancedDateValidator:', typeof EnhancedDateValidator);
+                console.log('  - ComputedFieldsManager:', typeof ComputedFieldsManager);
+                console.log('  - window.computedFieldsManager:', typeof window.computedFieldsManager);
+                
+                // Initialize ComputedFieldsManager FIRST (it should already be initialized by the script)
+                if (typeof ComputedFieldsManager !== 'undefined' && !window.computedFieldsManager) {
+                    window.computedFieldsManager = new ComputedFieldsManager();
+                    console.log('✅ ComputedFieldsManager initialized manually');
+                } else if (window.computedFieldsManager) {
+                    console.log('✅ ComputedFieldsManager already available');
+                } else {
+                    console.error('❌ ComputedFieldsManager class not found');
+                }
+                
+                // Initialize EnhancedDateValidator AFTER ComputedFieldsManager
+                if (typeof EnhancedDateValidator !== 'undefined' && !window.dashboard) {
+                    window.dashboard = new EnhancedDateValidator();
+                    console.log('✅ EnhancedDateValidator initialized manually');
+                } else if (window.dashboard) {
+                    console.log('✅ EnhancedDateValidator already available');
+                } else {
+                    console.error('❌ EnhancedDateValidator class not found');
+                }
+                
+                // Set up form event listeners
+                setupFormEventListeners();
+                
+                console.log('✅ All components initialized successfully');
+                
+            } catch (error) {
+                console.error('❌ Component initialization failed:', error);
+            }
+        });
+        
+        function setupFormEventListeners() {
+            // Date selector changes
+            const dateInput = document.getElementById('dateSelector');
+            if (dateInput) {
+                dateInput.addEventListener('change', function() {
+                    const newDate = this.value;
+                    if (newDate) {
+                        document.dispatchEvent(new CustomEvent('dateChanged', {
+                            detail: { date: newDate }
+                        }));
+                        
+                        if (window.computedFieldsManager && window.computedFieldsManager.clearCache) {
+                            window.computedFieldsManager.clearCache();
+                        }
+                    }
+                });
+            }
+            
+            // Form submission cache clearing
+            const dataForm = document.getElementById('dataEntryForm');
+            if (dataForm) {
+                dataForm.addEventListener('submit', function() {
+                    setTimeout(() => {
+                        if (window.computedFieldsManager && window.computedFieldsManager.clearCache) {
+                            window.computedFieldsManager.clearCache();
+                        }
+                    }, 1000);
+                });
+            }
+        }
+        
+        // Global error handler for unhandled JavaScript errors
+        window.addEventListener('error', function(event) {
+            console.error('Global error caught:', event.error);
+            
+            // Show user-friendly error message for critical errors
+            if (event.error && event.error.message && event.error.message.includes('dashboard')) {
+                if (window.PopupManager && window.PopupManager.showError) {
+                    window.PopupManager.showError(
+                        'Dashboard Error',
+                        'A dashboard component encountered an error. Please refresh the page if issues persist.'
+                    );
+                }
+            }
         });
     </script>
 {% endblock %} 

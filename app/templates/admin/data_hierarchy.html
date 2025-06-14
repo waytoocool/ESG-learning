@@ -4,9 +4,11 @@
 
 {% block extra_head %}
     <!-- Any additional CSS specific to data hierarchy page -->
-<link rel="stylesheet" href="/static/admin/data_hierarchy/css/data_hierarchy.css">
-<link rel="stylesheet" href="/static/admin/data_hierarchy/css/sidebar.css">
-<link rel="stylesheet" href="/static/admin/data_hierarchy/css/main-content.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/data_hierarchy.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/sidebar.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/main-content.css') }}">
+<!-- Font Awesome for zoom control icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <style>
 #hierarchy-chart {
   opacity: 0;
@@ -144,14 +146,14 @@
 
 <script>
     // Load Data from the Server
-    const data = {{ hierarchy_data | tojson }};
+    const data = JSON.parse('{{ hierarchy_data | tojson | safe }}');
 </script>
 
 {% endblock %}
 
 {% block afterbody %}
- <!--   <script src="/static/admin/data_hierarchy/js/forms.js"></script>
-    <script src="/static/admin/data_hierarchy/js/chart.js"></script>
-    <script src="/static/admin/data_hierarchy/js/sidebar.js"></script> -->
-    <script type="module" src="/static/admin/data_hierarchy/js/data_hierarchy.js"></script>
+<!--   <script src="{{ url_for('static', filename='js/admin/forms.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin/chart.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin/sidebar.js') }}"></script> -->
+<script type="module" src="{{ url_for('static', filename='js/admin/data_hierarchy.js') }}"></script>
 {% endblock %}

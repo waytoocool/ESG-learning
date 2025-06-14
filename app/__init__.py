@@ -1,9 +1,5 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
-from flask_mail import Mail
 from werkzeug.middleware.proxy_fix import ProxyFix
-from werkzeug.security import generate_password_hash
 from dotenv import load_dotenv
 from app.services.initial_data import create_initial_data
 from app.extensions import db, login_manager, mail

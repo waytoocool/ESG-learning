@@ -65,4 +65,30 @@
 .change-type.delete {
     background-color: #fee2e2;
     color: #991b1b;
+}
+
+/* New change type styles */
+.change-type.ondemandcomputation {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.change-type.smartcomputation {
+    background-color: #ecfdf5;
+    color: #047857;
+}
+
+.change-type.csvupload {
+    background-color: #e0e7ff;
+    color: #3730a3;
+}
+
+.change-type.adminrecompute {
+    background-color: #fce7f3;
+    color: #be185d;
+}
+
+.change-type.adminbulkrecompute {
+    background-color: #f3e8ff;
+    color: #7c3aed;
 } 

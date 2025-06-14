@@ -22,11 +22,23 @@ class Config:
 
     # Redis Configuration
     REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+    REDIS_ENABLED = os.environ.get('REDIS_ENABLED', 'False').lower() == 'true'
 
     # File Upload Configuration
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
     MAX_CONTENT_LENGTH = 20 * 1024 * 1024  # 20MB max file size
-    ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png'}
+    ALLOWED_EXTENSIONS = {
+        # Documents
+        'pdf', 'doc', 'docx', 'txt', 'rtf',
+        # Spreadsheets  
+        'xls', 'xlsx', 'csv', 'ods',
+        # Images
+        'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff',
+        # Archives
+        'zip', 'rar', '7z',
+        # Presentations
+        'ppt', 'pptx'
+    }
     
     # Ensure upload directory exists
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -47,6 +59,7 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', '/var/www/uploads')
+    REDIS_ENABLED = os.environ.get('REDIS_ENABLED', 'True').lower() == 'true'
 
 class TestingConfig(Config):
     TESTING = True

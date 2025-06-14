@@ -15,8 +15,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     
     <!-- Application CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/popup.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common/popup.css') }}">
     
     {% block extra_css %}{% endblock %}
     
@@ -32,15 +32,15 @@
             <nav>
                 <ul>
                     {% if current_user.role == 'Admin' %}
-                        <li><a href="{{ url_for('admin.home') }}">Home</a></li>
-                        <li><a href="{{ url_for('admin.data_hierarchy') }}">Data Hierarchy</a></li>
-                        <li><a href="{{ url_for('admin.frameworks') }}">Frameworks</a></li>
-                        <li><a href="{{ url_for('admin.assign_data_points') }}">Assign Data Points</a></li>
-                        <li><a href="{{ url_for('admin.data_status_matrix') }}">Data Status Matrix</a></li>
-                        <li><a href="{{ url_for('admin.data_review') }}">Data Review</a></li>
-                        <li><a href="{{ url_for('admin.audit_log') }}">Audit Log</a></li>
+                        <li><a href="{{ url_for('admin.home') }}" class="{% if request.endpoint == 'admin.home' %}active{% endif %}">Home</a></li>
+                        <li><a href="{{ url_for('admin.data_hierarchy') }}" class="{% if request.endpoint == 'admin.data_hierarchy' %}active{% endif %}">Data Hierarchy</a></li>
+                        <li><a href="{{ url_for('admin.frameworks') }}" class="{% if request.endpoint == 'admin.frameworks' %}active{% endif %}">Frameworks</a></li>
+                        <li><a href="{{ url_for('admin.assign_data_points') }}" class="{% if request.endpoint == 'admin.assign_data_points' %}active{% endif %}">Assign Data Points</a></li>
+                        <li><a href="{{ url_for('admin.data_status_matrix') }}" class="{% if request.endpoint == 'admin.data_status_matrix' %}active{% endif %}">Data Status Matrix</a></li>
+                        <li><a href="{{ url_for('admin.data_review') }}" class="{% if request.endpoint == 'admin.data_review' %}active{% endif %}">Data Review</a></li>
+                        <li><a href="{{ url_for('admin.audit_log') }}" class="{% if request.endpoint == 'admin.audit_log' %}active{% endif %}">Audit Log</a></li>
                     {% elif current_user.role == 'User' %}
-                        <li><a href="{{ url_for('user.dashboard') }}">Data Entry Dashboard</a></li>
+                        <li><a href="{{ url_for('user.dashboard') }}" class="{% if request.endpoint == 'user.dashboard' %}active{% endif %}">Data Entry Dashboard</a></li>
                         <!-- Add any other user-specific navigation items here -->
                     {% endif %}
                     <li class="logout-item"><a href="{{ url_for('auth.logout') }}">Logout</a></li>
@@ -57,8 +57,6 @@
     <!-- Third-party JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Application JS -->
-    <script type="module" src="{{ url_for('static', filename='js/popup.js') }}"></script>
     {% block extra_js %}{% endblock %}
     {% block afterbody %}{% endblock %}
 </body>

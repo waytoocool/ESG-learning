@@ -6,6 +6,7 @@ from ..extensions import db
 from ..services.email import send_password_reset_email
 from ..services.redis import get_redis_client
 from ..services.token import generate_password_reset_token, verify_password_reset_token, verify_registration_token
+import redis
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -25,8 +26,6 @@ def login():
             return jsonify({'success': False, 'message': message}) if is_ajax else flash(message)
 
         user = User.query.filter_by(email=email).first()
-        print('RTTTTTT',user.password,password)
-        print('************',check_password_hash(generate_password_hash(user.password,method='pbkdf2:sha256'), password))
         if user and check_password_hash(user.password, password):
             login_user(user)
             redirect_url = url_for('user.dashboard' if user.role == 'User' else 'admin.home')
@@ -38,7 +37,6 @@ def login():
                 })
             return redirect(redirect_url)
         else:
-            print('User Is: ',User.query.all())
             message = 'Invalid email or password'
             if is_ajax:
                 return jsonify({
