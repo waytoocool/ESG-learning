@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Log{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/superadmin/main.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="audit-log">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2>System Audit Log</h2>
+            <p>Track all administrative actions performed by super administrators.</p>
+        </div>
+        <div>
+            <a href="{{ url_for('superadmin.dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Results Summary -->
+    <div class="results-summary mb-3">
+        <p>Showing {{ pagination.per_page * (pagination.page - 1) + 1 }} to {{ pagination.per_page * (pagination.page - 1) + audit_logs|length }} of {{ pagination.total }} audit entries</p>
+    </div>
+
+    <div class="audit-table">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Entity</th>
+                    <th>IP Address</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in audit_logs %}
+                <tr>
+                    <td>
+                        <small>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+                    </td>
+                    <td>
+                        {% if log.user %}
+                            <div>{{ log.user.email }}</div>
+                            <small class="text-muted">ID: {{ log.user.id }}</small>
+                        {% else %}
+                            <span class="text-muted">User not found</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="action-badge action-{{ log.action.lower().replace('_', '-') }}">
+                            {{ log.action.replace('_', ' ').title() }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if log.entity_type and log.entity_id %}
+                            <div>{{ log.entity_type }}</div>
+                            <small class="text-muted">ID: {{ log.entity_id }}</small>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <small>{{ log.ip_address or '-' }}</small>
+                    </td>
+                    <td>
+                        {% if log.payload %}
+                        <button class="btn btn-sm btn-info view-details-btn" data-payload="{{ log.payload }}" data-action="{{ log.action }}">
+                            View Details
+                        </button>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center">No audit entries found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <nav aria-label="Audit log pagination">
+        <ul class="pagination justify-content-center">
+            {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('superadmin.audit_log', page=pagination.prev_num) }}">Previous</a>
+                </li>
+            {% endif %}
+            
+            {% for page_num in pagination.iter_pages() %}
+                {% if page_num %}
+                    {% if page_num != pagination.page %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('superadmin.audit_log', page=page_num) }}">{{ page_num }}</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                    {% endif %}
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('superadmin.audit_log', page=pagination.next_num) }}">Next</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<!-- Audit Details Modal -->
+<div class="modal fade" id="auditDetailsModal" tabindex="-1" role="dialog" aria-labelledby="auditDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="auditDetailsModalLabel">Audit Details: <span id="modal-action"></span></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <pre id="audit-payload" class="bg-light p-3 rounded"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Action badges */
+.action-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.action-badge.action-create-company,
+.action-badge.action-create-admin-user {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.action-badge.action-update-company,
+.action-badge.action-toggle-company-status,
+.action-badge.action-toggle-user-status {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+.action-badge.action-delete-company {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.audit-table {
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.audit-table table {
+    margin: 0;
+}
+
+.audit-table th {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    color: #495057;
+}
+
+.audit-table td {
+    vertical-align: middle;
+}
+
+#audit-payload {
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.9em;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle view details buttons
+    document.querySelectorAll('.view-details-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const payload = this.dataset.payload;
+            const action = this.dataset.action;
+            
+            document.getElementById('modal-action').textContent = action.replace(/_/g, ' ').toUpperCase();
+            
+            try {
+                const parsedPayload = JSON.parse(payload);
+                document.getElementById('audit-payload').textContent = JSON.stringify(parsedPayload, null, 2);
+            } catch (e) {
+                document.getElementById('audit-payload').textContent = payload;
+            }
+            
+            $('#auditDetailsModal').modal('show');
+        });
+    });
+});
+</script>
+{% endblock %} 

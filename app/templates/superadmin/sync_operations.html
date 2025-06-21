@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}Sync Operations - Super Admin{% endblock %}
+
+{% block content %}
+<div class="sync-operations">
+    <div class="page-header">
+        <h2>Synchronization Operations</h2>
+        <p>Detailed view of all synchronization operations with filtering and search capabilities.</p>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-section">
+        <form method="GET" class="filters-form">
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="type" class="form-label">Operation Type</label>
+                    <select name="type" id="type" class="form-select">
+                        <option value="">All Types</option>
+                        <option value="FRAMEWORK_SYNC" {% if operation_type_filter == 'FRAMEWORK_SYNC' %}selected{% endif %}>Framework Sync</option>
+                        <option value="TEMPLATE_PROVISION" {% if operation_type_filter == 'TEMPLATE_PROVISION' %}selected{% endif %}>Template Provision</option>
+                        <option value="DATA_MIGRATION" {% if operation_type_filter == 'DATA_MIGRATION' %}selected{% endif %}>Data Migration</option>
+                        <option value="BULK_UPDATE" {% if operation_type_filter == 'BULK_UPDATE' %}selected{% endif %}>Bulk Update</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" id="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>Pending</option>
+                        <option value="RUNNING" {% if status_filter == 'RUNNING' %}selected{% endif %}>Running</option>
+                        <option value="COMPLETED" {% if status_filter == 'COMPLETED' %}selected{% endif %}>Completed</option>
+                        <option value="FAILED" {% if status_filter == 'FAILED' %}selected{% endif %}>Failed</option>
+                        <option value="CANCELLED" {% if status_filter == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-filter"></i> Apply Filters
+                        </button>
+                        <a href="{{ url_for('superadmin.sync_operations') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Clear
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Operations Table -->
+    <div class="operations-table">
+        {% if operations %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Operation Type</th>
+                        <th>Status</th>
+                        <th>Progress</th>
+                        <th>Started</th>
+                        <th>Updated</th>
+                        <th>Duration</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for operation in operations %}
+                    <tr>
+                        <td><code>{{ operation.id }}</code></td>
+                        <td>
+                            <span class="operation-type">{{ operation.operation_type }}</span>
+                        </td>
+                        <td>
+                            <span class="badge {% if operation.status == 'COMPLETED' %}bg-success{% elif operation.status == 'FAILED' %}bg-danger{% elif operation.status == 'RUNNING' %}bg-warning text-dark{% elif operation.status == 'PENDING' %}bg-info{% elif operation.status == 'CANCELLED' %}bg-secondary{% else %}bg-light text-dark{% endif %}">
+                                {{ operation.status }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if operation.progress_percentage is not none %}
+                            <div class="progress" style="height: 20px; width: 100px;">
+                                <div class="progress-bar" 
+                                     role="progressbar" 
+                                     style="width: {{ operation.progress_percentage }}%;">
+                                    {{ operation.progress_percentage }}%
+                                </div>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if operation.created_at %}
+                            <small>{{ operation.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if operation.updated_at %}
+                            <small>{{ operation.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if operation.created_at and operation.updated_at %}
+                            {% set duration = operation.updated_at - operation.created_at %}
+                            <small>{{ duration.total_seconds() | int }}s</small>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                {% if operation.status == 'RUNNING' %}
+                                <button class="btn btn-outline-warning" 
+                                        onclick="refreshPage()" 
+                                        title="Refresh Status">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if pagination.pages > 1 %}
+        <nav aria-label="Operations pagination">
+            <ul class="pagination justify-content-center">
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('superadmin.sync_operations', page=pagination.prev_num, type=operation_type_filter, status=status_filter) }}">
+                        Previous
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for page_num in pagination.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != pagination.page %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('superadmin.sync_operations', page=page_num, type=operation_type_filter, status=status_filter) }}">{{ page_num }}</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('superadmin.sync_operations', page=pagination.next_num, type=operation_type_filter, status=status_filter) }}">
+                        Next
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+        <!-- Results Info -->
+        <div class="results-info text-center text-muted">
+            <small>
+                Showing {{ operations|length }} of {{ pagination.total }} operations
+                {% if operation_type_filter or status_filter %}
+                (filtered)
+                {% endif %}
+            </small>
+        </div>
+
+        {% else %}
+        <div class="empty-state">
+            <div class="text-center py-5">
+                <i class="fas fa-tasks fa-3x text-muted mb-3"></i>
+                <h4>No Operations Found</h4>
+                <p class="text-muted">
+                    {% if operation_type_filter or status_filter %}
+                    No operations match your current filters. Try adjusting the filters above.
+                    {% else %}
+                    No synchronization operations have been recorded yet.
+                    {% endif %}
+                </p>
+                {% if operation_type_filter or status_filter %}
+                <a href="{{ url_for('superadmin.sync_operations') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-times"></i> Clear Filters
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <a href="{{ url_for('superadmin.sync_dashboard') }}" class="btn btn-outline-primary">
+            <i class="fas fa-tachometer-alt"></i> Sync Dashboard
+        </a>
+        <a href="{{ url_for('superadmin.framework_sync_interface') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Framework Sync
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.sync-operations {
+    padding: 20px;
+}
+
+.page-header {
+    margin-bottom: 30px;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 15px;
+}
+
+.filters-section {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.operations-table {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.operation-type {
+    background: #e9ecef;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+}
+
+.progress {
+    background-color: #e9ecef;
+    border-radius: 4px;
+}
+
+.progress-bar {
+    background-color: #007bff;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: white;
+}
+
+.empty-state {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 40px;
+}
+
+.quick-actions {
+    margin-top: 30px;
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.results-info {
+    padding: 15px;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function refreshPage() {
+    window.location.reload();
+}
+
+// Auto-refresh running operations every 30 seconds
+setInterval(function() {
+    const runningBadges = document.querySelectorAll('.badge.bg-warning');
+    if (runningBadges.length > 0) {
+        window.location.reload();
+    }
+}, 30000);
+</script>
+{% endblock %} 

@@ -1,13 +1,16 @@
 from ..extensions import db
 from .data_point import entity_data_point
+from .mixins import TenantScopedQueryMixin, TenantScopedModelMixin
 
-class Entity(db.Model):
+class Entity(db.Model, TenantScopedQueryMixin, TenantScopedModelMixin):
     """Entity model for organizational hierarchy."""
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
     entity_type = db.Column(db.String(20), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('entity.id'), nullable=True)
+    # Add company_id for tenant isolation - temporarily nullable until T-3 seed data
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True)
     
     # Relationships
     parent = db.relationship('Entity', 
@@ -20,10 +23,12 @@ class Entity(db.Model):
     esg_data = db.relationship('ESGData', 
                               back_populates='entity',
                               cascade='all, delete-orphan')
+    company = db.relationship('Company', backref='entities')
 
-    def __init__(self, name, entity_type, parent_id=None):
+    def __init__(self, name, entity_type, company_id=None, parent_id=None):
         self.name = name
         self.entity_type = entity_type
+        self.company_id = company_id
         self.parent_id = parent_id
 
     def get_hierarchy_level(self):

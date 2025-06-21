@@ -17,7 +17,7 @@ from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 from typing import Dict, List, Optional, Tuple, Any, Union
 from enum import Enum
-from flask import current_app
+from flask import current_app, g
 from sqlalchemy import and_, or_
 
 from ..models.data_assignment import DataPointAssignment
@@ -124,11 +124,20 @@ class AggregationService:
             if not computed_field or not computed_field.is_computed:
                 return False, "Field is not computed"
             
-            computed_assignment = DataPointAssignment.query.filter_by(
-                data_point_id=computed_field_id,
-                entity_id=entity_id,
-                is_active=True
-            ).first()
+            # Use tenant-scoped queries when possible
+            if hasattr(g, 'tenant') and g.tenant:
+                computed_assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
+                    data_point_id=computed_field_id,
+                    entity_id=entity_id,
+                    is_active=True
+                ).first()
+            else:
+                # Fallback to regular query for admin/service contexts
+                computed_assignment = DataPointAssignment.query.filter_by(
+                    data_point_id=computed_field_id,
+                    entity_id=entity_id,
+                    is_active=True
+                ).first()
             
             if not computed_assignment:
                 return False, "No assignment found"
@@ -137,14 +146,25 @@ class AggregationService:
             mappings = computed_field.variable_mappings
             dependency_field_ids = [mapping.raw_field_id for mapping in mappings]
             
-            dependency_assignments = {
-                assignment.data_point_id: assignment
-                for assignment in DataPointAssignment.query.filter(
-                    DataPointAssignment.data_point_id.in_(dependency_field_ids),
-                    DataPointAssignment.entity_id == entity_id,
-                    DataPointAssignment.is_active == True
-                ).all()
-            }
+            # Use tenant-scoped queries when possible
+            if hasattr(g, 'tenant') and g.tenant:
+                dependency_assignments = {
+                    assignment.data_point_id: assignment
+                    for assignment in DataPointAssignment.query_for_tenant(db.session).filter(
+                        DataPointAssignment.data_point_id.in_(dependency_field_ids),
+                        DataPointAssignment.entity_id == entity_id,
+                        DataPointAssignment.is_active == True
+                    ).all()
+                }
+            else:
+                dependency_assignments = {
+                    assignment.data_point_id: assignment
+                    for assignment in DataPointAssignment.query.filter(
+                        DataPointAssignment.data_point_id.in_(dependency_field_ids),
+                        DataPointAssignment.entity_id == entity_id,
+                        DataPointAssignment.is_active == True
+                    ).all()
+                }
             
             total_expected_values = 0
             total_available_values = 0
@@ -170,13 +190,23 @@ class AggregationService:
                     computed_assignment
                 )
                 
-                available_count = ESGData.query.filter(
-                    ESGData.data_point_id == mapping.raw_field_id,
-                    ESGData.entity_id == entity_id,
-                    ESGData.reporting_date >= period_start,
-                    ESGData.reporting_date <= period_end,
-                    ESGData.raw_value.isnot(None)
-                ).count()
+                # Use tenant-scoped queries when possible
+                if hasattr(g, 'tenant') and g.tenant:
+                    available_count = ESGData.query_for_tenant(db.session).filter(
+                        ESGData.data_point_id == mapping.raw_field_id,
+                        ESGData.entity_id == entity_id,
+                        ESGData.reporting_date >= period_start,
+                        ESGData.reporting_date <= period_end,
+                        ESGData.raw_value.isnot(None)
+                    ).count()
+                else:
+                    available_count = ESGData.query.filter(
+                        ESGData.data_point_id == mapping.raw_field_id,
+                        ESGData.entity_id == entity_id,
+                        ESGData.reporting_date >= period_start,
+                        ESGData.reporting_date <= period_end,
+                        ESGData.raw_value.isnot(None)
+                    ).count()
                 
                 total_expected_values += expected_count
                 total_available_values += available_count
@@ -200,7 +230,7 @@ class AggregationService:
                 return False, reason
                 
         except Exception as e:
-            current_app.logger.error(f"Error checking computation eligibility: {str(e)}")
+            current_app.logger.error(f'Error checking computation eligibility: {str(e)}')
             return False, f"Error: {str(e)}"
     
     def _get_expected_data_count(self, 
@@ -289,55 +319,64 @@ class AggregationService:
                           reporting_date: date,
                           custom_rules: Optional[Dict[str, AggregationRule]] = None) -> Optional[float]:
         """
-        Compute the value for a computed field using intelligent aggregation.
+        Compute the value of a computed field for a specific entity and date.
         
         Args:
-            computed_field_id: ID of the computed field
-            entity_id: ID of the entity
+            computed_field_id: ID of the computed field to calculate
+            entity_id: ID of the entity for which to compute the value
             reporting_date: Date for which to compute the value
-            custom_rules: Optional custom aggregation rules per dependency field
+            custom_rules: Optional custom aggregation rules for dependencies
             
         Returns:
-            Computed value or None if computation fails
+            Computed value or None if computation is not possible
         """
         try:
-            # Get the computed field and its assignment
             computed_field = FrameworkDataField.query.get(computed_field_id)
             if not computed_field or not computed_field.is_computed:
                 return None
             
-            computed_assignment = DataPointAssignment.query.filter_by(
-                data_point_id=computed_field_id,
-                entity_id=entity_id,
-                is_active=True
-            ).first()
+            # Use tenant-scoped queries when possible
+            if hasattr(g, 'tenant') and g.tenant:
+                computed_assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
+                    data_point_id=computed_field_id,
+                    entity_id=entity_id,
+                    is_active=True
+                ).first()
+            else:
+                computed_assignment = DataPointAssignment.query.filter_by(
+                    data_point_id=computed_field_id,
+                    entity_id=entity_id,
+                    is_active=True
+                ).first()
             
             if not computed_assignment:
-                current_app.logger.warning(f"No assignment found for computed field {computed_field_id}")
+                current_app.logger.warning(f'No assignment found for computed field {computed_field_id}, entity {entity_id}')
                 return None
             
-            # Get all dependencies and their values
+            # Get dependency values
             dependency_values = self._get_dependency_values(
-                computed_field, 
-                computed_assignment, 
-                entity_id, 
+                computed_field,
+                computed_assignment,
+                entity_id,
                 reporting_date,
                 custom_rules
             )
             
             if not dependency_values:
-                current_app.logger.warning(f"No dependency values found for computed field {computed_field_id}")
+                current_app.logger.warning(f'No dependency values available for field {computed_field_id}')
                 return None
             
-            # Apply the formula
-            return self._evaluate_formula(
+            # Evaluate the formula
+            result = self._evaluate_formula(
                 computed_field.formula_expression,
-                dependency_values,
-                computed_field.constant_multiplier
+                dependency_values
             )
             
+            current_app.logger.info(f'Computed field {computed_field_id} for entity {entity_id}: {result}')
+            return result
+            
         except Exception as e:
-            current_app.logger.error(f"Error computing field value: {str(e)}")
+            current_app.logger.error(f'Error computing field {computed_field_id}: {str(e)}')
             return None
     
     def compute_multiple_fields(self, 
@@ -388,56 +427,70 @@ class AggregationService:
                              entity_id: int,
                              reporting_date: date,
                              custom_rules: Optional[Dict[str, AggregationRule]] = None) -> Dict[str, float]:
-        """Get aggregated values for all dependencies of a computed field."""
+        """
+        Get aggregated values for all dependencies of a computed field.
+        
+        Args:
+            computed_field: The computed field to get dependencies for
+            computed_assignment: Assignment configuration for the computed field
+            entity_id: Entity ID to get data for
+            reporting_date: Reporting date
+            custom_rules: Optional custom aggregation rules
+            
+        Returns:
+            Dictionary mapping variable names to aggregated values
+        """
         dependency_values = {}
         
-        # Get all variable mappings for this computed field
-        mappings = computed_field.variable_mappings
-        
-        # Get all dependency assignments in one query for efficiency
-        dependency_field_ids = [mapping.raw_field_id for mapping in mappings]
-        dependency_assignments = {
-            assignment.data_point_id: assignment
-            for assignment in DataPointAssignment.query.filter(
-                DataPointAssignment.data_point_id.in_(dependency_field_ids),
-                DataPointAssignment.entity_id == entity_id,
-                DataPointAssignment.is_active == True
-            ).all()
-        }
-        
-        # Process each dependency
-        for mapping in mappings:
-            dependency_assignment = dependency_assignments.get(mapping.raw_field_id)
-            if not dependency_assignment:
-                current_app.logger.warning(f"No assignment found for dependency {mapping.raw_field_id}")
-                continue
-            
-            # Get aggregation rule
-            rule = self._get_aggregation_rule(
-                dependency_assignment.frequency,
-                computed_assignment.frequency,
-                mapping.raw_field_id,
-                custom_rules
-            )
-            
-            # Get aggregated value for this dependency
-            aggregated_value = self._aggregate_dependency_values(
-                mapping.raw_field_id,
-                entity_id,
-                reporting_date,
-                rule,
-                computed_assignment
-            )
-            
-            if aggregated_value is None:
-                if rule.is_required:
-                    current_app.logger.warning(f"Required dependency {mapping.raw_field_id} has no value")
-                    return {}  # Return empty dict to indicate failure
+        for mapping in computed_field.variable_mappings:
+            try:
+                # Get assignment for this dependency
+                if hasattr(g, 'tenant') and g.tenant:
+                    dependency_assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
+                        data_point_id=mapping.raw_field_id,
+                        entity_id=entity_id,
+                        is_active=True
+                    ).first()
                 else:
-                    aggregated_value = 0.0  # Use default for optional dependencies
-            
-            # Apply coefficient and store
-            dependency_values[mapping.variable_name] = aggregated_value * mapping.coefficient
+                    dependency_assignment = DataPointAssignment.query.filter_by(
+                        data_point_id=mapping.raw_field_id,
+                        entity_id=entity_id,
+                        is_active=True
+                    ).first()
+                
+                if not dependency_assignment:
+                    current_app.logger.warning(f'No assignment found for dependency {mapping.raw_field_id}')
+                    continue
+                
+                # Get aggregation rule
+                rule = self._get_aggregation_rule(
+                    dependency_assignment.frequency,
+                    computed_assignment.frequency,
+                    mapping.raw_field_id,
+                    custom_rules
+                )
+                
+                # Get aggregated value
+                aggregated_value = self._aggregate_dependency_values(
+                    mapping.raw_field_id,
+                    entity_id,
+                    reporting_date,
+                    rule,
+                    computed_assignment
+                )
+                
+                if aggregated_value is not None:
+                    # Apply coefficient from mapping
+                    final_value = aggregated_value * mapping.coefficient
+                    dependency_values[mapping.variable_name] = final_value
+                    
+                    current_app.logger.debug(f'Dependency {mapping.variable_name}: {aggregated_value} * {mapping.coefficient} = {final_value}')
+                else:
+                    current_app.logger.warning(f'Could not get value for dependency {mapping.raw_field_id}')
+                    
+            except Exception as e:
+                current_app.logger.error(f'Error processing dependency {mapping.raw_field_id}: {str(e)}')
+                continue
         
         return dependency_values
     
@@ -470,43 +523,77 @@ class AggregationService:
                                    reporting_date: date,
                                    rule: AggregationRule,
                                    computed_assignment: DataPointAssignment) -> Optional[float]:
-        """Aggregate values for a single dependency based on the rule."""
+        """
+        Aggregate values for a specific dependency field over the appropriate time period.
+        
+        Args:
+            dependency_field_id: ID of the dependency field
+            entity_id: Entity ID
+            reporting_date: Target reporting date
+            rule: Aggregation rule to apply
+            computed_assignment: Assignment for the computed field (for period calculation)
+            
+        Returns:
+            Aggregated value or None if no data available
+        """
         try:
-            # Calculate the period to look back
+            # Calculate the aggregation period
             period_start, period_end = self._calculate_aggregation_period(
-                reporting_date, 
+                reporting_date,
                 rule.lookback_months,
                 computed_assignment
             )
             
-            # Get all values in the period
-            dependency_values = ESGData.query.filter(
-                ESGData.data_point_id == dependency_field_id,
-                ESGData.entity_id == entity_id,
-                ESGData.reporting_date >= period_start,
-                ESGData.reporting_date <= period_end,
-                ESGData.raw_value.isnot(None)
-            ).order_by(ESGData.reporting_date).all()
+            current_app.logger.debug(f'Aggregating {dependency_field_id} from {period_start} to {period_end}')
+            
+            # Get dependency values within the period
+            if hasattr(g, 'tenant') and g.tenant:
+                dependency_values = ESGData.query_for_tenant(db.session).filter(
+                    ESGData.data_point_id == dependency_field_id,
+                    ESGData.entity_id == entity_id,
+                    ESGData.reporting_date >= period_start,
+                    ESGData.reporting_date <= period_end,
+                    ESGData.raw_value.isnot(None)
+                ).order_by(ESGData.reporting_date).all()
+            else:
+                dependency_values = ESGData.query.filter(
+                    ESGData.data_point_id == dependency_field_id,
+                    ESGData.entity_id == entity_id,
+                    ESGData.reporting_date >= period_start,
+                    ESGData.reporting_date <= period_end,
+                    ESGData.raw_value.isnot(None)
+                ).order_by(ESGData.reporting_date).all()
             
             if not dependency_values:
+                current_app.logger.warning(f'No dependency values found for {dependency_field_id} in period {period_start} to {period_end}')
                 return None
             
-            # Convert to numeric values
-            try:
-                numeric_values = [float(entry.raw_value) for entry in dependency_values]
-            except (ValueError, TypeError) as e:
-                current_app.logger.error(f"Error converting values to numeric: {str(e)}")
+            # Extract numeric values
+            numeric_values = []
+            for value_entry in dependency_values:
+                try:
+                    numeric_value = float(value_entry.raw_value)
+                    numeric_values.append(numeric_value)
+                except (ValueError, TypeError):
+                    current_app.logger.warning(f'Non-numeric value found: {value_entry.raw_value}')
+                    continue
+            
+            if not numeric_values:
+                current_app.logger.warning(f'No valid numeric values found for {dependency_field_id}')
                 return None
             
             # Apply aggregation method
-            return self._apply_aggregation_method(
-                numeric_values, 
-                rule.method, 
+            result = self._apply_aggregation_method(
+                numeric_values,
+                rule.method,
                 rule.weight_factor
             )
             
+            current_app.logger.debug(f'Aggregated {len(numeric_values)} values using {rule.method.value}: {result}')
+            return result
+            
         except Exception as e:
-            current_app.logger.error(f"Error aggregating dependency values: {str(e)}")
+            current_app.logger.error(f'Error aggregating dependency values for {dependency_field_id}: {str(e)}')
             return None
     
     def _calculate_aggregation_period(self, 
@@ -562,8 +649,7 @@ class AggregationService:
     
     def _evaluate_formula(self, 
                         formula_expression: str,
-                        values: Dict[str, float],
-                        constant_multiplier: Optional[float] = None) -> Optional[float]:
+                        values: Dict[str, float]) -> Optional[float]:
         """Evaluate the formula with the given values."""
         try:
             # Create a copy of formula for substitution
@@ -576,10 +662,6 @@ class AggregationService:
             # Evaluate the formula
             result = eval(computed_formula)
             
-            # Apply constant multiplier if present
-            if constant_multiplier and constant_multiplier != 1.0:
-                result = result * constant_multiplier
-            
             return float(result)
             
         except Exception as e:
@@ -591,19 +673,34 @@ class AggregationService:
                               entity_id: int,
                               reporting_date: date) -> Dict[str, Any]:
         """
-        Get detailed summary of how a computed field value was calculated.
-        Useful for transparency and debugging.
+        Get detailed aggregation summary for a computed field.
+        
+        Args:
+            computed_field_id: ID of the computed field
+            entity_id: Entity ID
+            reporting_date: Reporting date
+            
+        Returns:
+            Dictionary containing aggregation details
         """
         try:
             computed_field = FrameworkDataField.query.get(computed_field_id)
             if not computed_field or not computed_field.is_computed:
                 return {}
             
-            computed_assignment = DataPointAssignment.query.filter_by(
-                data_point_id=computed_field_id,
-                entity_id=entity_id,
-                is_active=True
-            ).first()
+            # Use tenant-scoped queries when possible
+            if hasattr(g, 'tenant') and g.tenant:
+                computed_assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
+                    data_point_id=computed_field_id,
+                    entity_id=entity_id,
+                    is_active=True
+                ).first()
+            else:
+                computed_assignment = DataPointAssignment.query.filter_by(
+                    data_point_id=computed_field_id,
+                    entity_id=entity_id,
+                    is_active=True
+                ).first()
             
             if not computed_assignment:
                 return {}
@@ -611,71 +708,84 @@ class AggregationService:
             summary = {
                 'computed_field_name': computed_field.field_name,
                 'formula': computed_field.formula_expression,
-                'reporting_date': reporting_date.isoformat(),
-                'computed_frequency': computed_assignment.frequency,
+                'frequency': computed_assignment.frequency,
                 'dependencies': []
             }
             
-            # Get dependency details
             for mapping in computed_field.variable_mappings:
-                dependency_assignment = DataPointAssignment.query.filter_by(
-                    data_point_id=mapping.raw_field_id,
-                    entity_id=entity_id,
-                    is_active=True
-                ).first()
+                # Get dependency assignment
+                if hasattr(g, 'tenant') and g.tenant:
+                    dependency_assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
+                        data_point_id=mapping.raw_field_id,
+                        entity_id=entity_id,
+                        is_active=True
+                    ).first()
+                else:
+                    dependency_assignment = DataPointAssignment.query.filter_by(
+                        data_point_id=mapping.raw_field_id,
+                        entity_id=entity_id,
+                        is_active=True
+                    ).first()
                 
-                if dependency_assignment:
+                dependency_field = FrameworkDataField.query.get(mapping.raw_field_id)
+                
+                if dependency_assignment and dependency_field:
+                    # Get aggregation rule
                     rule = self._get_aggregation_rule(
                         dependency_assignment.frequency,
                         computed_assignment.frequency,
                         mapping.raw_field_id
                     )
                     
+                    # Get period
                     period_start, period_end = self._calculate_aggregation_period(
                         reporting_date,
                         rule.lookback_months,
                         computed_assignment
                     )
                     
-                    # Get the actual values used
-                    values_used = ESGData.query.filter(
-                        ESGData.data_point_id == mapping.raw_field_id,
-                        ESGData.entity_id == entity_id,
-                        ESGData.reporting_date >= period_start,
-                        ESGData.reporting_date <= period_end,
-                        ESGData.raw_value.isnot(None)
-                    ).order_by(ESGData.reporting_date).all()
+                    # Get values used in aggregation
+                    if hasattr(g, 'tenant') and g.tenant:
+                        values_used = ESGData.query_for_tenant(db.session).filter(
+                            ESGData.data_point_id == mapping.raw_field_id,
+                            ESGData.entity_id == entity_id,
+                            ESGData.reporting_date >= period_start,
+                            ESGData.reporting_date <= period_end,
+                            ESGData.raw_value.isnot(None)
+                        ).order_by(ESGData.reporting_date).all()
+                    else:
+                        values_used = ESGData.query.filter(
+                            ESGData.data_point_id == mapping.raw_field_id,
+                            ESGData.entity_id == entity_id,
+                            ESGData.reporting_date >= period_start,
+                            ESGData.reporting_date <= period_end,
+                            ESGData.raw_value.isnot(None)
+                        ).order_by(ESGData.reporting_date).all()
                     
-                    dependency_field = FrameworkDataField.query.get(mapping.raw_field_id)
-                    
-                    summary['dependencies'].append({
-                        'variable': mapping.variable_name,
-                        'field_name': dependency_field.field_name if dependency_field else 'Unknown',
+                    dependency_info = {
+                        'field_name': dependency_field.field_name,
+                        'variable_name': mapping.variable_name,
                         'coefficient': mapping.coefficient,
                         'frequency': dependency_assignment.frequency,
                         'aggregation_method': rule.method.value,
+                        'lookback_months': rule.lookback_months,
                         'period_start': period_start.isoformat(),
                         'period_end': period_end.isoformat(),
+                        'values_count': len(values_used),
                         'values_used': [
                             {
                                 'date': v.reporting_date.isoformat(),
-                                'value': float(v.raw_value)
-                            }
-                            for v in values_used
-                        ],
-                        'aggregated_value': self._aggregate_dependency_values(
-                            mapping.raw_field_id,
-                            entity_id,
-                            reporting_date,
-                            rule,
-                            computed_assignment
-                        )
-                    })
+                                'value': float(v.raw_value) if v.raw_value else None
+                            } for v in values_used
+                        ]
+                    }
+                    
+                    summary['dependencies'].append(dependency_info)
             
             return summary
             
         except Exception as e:
-            current_app.logger.error(f"Error getting aggregation summary: {str(e)}")
+            current_app.logger.error(f'Error generating aggregation summary: {str(e)}')
             return {}
 
 

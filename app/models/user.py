@@ -9,10 +9,15 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(50), nullable=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=True)
-    role = db.Column(db.String(10), nullable=False)
+    role = db.Column(db.Enum('SUPER_ADMIN', 'ADMIN', 'USER', name='user_role'), nullable=False)
     entity_id = db.Column(db.Integer, db.ForeignKey('entity.id'), nullable=True)
+    # company_id is nullable to support SUPER_ADMIN users who operate across all companies
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     is_email_verified = db.Column(db.Boolean, default=False)
+
+    # Relationships
+    company = db.relationship('Company', backref='users')
 
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)
@@ -40,6 +45,18 @@ class User(db.Model, UserMixin):
     def is_anonymous(self):
         """Required for Flask-Login."""
         return False
+    
+    def is_super_admin(self):
+        """Check if user is a super admin."""
+        return self.role == 'SUPER_ADMIN'
+    
+    def is_admin(self):
+        """Check if user is an admin (company-level)."""
+        return self.role == 'ADMIN'
+    
+    def is_user(self):
+        """Check if user is a regular user."""
+        return self.role == 'USER'
 
     def __repr__(self):
         return f'<User {self.email}>'

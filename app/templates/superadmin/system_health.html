@@ -1,0 +1,552 @@
+{% extends "base.html" %}
+
+{% block title %}System Health - T-9{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/superadmin/main.css') }}">
+<style>
+.health-dashboard {
+    padding: 20px 0;
+}
+
+.dashboard-header {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.dashboard-header h2 {
+    margin: 0 0 10px 0;
+    font-size: 2.2em;
+}
+
+.dashboard-header p {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 1.1em;
+}
+
+.health-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.metric-card {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.metric-card.critical {
+    border-left: 4px solid #dc3545;
+}
+
+.metric-card.warning {
+    border-left: 4px solid #ffc107;
+}
+
+.metric-card.ok {
+    border-left: 4px solid #28a745;
+}
+
+.metric-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.metric-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.metric-status {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.status-ok {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-critical {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.metric-value {
+    font-size: 2.2em;
+    font-weight: 700;
+    color: #333;
+    margin: 0 0 10px 0;
+}
+
+.metric-label {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin: 0;
+}
+
+.health-sections {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.health-section {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.section-header {
+    background: #f8f9fa;
+    padding: 15px 20px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.section-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.section-content {
+    padding: 20px;
+}
+
+.config-status {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.config-status:last-child {
+    margin-bottom: 0;
+}
+
+.config-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.config-value {
+    font-family: 'Courier New', monospace;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.config-value.enabled {
+    background: #d4edda;
+    color: #155724;
+}
+
+.config-value.disabled {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.config-value.neutral {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+.activity-log {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.activity-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-info {
+    flex: 1;
+}
+
+.activity-action {
+    font-weight: 500;
+    color: #333;
+}
+
+.activity-user {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-top: 2px;
+}
+
+.activity-time {
+    color: #6c757d;
+    font-size: 0.8em;
+    text-align: right;
+    min-width: 80px;
+}
+
+.refresh-button {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #28a745;
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.refresh-button:hover {
+    background: #218838;
+    transform: scale(1.1);
+}
+
+.refresh-icon {
+    transition: transform 0.3s ease;
+}
+
+.refresh-button.spinning .refresh-icon {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+    .health-sections {
+        grid-template-columns: 1fr;
+    }
+    
+    .health-metrics {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="health-dashboard">
+    <div class="dashboard-header">
+        <h2><i class="fas fa-heartbeat"></i> System Health</h2>
+        <p>Monitor system performance and application health</p>
+    </div>
+
+    <!-- Health Metrics -->
+    <div class="health-metrics" id="healthMetrics">
+        <div class="metric-card ok">
+            <div class="metric-header">
+                <h4 class="metric-title">Database Records</h4>
+                <span class="metric-status status-ok">OK</span>
+            </div>
+            <h3 class="metric-value">{{ db_stats.total_esg_records }}</h3>
+            <p class="metric-label">ESG Data Records</p>
+        </div>
+
+        <div class="metric-card ok">
+            <div class="metric-header">
+                <h4 class="metric-title">Active Companies</h4>
+                <span class="metric-status status-ok">OK</span>
+            </div>
+            <h3 class="metric-value">{{ db_stats.active_companies }}</h3>
+            <p class="metric-label">of {{ db_stats.total_companies }} total</p>
+        </div>
+
+        <div class="metric-card ok">
+            <div class="metric-header">
+                <h4 class="metric-title">Total Users</h4>
+                <span class="metric-status status-ok">OK</span>
+            </div>
+            <h3 class="metric-value">{{ db_stats.total_users }}</h3>
+            <p class="metric-label">Registered Users</p>
+        </div>
+
+        <div class="metric-card ok">
+            <div class="metric-header">
+                <h4 class="metric-title">System Load</h4>
+                <span class="metric-status status-ok" id="systemLoadStatus">OK</span>
+            </div>
+            <h3 class="metric-value" id="systemLoadValue">-</h3>
+            <p class="metric-label">CPU Usage</p>
+        </div>
+
+        <div class="metric-card ok">
+            <div class="metric-header">
+                <h4 class="metric-title">Memory Usage</h4>
+                <span class="metric-status status-ok" id="memoryStatus">OK</span>
+            </div>
+            <h3 class="metric-value" id="memoryValue">-</h3>
+            <p class="metric-label">Available Memory</p>
+        </div>
+
+        <div class="metric-card ok">
+            <div class="metric-header">
+                <h4 class="metric-title">Audit Logs</h4>
+                <span class="metric-status status-ok">OK</span>
+            </div>
+            <h3 class="metric-value">{{ db_stats.total_audit_logs }}</h3>
+            <p class="metric-label">Total Audit Entries</p>
+        </div>
+    </div>
+
+    <!-- Health Sections -->
+    <div class="health-sections">
+        <!-- System Configuration Status -->
+        <div class="health-section">
+            <div class="section-header">
+                <h4 class="section-title">System Configuration</h4>
+                <span class="badge bg-success">{{ config_stats.total_configs }} Settings</span>
+            </div>
+            <div class="section-content">
+                <div class="config-status">
+                    <span class="config-name">Maintenance Mode</span>
+                    <span class="config-value {% if config_stats.maintenance_mode %}enabled{% else %}disabled{% endif %}">
+                        {{ 'ENABLED' if config_stats.maintenance_mode else 'DISABLED' }}
+                    </span>
+                </div>
+                <div class="config-status">
+                    <span class="config-name">User Registration</span>
+                    <span class="config-value {% if config_stats.registration_enabled %}enabled{% else %}disabled{% endif %}">
+                        {{ 'ENABLED' if config_stats.registration_enabled else 'DISABLED' }}
+                    </span>
+                </div>
+                <div class="config-status">
+                    <span class="config-name">Email Notifications</span>
+                    <span class="config-value {% if config_stats.email_enabled %}enabled{% else %}disabled{% endif %}">
+                        {{ 'ENABLED' if config_stats.email_enabled else 'DISABLED' }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent System Activity -->
+        <div class="health-section">
+            <div class="section-header">
+                <h4 class="section-title">Recent Activity</h4>
+                <span class="badge bg-info">Last 20 Actions</span>
+            </div>
+            <div class="section-content">
+                <div class="activity-log">
+                    {% for audit in recent_audits %}
+                    <div class="activity-item">
+                        <div class="activity-info">
+                            <div class="activity-action">{{ audit.action.replace('_', ' ').title() }}</div>
+                            {% if audit.user %}
+                            <div class="activity-user">by {{ audit.user.email }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="activity-time">{{ audit.created_at.strftime('%H:%M') }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Information -->
+    <div class="health-section">
+        <div class="section-header">
+            <h4 class="section-title">System Information</h4>
+            <button class="btn btn-sm btn-outline-primary" onclick="refreshSystemInfo()">
+                <i class="fas fa-sync"></i> Refresh
+            </button>
+        </div>
+        <div class="section-content">
+            <div id="systemInfo">
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading system information...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Refresh Button -->
+<button class="refresh-button" onclick="refreshAllMetrics()" title="Refresh All Metrics">
+    <i class="fas fa-sync refresh-icon"></i>
+</button>
+
+<script>
+// Auto-refresh system metrics every 30 seconds
+let refreshInterval;
+
+document.addEventListener('DOMContentLoaded', function() {
+    refreshSystemInfo();
+    refreshInterval = setInterval(refreshSystemInfo, 30000);
+});
+
+function refreshSystemInfo() {
+    fetch('/superadmin/api/system-health/metrics')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateSystemMetrics(data.metrics);
+                updateSystemInfo(data.metrics);
+            } else {
+                console.error('Failed to fetch system metrics:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching system metrics:', error);
+        });
+}
+
+function updateSystemMetrics(metrics) {
+    // Update CPU usage
+    const cpuPercent = metrics.system.cpu_percent;
+    const cpuElement = document.getElementById('systemLoadValue');
+    const cpuStatus = document.getElementById('systemLoadStatus');
+    
+    cpuElement.textContent = cpuPercent + '%';
+    
+    if (cpuPercent > 80) {
+        cpuStatus.textContent = 'CRITICAL';
+        cpuStatus.className = 'metric-status status-critical';
+    } else if (cpuPercent > 60) {
+        cpuStatus.textContent = 'WARNING';
+        cpuStatus.className = 'metric-status status-warning';
+    } else {
+        cpuStatus.textContent = 'OK';
+        cpuStatus.className = 'metric-status status-ok';
+    }
+    
+    // Update memory usage
+    const memoryPercent = metrics.system.memory_percent;
+    const memoryAvailable = metrics.system.memory_available_gb;
+    const memoryElement = document.getElementById('memoryValue');
+    const memoryStatus = document.getElementById('memoryStatus');
+    
+    memoryElement.textContent = memoryPercent + '%';
+    
+    if (memoryPercent > 90) {
+        memoryStatus.textContent = 'CRITICAL';
+        memoryStatus.className = 'metric-status status-critical';
+    } else if (memoryPercent > 75) {
+        memoryStatus.textContent = 'WARNING';
+        memoryStatus.className = 'metric-status status-warning';
+    } else {
+        memoryStatus.textContent = 'OK';
+        memoryStatus.className = 'metric-status status-ok';
+    }
+}
+
+function updateSystemInfo(metrics) {
+    const systemInfoElement = document.getElementById('systemInfo');
+    
+    const infoHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6><i class="fas fa-server"></i> System Resources</h6>
+                <div class="config-status">
+                    <span class="config-name">CPU Usage</span>
+                    <span class="config-value neutral">${metrics.system.cpu_percent}%</span>
+                </div>
+                <div class="config-status">
+                    <span class="config-name">Memory Usage</span>
+                    <span class="config-value neutral">${metrics.system.memory_percent}%</span>
+                </div>
+                <div class="config-status">
+                    <span class="config-name">Memory Available</span>
+                    <span class="config-value neutral">${metrics.system.memory_available_gb} GB</span>
+                </div>
+                <div class="config-status">
+                    <span class="config-name">Disk Usage</span>
+                    <span class="config-value neutral">${metrics.system.disk_percent}%</span>
+                </div>
+                <div class="config-status">
+                    <span class="config-name">Disk Free</span>
+                    <span class="config-value neutral">${metrics.system.disk_free_gb} GB</span>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6><i class="fas fa-cogs"></i> Application Status</h6>
+                <div class="config-status">
+                    <span class="config-name">Uptime</span>
+                    <span class="config-value neutral">${metrics.application.uptime_hours} hours</span>
+                </div>
+                <div class="config-status">
+                    <span class="config-name">Version</span>
+                    <span class="config-value neutral">${metrics.application.version}</span>
+                </div>
+                <div class="config-status">
+                    <span class="config-name">Maintenance Mode</span>
+                    <span class="config-value ${metrics.application.maintenance_mode ? 'enabled' : 'disabled'}">
+                        ${metrics.application.maintenance_mode ? 'ENABLED' : 'DISABLED'}
+                    </span>
+                </div>
+                <div class="config-status">
+                    <span class="config-name">Recent Activity (24h)</span>
+                    <span class="config-value neutral">${metrics.database.recent_activity_24h}</span>
+                </div>
+                <div class="config-status">
+                    <span class="config-name">Last Updated</span>
+                    <span class="config-value neutral">${new Date(metrics.timestamp).toLocaleTimeString()}</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    systemInfoElement.innerHTML = infoHTML;
+}
+
+function refreshAllMetrics() {
+    const refreshButton = document.querySelector('.refresh-button');
+    const refreshIcon = document.querySelector('.refresh-icon');
+    
+    refreshButton.classList.add('spinning');
+    
+    refreshSystemInfo();
+    
+    setTimeout(() => {
+        refreshButton.classList.remove('spinning');
+    }, 1000);
+}
+
+// Clean up interval when page is unloaded
+window.addEventListener('beforeunload', function() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+});
+</script>
+{% endblock %} 

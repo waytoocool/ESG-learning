@@ -12,29 +12,79 @@ from ..services.redis import check_rate_limit
 from ..models.esg_data import ESGDataAuditLog, ESGData
 from ..models.data_assignment import DataPointAssignment
 from ..services.aggregation import aggregation_service
+from ..middleware.tenant import get_current_tenant
+from ..decorators.auth import admin_or_super_admin_required, tenant_required_for
 import json
 import re
 from datetime import datetime, date
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
-def admin_required(f):
-    @wraps(f)
-    @login_required
-    def decorated_function(*args, **kwargs):
-        if current_user.role != 'Admin':
-            return redirect(url_for('auth.login'))
-        return f(*args, **kwargs)
-    decorated_function.__name__ = f.__name__
-    return decorated_function
+def is_super_admin():
+    """Check if current user is a super admin (no company_id)"""
+    return current_user.role == 'SUPER_ADMIN'
+
+def get_admin_entities():
+    """Get entities based on admin's access level"""
+    if is_super_admin():
+        # Super admin can see all entities
+        return Entity.query.all()
+    else:
+        # Regular admin can only see their tenant's entities
+        tenant = get_current_tenant()
+        if tenant:
+            return Entity.query_for_tenant(db.session).all()
+        else:
+            return []
+
+def get_admin_data_points():
+    """Get data points based on admin's access level"""
+    if is_super_admin():
+        # Super admin can see all data points
+        return DataPoint.query.all()
+    else:
+        # Regular admin can only see their tenant's data points
+        tenant = get_current_tenant()
+        if tenant:
+            return DataPoint.query_for_tenant(db.session).all()
+        else:
+            return []
+
+def get_admin_esg_data():
+    """Get ESG data based on admin's access level"""
+    if is_super_admin():
+        # Super admin can see all ESG data
+        return ESGData.query.all()
+    else:
+        # Regular admin can only see their tenant's ESG data
+        tenant = get_current_tenant()
+        if tenant:
+            return ESGData.query_for_tenant(db.session).all()
+        else:
+            return []
+
+def get_admin_assignments():
+    """Get data point assignments based on admin's access level"""
+    if is_super_admin():
+        # Super admin can see all assignments
+        return DataPointAssignment.query.all()
+    else:
+        # Regular admin can only see their tenant's assignments
+        tenant = get_current_tenant()
+        if tenant:
+            return DataPointAssignment.query_for_tenant(db.session).all()
+        else:
+            return []
 
 @admin_bp.route('/home')
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def home():
     return render_template('admin/home.html')
 
 @admin_bp.route('/data_hierarchy', methods=['GET', 'POST'])
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def data_hierarchy():
     def build_hierarchy(entity, visited, all_entities):
         if entity.id in visited:
@@ -70,12 +120,21 @@ def data_hierarchy():
             if not parent_id:
                 return jsonify({'success': False, 'message': 'Parent entity is required.'}), 400
 
-            # Check for duplicate names
-            if Entity.query.filter_by(name=name).first():
+            # Check for duplicate names within tenant scope
+            if is_super_admin():
+                existing_entity = Entity.query.filter_by(name=name).first()
+            else:
+                existing_entity = Entity.exists_for_tenant(db.session, name=name)
+            
+            if existing_entity:
                 return jsonify({'success': False, 'message': 'An entity with this name already exists.'}), 400
             
-            # Validate parent entity exists
-            parent = Entity.query.get(parent_id)
+            # Validate parent entity exists and is accessible
+            if is_super_admin():
+                parent = Entity.query.get(parent_id)
+            else:
+                parent = Entity.get_for_tenant(db.session, parent_id)
+            
             if not parent:
                 return jsonify({'success': False, 'message': 'Invalid parent entity.'}), 400
 
@@ -88,11 +147,23 @@ def data_hierarchy():
                 }), 400
 
             # Create new entity
-            new_entity = Entity(
-                name=name,
-                entity_type=entity_type,
-                parent_id=parent_id
-            )
+            if is_super_admin():
+                # Super admin creates entity without tenant restriction
+                new_entity = Entity(
+                    name=name,
+                    entity_type=entity_type,
+                    parent_id=parent_id,
+                    company_id=parent.company_id  # Inherit parent's company_id
+                )
+            else:
+                # Regular admin creates entity for their tenant
+                new_entity = Entity.create_for_current_tenant(
+                    db.session,
+                    name=name,
+                    entity_type=entity_type,
+                    parent_id=parent_id
+                )
+            
             db.session.add(new_entity)
             db.session.commit()
 
@@ -109,7 +180,7 @@ def data_hierarchy():
                 'message': 'An error occurred while creating the entity'
             }), 500
    
-    entities = Entity.query.all()
+    entities = get_admin_entities()
     hierarchy_data = [
         build_hierarchy(entity, set(), entities) 
         for entity in entities if entity.parent_id is None
@@ -121,7 +192,8 @@ def data_hierarchy():
                          hierarchy_data=hierarchy_data)
 
 @admin_bp.route('/frameworks', methods=['GET', 'POST'])
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def frameworks():
     if request.method == 'POST':
         try:
@@ -220,7 +292,8 @@ def frameworks():
     return render_template('admin/frameworks.html', frameworks=frameworks)
 
 @admin_bp.route('/frameworks/<framework_id>', methods=['GET'])
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def get_framework_details(framework_id):
     try:
         framework = Framework.query.get_or_404(framework_id)
@@ -260,7 +333,8 @@ def get_framework_details(framework_id):
         return jsonify({'error': str(e)}), 500
 
 @admin_bp.route('/get_frameworks')
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def get_frameworks():
     """Get all frameworks for dropdown selection."""
     try:
@@ -274,7 +348,8 @@ def get_frameworks():
         return jsonify({'error': str(e)}), 500
 
 @admin_bp.route('/get_framework_fields/<framework_id>')
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def get_framework_fields(framework_id):
     """Get all fields for a specific framework."""
     try:
@@ -292,7 +367,8 @@ def get_framework_fields(framework_id):
         return jsonify({'error': str(e)}), 500
 
 @admin_bp.route('/validate_formula', methods=['POST'])
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def validate_formula():
     """Validate a formula and its dependencies for circular references."""
     try:
@@ -339,82 +415,115 @@ def validate_formula():
         }), 500
 
 @admin_bp.route('/assign_data_points', methods=['GET', 'POST'])
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def assign_data_points():
     if request.method == 'POST':
-        if request.is_json:
-            data = request.get_json()
-            data_point_id = data.get('data_point_id')
-            entity_ids = data.get('entity_ids', [])
-            
-            # New FY and frequency parameters
-            fy_start_month = data.get('fy_start_month', 4)  # Default April
-            fy_start_year = data.get('fy_start_year')
-            fy_end_year = data.get('fy_end_year') 
-            frequency = data.get('frequency', 'Annual')
-            
-            try:
-                # Validate required parameters
-                if not fy_start_year or not fy_end_year:
-                    return jsonify({
-                        'success': False, 
-                        'message': 'Financial year start and end years are required'
-                    }), 400
-                
-                # Get the data point
-                data_point = DataPoint.query.get(data_point_id)
-                if not data_point:
-                    return jsonify({'success': False, 'message': 'Data point not found'}), 404
-                
-                # Remove existing assignments for this data point
-                DataPointAssignment.query.filter_by(data_point_id=data_point_id).delete()
-                
-                # Create new assignments with FY and frequency configuration
-                for entity_id in entity_ids:
-                    assignment = DataPointAssignment(
-                        data_point_id=data_point_id,
-                        entity_id=entity_id,
-                        fy_start_month=int(fy_start_month),
-                        fy_start_year=int(fy_start_year),
-                        fy_end_year=int(fy_end_year),
-                        frequency=frequency,
-                        assigned_by=current_user.id
-                    )
-                    db.session.add(assignment)
-                
-                # Also maintain the old entity relationship for backward compatibility
-                entities = Entity.query.filter(Entity.id.in_(entity_ids)).all()
-                data_point.entities = entities
-                
-                db.session.commit()
-                return jsonify({'success': True})
-                
-            except Exception as e:
-                db.session.rollback()
-                current_app.logger.error(f'Error in assign_data_points: {str(e)}')
-                return jsonify({'success': False, 'message': str(e)}), 500
-    
-    # For GET request
-    frameworks = Framework.query.all()
-    entities = Entity.query.all()
-    data_points = DataPoint.query.all()
+        try:
+            # Get form data
+            data_point_ids = request.form.getlist('data_point_ids')
+            entity_ids = request.form.getlist('entity_ids')
+            fy_start_month = int(request.form.get('fy_start_month'))
+            fy_start_year = int(request.form.get('fy_start_year'))
+            fy_end_year = int(request.form.get('fy_end_year'))
+            frequency = request.form.get('frequency')
 
-    return render_template('admin/assign_data_points.html', 
+            if not data_point_ids or not entity_ids:
+                flash('Please select at least one data point and one entity', 'error')
+                return redirect(url_for('admin.assign_data_points'))
+
+            # Validate selected entities and data points are accessible to admin
+            if is_super_admin():
+                # Super admin can assign any data points to any entities
+                valid_entities = Entity.query.filter(Entity.id.in_(entity_ids)).all()
+                valid_data_points = DataPoint.query.filter(DataPoint.id.in_(data_point_ids)).all()
+            else:
+                # Regular admin can only assign their tenant's data points to their tenant's entities
+                valid_entities = Entity.query_for_tenant(db.session).filter(Entity.id.in_(entity_ids)).all()
+                valid_data_points = DataPoint.query_for_tenant(db.session).filter(DataPoint.id.in_(data_point_ids)).all()
+
+            # Create assignments
+            assignment_count = 0
+            for entity in valid_entities:
+                for data_point in valid_data_points:
+                    # Check if assignment already exists
+                    existing_assignment = None
+                    if is_super_admin():
+                        existing_assignment = DataPointAssignment.query.filter_by(
+                            data_point_id=data_point.id,
+                            entity_id=entity.id
+                        ).first()
+                    else:
+                        existing_assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
+                            data_point_id=data_point.id,
+                            entity_id=entity.id
+                        ).first()
+                    
+                    if existing_assignment:
+                        existing_assignment.is_active = True
+                        existing_assignment.fy_start_month = fy_start_month
+                        existing_assignment.fy_start_year = fy_start_year
+                        existing_assignment.fy_end_year = fy_end_year
+                        existing_assignment.frequency = frequency
+                        existing_assignment.assigned_by = current_user.id
+                    else:
+                        # Create new assignment
+                        if is_super_admin():
+                            assignment = DataPointAssignment(
+                                data_point_id=data_point.id,
+                                entity_id=entity.id,
+                                company_id=entity.company_id,  # Set company_id from entity
+                                fy_start_month=fy_start_month,
+                                fy_start_year=fy_start_year,
+                                fy_end_year=fy_end_year,
+                                frequency=frequency,
+                                assigned_by=current_user.id
+                            )
+                        else:
+                            assignment = DataPointAssignment.create_for_current_tenant(
+                                db.session,
+                                data_point_id=data_point.id,
+                                entity_id=entity.id,
+                                fy_start_month=fy_start_month,
+                                fy_start_year=fy_start_year,
+                                fy_end_year=fy_end_year,
+                                frequency=frequency,
+                                assigned_by=current_user.id
+                            )
+                        
+                        db.session.add(assignment)
+                    assignment_count += 1
+
+            db.session.commit()
+            flash(f'Successfully created/updated {assignment_count} data point assignments!', 'success')
+            return redirect(url_for('admin.assign_data_points'))
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Error creating assignments: {str(e)}')
+            flash('An error occurred while creating assignments', 'error')
+            return redirect(url_for('admin.assign_data_points'))
+
+    # Get data for GET request
+    frameworks = Framework.query.all()  # Frameworks are shared across tenants
+    entities = get_admin_entities()
+    data_points = get_admin_data_points()
+
+    return render_template('admin/assign_data_points.html',
                          frameworks=frameworks,
-                         entities=entities, 
+                         entities=entities,
                          data_points=data_points)
 
 @admin_bp.route('/get_entities')
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def get_entities():
-    entities = Entity.query.all()
-    return jsonify([{
-        'id': entity.id,
-        'name': entity.name
-    } for entity in entities])
+    entities = get_admin_entities()
+    return jsonify([{'id': e.id, 'name': e.name, 'type': e.entity_type} for e in entities])
 
 @admin_bp.route('/create_user', methods=['POST'])
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def create_user():
     username = request.form.get('username')
     email = request.form['email']
@@ -440,7 +549,7 @@ def create_user():
 
 @admin_bp.route('/resend_verification', methods=['POST'])
 @login_required
-@admin_required  # Restrict access to Admins
+@admin_or_super_admin_required
 def resend_verification():
     """
     Admin route to resend verification email for a user.
@@ -488,223 +597,214 @@ def resend_verification():
         })
 
 @admin_bp.route('/get_existing_data_points')
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def get_existing_data_points():
-    try:
-        data_points = DataPoint.query.all()
-        return jsonify([{
-            'field_id': dp.id,
-            'field_name': dp.name
-        } for dp in data_points])
-    except Exception as e:
-        current_app.logger.error(f'Error fetching data points: {str(e)}')
-        return jsonify({'error': str(e)}), 500
+    data_points = get_admin_data_points()
+    return jsonify([{
+        'id': dp.id,
+        'name': dp.name,
+        'value_type': dp.value_type,
+        'unit': dp.unit,
+        'framework_id': dp.framework_id
+    } for dp in data_points])
 
 @admin_bp.route('/save_data_points', methods=['POST'])
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def save_data_points():
     try:
-        data = request.get_json()
-        field_ids = data.get('field_ids', [])
-
-        # Get existing data point IDs
-        existing_data_point_ids = {dp.id for dp in DataPoint.query.all()}
+        data_points_data = request.get_json()
         
-        # Determine which points to remove
-        ids_to_remove = existing_data_point_ids - set(field_ids)
-        if ids_to_remove:
-            DataPoint.query.filter(DataPoint.id.in_(ids_to_remove)).delete(synchronize_session=False)
-
-        # Add new data points
-        for field_id in field_ids:
-            # Check if data point already exists
-            if field_id not in existing_data_point_ids:
-                # Get the framework field details
+        if not data_points_data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        # Get current data points for comparison
+        current_data_points = get_admin_data_points()
+        existing_data_point_ids = {dp.id for dp in current_data_points}
+        
+        # Process updates and additions
+        new_data_point_ids = set()
+        for dp_data in data_points_data:
+            field_id = dp_data.get('field_id')
+            new_data_point_ids.add(field_id)
+            
+            # Check if this is an update or new data point
+            if field_id in existing_data_point_ids:
+                # Update existing data point (if admin has access)
+                if is_super_admin():
+                    dp = DataPoint.query.get(field_id)
+                else:
+                    dp = DataPoint.get_for_tenant(db.session, field_id)
+                
+                if dp:
+                    dp.name = dp_data.get('name', dp.name)
+                    dp.value_type = dp_data.get('value_type', dp.value_type)
+                    dp.unit = dp_data.get('unit', dp.unit)
+            else:
+                # Create new data point
                 field = FrameworkDataField.query.get(field_id)
                 if field:
-                    new_data_point = DataPoint(
-                        name=field.field_name,
-                        value_type='numeric',  # Set appropriate default
-                        framework_id=field.framework_id
-                    )
-                    # Explicitly set the UUID from the field_id
-                    new_data_point.id = field_id
-                    db.session.add(new_data_point)
-
+                    if is_super_admin():
+                        # Super admin can create data points for any tenant
+                        # For now, create without tenant restriction
+                        dp = DataPoint(
+                            name=dp_data.get('name'),
+                            value_type=dp_data.get('value_type'),
+                            framework_id=field.framework_id,
+                            unit=dp_data.get('unit')
+                        )
+                    else:
+                        # Regular admin creates for their tenant
+                        dp = DataPoint.create_for_current_tenant(
+                            db.session,
+                            name=dp_data.get('name'),
+                            value_type=dp_data.get('value_type'),
+                            framework_id=field.framework_id,
+                            unit=dp_data.get('unit')
+                        )
+                    db.session.add(dp)
+        
+        # Remove data points that are no longer in the list (if admin has access)
+        ids_to_remove = existing_data_point_ids - new_data_point_ids
+        if ids_to_remove:
+            if is_super_admin():
+                DataPoint.query.filter(DataPoint.id.in_(ids_to_remove)).delete(synchronize_session=False)
+            else:
+                # For regular admins, only delete their tenant's data points
+                tenant_data_points = DataPoint.query_for_tenant(db.session).filter(DataPoint.id.in_(ids_to_remove)).all()
+                for dp in tenant_data_points:
+                    db.session.delete(dp)
+        
         db.session.commit()
-        return jsonify({'success': True})
-
+        return jsonify({'success': True, 'message': 'Data points saved successfully'})
+        
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f'Error saving data points: {str(e)}')
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @admin_bp.route('/get_data_point_assignments')
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def get_data_point_assignments():
-    try:
-        # Get all data points and their assigned entities
-        data_points = DataPoint.query.all()
-        assignments = {}
-        
-        for dp in data_points:
-            # Get all entity IDs assigned to this data point
-            assigned_entity_ids = [entity.id for entity in dp.entities]
-            assignments[dp.id] = assigned_entity_ids
-            
-        return jsonify(assignments)
-    except Exception as e:
-        current_app.logger.error(f'Error fetching data point assignments: {str(e)}')
-        return jsonify({'error': str(e)}), 500
+    assignments = get_admin_assignments()
+    return jsonify([{
+        'id': a.id,
+        'data_point_id': a.data_point_id,
+        'entity_id': a.entity_id,
+        'frequency': a.frequency,
+        'is_active': a.is_active,
+        'fy_start_month': a.fy_start_month,
+        'fy_start_year': a.fy_start_year,
+        'fy_end_year': a.fy_end_year
+    } for a in assignments])
 
 @admin_bp.route('/get_assignment_configurations')
-@admin_required  
+@login_required
+@admin_or_super_admin_required
 def get_assignment_configurations():
-    """Get detailed assignment configurations including FY and frequency."""
-    try:
-        assignments = DataPointAssignment.query.filter_by(is_active=True).all()
-        
-        # Group by data point
-        configurations = {}
-        for assignment in assignments:
-            if assignment.data_point_id not in configurations:
-                configurations[assignment.data_point_id] = {
-                    'entities': [],
-                    'fy_start_month': assignment.fy_start_month,
-                    'fy_start_year': assignment.fy_start_year,
-                    'fy_end_year': assignment.fy_end_year,
-                    'frequency': assignment.frequency,
-                    'fy_display': assignment.get_fy_display()
-                }
-            configurations[assignment.data_point_id]['entities'].append(assignment.entity_id)
-        
-        return jsonify(configurations)
-    except Exception as e:
-        current_app.logger.error(f'Error fetching assignment configurations: {str(e)}')
-        return jsonify({'error': str(e)}), 500
+    assignments = get_admin_assignments()
+    active_assignments = [a for a in assignments if a.is_active]
+    
+    return jsonify([{
+        'id': assignment.id,
+        'data_point_id': assignment.data_point_id,
+        'data_point_name': assignment.data_point.name,
+        'entity_id': assignment.entity_id,
+        'entity_name': assignment.entity.name,
+        'frequency': assignment.frequency,
+        'fy_display': assignment.get_fy_display(),
+        'fy_start_month': assignment.fy_start_month,
+        'fy_start_year': assignment.fy_start_year,
+        'fy_end_year': assignment.fy_end_year,
+        'valid_dates': [date.isoformat() for date in assignment.get_valid_reporting_dates()]
+    } for assignment in active_assignments])
 
 @admin_bp.route('/get_valid_dates/<data_point_id>/<int:entity_id>')
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def get_valid_dates(data_point_id, entity_id):
-    """Get valid reporting dates for a specific data point and entity."""
-    try:
+    # Find assignment (with proper access control)
+    if is_super_admin():
         assignment = DataPointAssignment.query.filter_by(
             data_point_id=data_point_id,
             entity_id=entity_id,
             is_active=True
         ).first()
-        
-        if not assignment:
-            return jsonify({'error': 'Assignment not found'}), 404
-        
-        valid_dates = assignment.get_valid_reporting_dates()
-        
-        return jsonify({
-            'valid_dates': [date.isoformat() for date in valid_dates],
-            'frequency': assignment.frequency,
-            'fy_display': assignment.get_fy_display()
-        })
-    except Exception as e:
-        current_app.logger.error(f'Error fetching valid dates: {str(e)}')
-        return jsonify({'error': str(e)}), 500
+    else:
+        assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
+            data_point_id=data_point_id,
+            entity_id=entity_id,
+            is_active=True
+        ).first()
+    
+    if not assignment:
+        return jsonify({'error': 'Assignment not found'}), 404
+    
+    valid_dates = assignment.get_valid_reporting_dates()
+    return jsonify({
+        'valid_dates': [date.isoformat() for date in valid_dates],
+        'frequency': assignment.frequency,
+        'fy_display': assignment.get_fy_display()
+    })
 
 @admin_bp.route('/data_review', methods=['GET', 'POST'])
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def data_review():
-    """Admin route to view and edit ESG data submitted by subsidiaries."""
     if request.method == 'POST':
         try:
-            data = request.get_json()
-            data_id = data.get('data_id')
-            new_value = data.get('new_value')
-            edit_reason = data.get('edit_reason', '')
+            data_id = request.form.get('data_id')
+            action = request.form.get('action')
+            admin_notes = request.form.get('admin_notes', '')
             
-            # Get the ESG data record
-            esg_data = ESGData.query.get(data_id)
-            if not esg_data:
-                return jsonify({'success': False, 'message': 'Data record not found'}), 404
-            
-            # Store old value for audit
-            old_value = esg_data.raw_value or esg_data.calculated_value
-            
-            # Update the data
-            if esg_data.field.is_computed:
-                esg_data.calculated_value = float(new_value) if new_value else None
+            # Get ESG data with proper access control
+            if is_super_admin():
+                esg_data = ESGData.query.get(data_id)
             else:
-                esg_data.raw_value = new_value
+                esg_data = ESGData.get_for_tenant(db.session, data_id)
             
-            # Create audit log entry
-            audit_log = ESGDataAuditLog(
-                data_id=data_id,
-                change_type='Update',
-                changed_by=current_user.id,
-                old_value=float(old_value) if old_value else None,
-                new_value=float(new_value) if new_value else None
-            )
+            if not esg_data:
+                flash('Data not found or access denied', 'error')
+                return redirect(url_for('admin.data_review'))
             
-            db.session.add(audit_log)
+            # Handle different actions
+            if action == 'approve':
+                esg_data.status = 'approved'
+                flash('Data approved successfully', 'success')
+            elif action == 'reject':
+                esg_data.status = 'rejected'
+                flash('Data rejected', 'info')
+            elif action == 'request_revision':
+                esg_data.status = 'revision_requested'
+                flash('Revision requested', 'info')
+            
+            # Add admin notes if provided
+            if admin_notes:
+                esg_data.admin_notes = admin_notes
+            
             db.session.commit()
-            
-            return jsonify({'success': True, 'message': 'Data updated successfully'})
             
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f'Error updating ESG data: {str(e)}')
-            return jsonify({'success': False, 'message': str(e)}), 500
+            current_app.logger.error(f'Error in data review: {str(e)}')
+            flash('An error occurred while processing the request', 'error')
+        
+        return redirect(url_for('admin.data_review'))
     
-    # GET request: display the data review page
-    # Get all entities for filtering
-    entities = Entity.query.all()
+    # Get all ESG data entries for review
+    esg_entries = get_admin_esg_data()
     
-    # Get filter parameters
-    entity_id = request.args.get('entity_id')
-    framework_id = request.args.get('framework_id')
-    date_from = request.args.get('date_from')
-    date_to = request.args.get('date_to')
-    view_type = request.args.get('view_type', 'individual')  # 'individual' or 'consolidated'
-    
-    # Build query - Use simple query since relationships are already configured with lazy='joined'
-    query = ESGData.query
-    
-    if entity_id:
-        if view_type == 'consolidated':
-            # For consolidated view, include entity and all its children
-            entity = Entity.query.get(entity_id)
-            if entity:
-                child_ids = [child.id for child in entity.children]
-                child_ids.append(entity.id)
-                query = query.filter(ESGData.entity_id.in_(child_ids))
-        else:
-            # Individual view - specific entity only
-            query = query.filter(ESGData.entity_id == entity_id)
-    
-    if framework_id:
-        query = query.filter(ESGData.field.has(framework_id=framework_id))
-    
-    if date_from:
-        query = query.filter(ESGData.reporting_date >= date_from)
-    
-    if date_to:
-        query = query.filter(ESGData.reporting_date <= date_to)
-    
-    # Order by reporting date and entity
-    esg_data_records = query.order_by(ESGData.reporting_date.desc(), ESGData.entity_id).all()
-    
-    # Get frameworks for filter dropdown
-    frameworks = Framework.query.all()
+    # Get associated entities for filtering
+    entities = get_admin_entities()
     
     return render_template('admin/data_review.html', 
-                         esg_data_records=esg_data_records,
-                         entities=entities,
-                         frameworks=frameworks,
-                         selected_entity_id=entity_id,
-                         selected_framework_id=framework_id,
-                         date_from=date_from,
-                         date_to=date_to,
-                         view_type=view_type)
+                         esg_entries=esg_entries,
+                         entities=entities)
 
 @admin_bp.route('/audit_log')
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def audit_log():
     # Get all audit logs with related data
     audit_logs = ESGDataAuditLog.query\
@@ -716,146 +816,110 @@ def audit_log():
     return render_template('admin/audit_log.html', audit_logs=audit_logs)
 
 @admin_bp.route('/data_status_matrix', methods=['GET'])
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def data_status_matrix():
-    """Admin route to view data collection status in matrix format."""
+    # Get entities and data points based on admin access
+    entities = get_admin_entities()
+    data_points = get_admin_data_points()
     
-    # Get filter parameters
-    selected_date = request.args.get('reporting_date')
-    if not selected_date:
-        selected_date = datetime.now().strftime('%Y-%m-%d')
+    # Get assignments based on admin access
+    assignments = get_admin_assignments()
     
-    # Convert to date object for querying
-    try:
-        reporting_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
-    except ValueError:
-        reporting_date = datetime.now().date()
-        selected_date = reporting_date.strftime('%Y-%m-%d')
-    
-    # Get all assigned data points (data points that have entities assigned to them)
-    assigned_data_points = DataPoint.query.filter(DataPoint.entities.any()).all()
-    
-    # Get all entities that have data points assigned
-    entities_with_data_points = Entity.query.filter(Entity.data_points.any()).all()
-    
-    # Create matrix data structure
-    matrix_data = {}
-    
-    for data_point in assigned_data_points:        # Get the framework field to determine if it's computed
-        framework_field = FrameworkDataField.query.filter_by(field_id=data_point.id).first()
-        is_computed = framework_field.is_computed if framework_field else False
+    # Build matrix data
+    matrix_data = []
+    for entity in entities:
+        entity_assignments = [a for a in assignments if a.entity_id == entity.id and a.is_active]
         
-        matrix_data[data_point.id] = {
-            'data_point': data_point,
-            'is_computed': is_computed,
-            'entities': {}
-        }
-        
-        # Get entities assigned to this data point
-        assigned_entities = data_point.entities
-        
-        for entity in assigned_entities:
-            # Check if data exists for this data point and entity on the selected date
-            esg_data = ESGData.query.filter_by(
-                data_point_id=data_point.id,
-                entity_id=entity.id,
-                reporting_date=reporting_date
-            ).first()
+        for assignment in entity_assignments:
+            data_point = next((dp for dp in data_points if dp.id == assignment.data_point_id), None)
+            if not data_point:
+                continue
             
-            status = 'pending'
-            value = None
-            last_updated = None
+            framework_field = FrameworkDataField.query.filter_by(field_id=data_point.id).first()
+            if not framework_field:
+                continue
+            
+            # Get ESG data for this assignment
+            if is_super_admin():
+                esg_data = ESGData.query.filter_by(
+                    data_point_id=data_point.id,
+                    entity_id=entity.id
+                ).order_by(ESGData.reporting_date.desc()).all()
+            else:
+                esg_data = ESGData.query_for_tenant(db.session).filter_by(
+                    data_point_id=data_point.id,
+                    entity_id=entity.id
+                ).order_by(ESGData.reporting_date.desc()).all()
+            
+            # Calculate status
+            status = 'no_data'
+            latest_value = None
+            latest_date = None
             
             if esg_data:
-                if esg_data.raw_value is not None or esg_data.calculated_value is not None:
-                    status = 'completed'
-                    value = esg_data.calculated_value if esg_data.field.is_computed else esg_data.raw_value
-                    last_updated = esg_data.updated_at
+                latest_entry = esg_data[0]
+                latest_date = latest_entry.reporting_date
+                
+                if framework_field.is_computed:
+                    latest_value = latest_entry.calculated_value
+                    status = 'computed' if latest_value is not None else 'pending_computation'
                 else:
-                    status = 'incomplete'
+                    latest_value = latest_entry.raw_value
+                    status = 'complete' if latest_value is not None else 'incomplete'
             
-            matrix_data[data_point.id]['entities'][entity.id] = {
-                'entity': entity,
+            matrix_data.append({
+                'entity_id': entity.id,
+                'entity_name': entity.name,
+                'data_point_id': data_point.id,
+                'data_point_name': data_point.name,
+                'frequency': assignment.frequency,
                 'status': status,
-                'value': value,
-                'last_updated': last_updated,
-                'esg_data': esg_data
-            }
+                'latest_value': latest_value,
+                'latest_date': latest_date.isoformat() if latest_date else None,
+                'is_computed': framework_field.is_computed
+            })
     
-    # Calculate summary statistics
-    total_assignments = sum(len(dp_data['entities']) for dp_data in matrix_data.values())
-    completed_assignments = sum(
-        1 for dp_data in matrix_data.values() 
-        for entity_data in dp_data['entities'].values() 
-        if entity_data['status'] == 'completed'
-    )
-    completion_rate = (completed_assignments / total_assignments * 100) if total_assignments > 0 else 0
-    
-    return render_template('admin/data_status_matrix.html',
-                         matrix_data=matrix_data,
-                         entities_with_data_points=entities_with_data_points,
-                         assigned_data_points=assigned_data_points,
-                         selected_date=selected_date,
-                         total_assignments=total_assignments,
-                         completed_assignments=completed_assignments,
-                         completion_rate=completion_rate)
+    return jsonify(matrix_data)
 
 @admin_bp.route('/esg_data_details/<data_id>')
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def get_esg_data_details(data_id):
-    """API endpoint to get detailed information about an ESG data record."""
-    try:
+    # Get ESG data with proper access control
+    if is_super_admin():
         esg_data = ESGData.query.get(data_id)
-        if not esg_data:
-            return jsonify({'success': False, 'message': 'Data record not found'}), 404
-        
-        # Get framework field to check if computed
-        framework_field = FrameworkDataField.query.get(esg_data.data_point_id)
-        is_computed = framework_field.is_computed if framework_field else False
-        
-        # Get current value
-        current_value = esg_data.calculated_value if is_computed else esg_data.raw_value
-        
-        # Get audit trail
-        audit_logs = ESGDataAuditLog.query.filter_by(data_id=data_id)\
-            .order_by(ESGDataAuditLog.change_date.desc())\
-            .limit(10).all()
-        
-        # Get evidence files (if you have this model)
-        evidence_files = []  # Placeholder - add actual evidence file logic if available
-        
-        # Determine status
-        status = 'pending'
-        if esg_data.raw_value is not None or esg_data.calculated_value is not None:
-            status = 'completed'
-        elif esg_data.raw_value == '' or esg_data.calculated_value == '':
-            status = 'incomplete'
-        
-        data_details = {
-            'data_point_name': esg_data.data_point.name if esg_data.data_point else 'N/A',
-            'entity_name': esg_data.entity.name if esg_data.entity else 'N/A',
-            'framework_name': framework_field.framework.framework_name if framework_field and framework_field.framework else 'N/A',
-            'reporting_date': esg_data.reporting_date.isoformat() if esg_data.reporting_date else None,
-            'is_computed': is_computed,
-            'current_value': current_value,
-            'unit': getattr(esg_data.data_point, 'unit', None) if esg_data.data_point else None,
-            'updated_at': esg_data.updated_at.isoformat() if esg_data.updated_at else None,
-            'status': status,
-            'evidence_files': evidence_files,
-            'audit_trail': [{
-                'change_type': log.change_type,
-                'change_date': log.change_date.isoformat() if log.change_date else None,
-                'changed_by_username': log.user.username if log.user else 'System',
-                'old_value': log.old_value,
-                'new_value': log.new_value
-            } for log in audit_logs]
-        }
-        
-        return jsonify({'success': True, 'data': data_details})
-        
-    except Exception as e:
-        current_app.logger.error(f'Error fetching ESG data details: {str(e)}')
-        return jsonify({'success': False, 'message': str(e)}), 500
+    else:
+        esg_data = ESGData.get_for_tenant(db.session, data_id)
+    
+    if not esg_data:
+        return jsonify({'error': 'Data not found or access denied'}), 404
+    
+    # Get related framework field
+    framework_field = FrameworkDataField.query.get(esg_data.data_point_id)
+    
+    # Get audit logs for this data
+    audit_logs = ESGDataAuditLog.query.filter_by(data_id=data_id)\
+                    .order_by(ESGDataAuditLog.change_date.desc()).all()
+    
+    return jsonify({
+        'data_id': esg_data.data_id,
+        'entity_name': esg_data.entity.name,
+        'field_name': framework_field.field_name if framework_field else 'Unknown',
+        'raw_value': esg_data.raw_value,
+        'calculated_value': esg_data.calculated_value,
+        'reporting_date': esg_data.reporting_date.isoformat(),
+        'created_at': esg_data.created_at.isoformat(),
+        'updated_at': esg_data.updated_at.isoformat(),
+        'is_computed': framework_field.is_computed if framework_field else False,
+        'audit_logs': [{
+            'change_type': log.change_type,
+            'old_value': log.old_value,
+            'new_value': log.new_value,
+            'changed_by': log.user.username,
+            'change_date': log.change_date.isoformat()
+        } for log in audit_logs]
+    })
 
 def recompute_field_value_admin(computed_field_id, entity_id, reporting_date):
     """
@@ -899,7 +963,8 @@ def get_field_aggregation_summary_admin(computed_field_id, entity_id, reporting_
         return {}
 
 @admin_bp.route('/api/aggregation-summary/<computed_field_id>/<int:entity_id>')
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def get_aggregation_summary(computed_field_id, entity_id):
     """
     API endpoint to get detailed aggregation summary for a computed field.
@@ -933,12 +998,9 @@ def get_aggregation_summary(computed_field_id, entity_id):
         return jsonify({'error': str(e)}), 500
 
 @admin_bp.route('/api/recompute-field', methods=['POST'])
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def recompute_field():
-    """
-    API endpoint to recompute a specific computed field.
-    Useful for fixing data inconsistencies or testing new aggregation rules.
-    """
     try:
         data = request.get_json()
         computed_field_id = data.get('computed_field_id')
@@ -948,179 +1010,90 @@ def recompute_field():
         if not all([computed_field_id, entity_id, reporting_date_str]):
             return jsonify({
                 'success': False,
-                'error': 'computed_field_id, entity_id, and reporting_date are required'
+                'error': 'Missing required parameters'
             }), 400
+        
+        # Validate access to the data
+        if not is_super_admin():
+            # Regular admin can only recompute their tenant's data
+            computed_field = DataPoint.get_for_tenant(db.session, computed_field_id)
+            entity = Entity.get_for_tenant(db.session, entity_id)
+            if not computed_field or not entity:
+                return jsonify({
+                    'success': False,
+                    'error': 'Access denied to the specified data'
+                }), 403
         
         reporting_date = datetime.strptime(reporting_date_str, '%Y-%m-%d').date()
         
-        # Recompute the field value
-        new_value = recompute_field_value_admin(
-            computed_field_id,
-            entity_id,
-            reporting_date
-        )
+        # Perform recomputation
+        computed_value = recompute_field_value_admin(computed_field_id, entity_id, reporting_date)
         
-        if new_value is None:
+        if computed_value is not None:
+            return jsonify({
+                'success': True,
+                'computed_value': computed_value,
+                'message': 'Field recomputed successfully'
+            })
+        else:
             return jsonify({
                 'success': False,
-                'error': 'Could not compute field value. Check dependencies and data availability.'
-            }), 400
-        
-        # Update the database
-        computed_data = ESGData.query.filter_by(
-            data_point_id=computed_field_id,
-            entity_id=entity_id,
-            reporting_date=reporting_date
-        ).first()
-        
-        old_value = None
-        if computed_data:
-            old_value = computed_data.calculated_value
-            computed_data.calculated_value = new_value
-        else:
-            computed_data = ESGData(
-                entity_id=entity_id,
-                field_id=computed_field_id,
-                data_point_id=computed_field_id,
-                raw_value=None,
-                calculated_value=new_value,
-                reporting_date=reporting_date
-            )
-            db.session.add(computed_data)
-        
-        db.session.commit()
-        
-        # Create audit log
-        audit_log = ESGDataAuditLog(
-            data_id=computed_data.data_id,
-            change_type='Admin Recompute',
-            changed_by=current_user.id,
-            old_value=old_value,
-            new_value=new_value
-        )
-        db.session.add(audit_log)
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Field recomputed successfully',
-            'old_value': old_value,
-            'new_value': new_value
-        })
-        
-    except ValueError:
-        return jsonify({
-            'success': False,
-            'error': 'Invalid date format. Use YYYY-MM-DD'
-        }), 400
+                'error': 'Failed to compute field value'
+            })
+            
     except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f'Error recomputing field: {str(e)}')
+        current_app.logger.error(f'Error in field recomputation: {str(e)}')
         return jsonify({
             'success': False,
             'error': str(e)
         }), 500
 
 @admin_bp.route('/api/bulk-recompute', methods=['POST'])
-@admin_required
+@login_required
+@admin_or_super_admin_required
 def bulk_recompute_fields():
-    """
-    API endpoint to recompute multiple computed fields efficiently.
-    Useful for batch operations and data fixes.
-    """
     try:
         data = request.get_json()
-        computations = data.get('computations', [])
+        field_entity_date_tuples = []
         
-        if not computations:
+        for item in data.get('computations', []):
+            computed_field_id = item.get('computed_field_id')
+            entity_id = item.get('entity_id')
+            reporting_date_str = item.get('reporting_date')
+            
+            if not all([computed_field_id, entity_id, reporting_date_str]):
+                continue
+            
+            # Validate access for regular admins
+            if not is_super_admin():
+                computed_field = DataPoint.get_for_tenant(db.session, computed_field_id)
+                entity = Entity.get_for_tenant(db.session, entity_id)
+                if not computed_field or not entity:
+                    continue  # Skip inaccessible data
+            
+            reporting_date = datetime.strptime(reporting_date_str, '%Y-%m-%d').date()
+            field_entity_date_tuples.append((computed_field_id, entity_id, reporting_date))
+        
+        if not field_entity_date_tuples:
             return jsonify({
                 'success': False,
-                'error': 'No computations specified'
+                'error': 'No valid computations to process'
             }), 400
         
-        # Validate and prepare computation tuples
-        field_entity_date_tuples = []
-        for comp in computations:
-            if not all(key in comp for key in ['computed_field_id', 'entity_id', 'reporting_date']):
-                return jsonify({
-                    'success': False,
-                    'error': 'Each computation must have computed_field_id, entity_id, and reporting_date'
-                }), 400
-            
-            try:
-                reporting_date = datetime.strptime(comp['reporting_date'], '%Y-%m-%d').date()
-                field_entity_date_tuples.append((
-                    comp['computed_field_id'],
-                    comp['entity_id'],
-                    reporting_date
-                ))
-            except ValueError:
-                return jsonify({
-                    'success': False,
-                    'error': f'Invalid date format in computation: {comp["reporting_date"]}'
-                }), 400
+        # Perform bulk recomputation
+        results = recompute_multiple_fields_admin(field_entity_date_tuples)
         
-        # Perform bulk computation
-        computed_results = recompute_multiple_fields_admin(field_entity_date_tuples)
-        
-        # Update database records
-        updated_count = 0
-        errors = []
-        
-        for (field_id, entity_id, reporting_date), new_value in computed_results.items():
-            try:
-                if new_value is not None:
-                    computed_data = ESGData.query.filter_by(
-                        data_point_id=field_id,
-                        entity_id=entity_id,
-                        reporting_date=reporting_date
-                    ).first()
-                    
-                    old_value = None
-                    if computed_data:
-                        old_value = computed_data.calculated_value
-                        computed_data.calculated_value = new_value
-                    else:
-                        computed_data = ESGData(
-                            entity_id=entity_id,
-                            field_id=field_id,
-                            data_point_id=field_id,
-                            raw_value=None,
-                            calculated_value=new_value,
-                            reporting_date=reporting_date
-                        )
-                        db.session.add(computed_data)
-                    
-                    db.session.commit()
-                    
-                    # Create audit log
-                    audit_log = ESGDataAuditLog(
-                        data_id=computed_data.data_id,
-                        change_type='Admin Bulk Recompute',
-                        changed_by=current_user.id,
-                        old_value=old_value,
-                        new_value=new_value
-                    )
-                    db.session.add(audit_log)
-                    db.session.commit()
-                    
-                    updated_count += 1
-                else:
-                    errors.append(f'Could not compute value for field {field_id}, entity {entity_id}, date {reporting_date}')
-                    
-            except Exception as e:
-                errors.append(f'Error updating field {field_id}: {str(e)}')
-                db.session.rollback()
+        successful_computations = sum(1 for v in results.values() if v is not None)
         
         return jsonify({
             'success': True,
-            'message': f'Bulk recomputation completed. Updated {updated_count} fields.',
-            'updated_count': updated_count,
-            'errors': errors
+            'total_requested': len(field_entity_date_tuples),
+            'successful_computations': successful_computations,
+            'results': {f'{k[0]}_{k[1]}_{k[2]}': v for k, v in results.items()},
+            'message': f'Bulk recomputation completed: {successful_computations}/{len(field_entity_date_tuples)} successful'
         })
         
     except Exception as e:
-        db.session.rollback()
         current_app.logger.error(f'Error in bulk recomputation: {str(e)}')
         return jsonify({
             'success': False,

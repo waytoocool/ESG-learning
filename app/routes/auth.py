@@ -28,7 +28,18 @@ def login():
         user = User.query.filter_by(email=email).first()
         if user and check_password_hash(user.password, password):
             login_user(user)
-            redirect_url = url_for('user.dashboard' if user.role == 'User' else 'admin.home')
+            
+            # Determine redirect URL based on user role
+            if user.role == 'SUPER_ADMIN':
+                redirect_url = url_for('superadmin.dashboard')
+            elif user.role == 'ADMIN':
+                redirect_url = url_for('admin.home')
+            elif user.role == 'USER':
+                redirect_url = url_for('user.dashboard')
+            else:
+                # Fallback for unknown roles
+                redirect_url = url_for('auth.login')
+                
             if is_ajax:
                 return jsonify({
                     'success': True,
@@ -57,30 +68,52 @@ def forgot_password():
     if request.method == 'POST':
         email = request.form['email']
         user = User.query.filter_by(email=email).first()
+        
         if user:
-            token = generate_password_reset_token(user.email)
-            reset_link = url_for('auth.reset_password', token=token, _external=True)
-            send_password_reset_email(user.email, reset_link)
-            flash('Password reset instructions have been sent to your email.', 'success')
-            return redirect(url_for('auth.login'))
+            token = generate_password_reset_token(user.id)
+            send_password_reset_email(email, token)
+            flash('Password reset email sent. Please check your inbox.', 'info')
         else:
-            flash('No user found with that email address.', 'danger')
+            flash('Email address not found.', 'danger')
+        
+        return redirect(url_for('auth.login'))
+    
     return render_template('forgot_password.html')
 
 @auth_bp.route('/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
-    email = verify_password_reset_token(token)
-    if email is None:
-        flash('The password reset link is invalid or has expired.', 'danger')
+    user_id = verify_password_reset_token(token)
+    if user_id is None:
+        flash('Invalid or expired reset token.', 'danger')
+        return redirect(url_for('auth.login'))
+
+    user = User.query.get(user_id)
+    if user is None:
+        flash('Invalid user.', 'danger')
         return redirect(url_for('auth.login'))
 
     if request.method == 'POST':
-        password = request.form['password']
-        user = User.query.filter_by(email=email).first()
-        user.set_password(password)
-        db.session.commit()
-        flash('Your password has been reset. You can now log in.', 'success')
-        return redirect(url_for('auth.login'))
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+
+        if not password or not confirm_password:
+            flash('Please fill in all fields.', 'danger')
+            return render_template('reset_password.html', token=token)
+
+        if password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+            return render_template('reset_password.html', token=token)
+
+        try:
+            user.password = generate_password_hash(password, method='pbkdf2:sha256')
+            db.session.commit()
+            flash('Password reset successful. Please log in with your new password.', 'success')
+            return redirect(url_for('auth.login'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash('An error occurred while resetting password.', 'danger')
+            return render_template('reset_password.html', token=token)
 
     return render_template('reset_password.html', token=token)
 

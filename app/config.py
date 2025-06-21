@@ -5,9 +5,16 @@ class Config:
     # Application Settings
     SECRET_KEY = os.environ.get('SECRET_KEY', 'supersecretkey')
     
-    # Database Configuration
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///./esg_data.db')
+    # Database Configuration - single source of truth from environment
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # Session Configuration for cross-subdomain support (needed for impersonation)
+    SESSION_COOKIE_DOMAIN = os.environ.get('SESSION_COOKIE_DOMAIN', None)  # Set to .nip.io for dev, .yourdomain.com for prod
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False').lower() == 'true'  # True for HTTPS
+    SESSION_PERMANENT = False
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=24)
 
     # Mail Configuration
     MAIL_SERVER = 'smtp.gmail.com'
@@ -55,11 +62,29 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
+    
+    # Dynamic session cookie domain handling
+    # If SESSION_COOKIE_DOMAIN is explicitly set in env, use that
+    # Otherwise, detect if we're running under nip.io and set accordingly
+    raw_domain = os.environ.get("SESSION_COOKIE_DOMAIN")
+    if raw_domain is not None:
+        SESSION_COOKIE_DOMAIN = raw_domain
+    else:
+        # Get host from environment or request
+        host = os.getenv("FLASK_RUN_HOST", "")
+        # For nip.io domains, make cookie valid for all subdomains
+        SESSION_COOKIE_DOMAIN = ".127-0-0-1.nip.io" if host.endswith(".nip.io") else None
+    
+    # Ensure session cookie settings are correct for development
+    SESSION_COOKIE_SECURE = False  # Allow HTTP in development
+    SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access
+    SESSION_COOKIE_SAMESITE = 'Lax'  # Allow redirects while maintaining security
 
 class ProductionConfig(Config):
     DEBUG = False
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', '/var/www/uploads')
     REDIS_ENABLED = os.environ.get('REDIS_ENABLED', 'True').lower() == 'true'
+    SESSION_COOKIE_SECURE = True  # HTTPS required in production
 
 class TestingConfig(Config):
     TESTING = True

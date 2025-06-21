@@ -1,0 +1,276 @@
+/* Superadmin Specific Styles */
+
+.companies-management {
+    margin: 20px 0;
+}
+
+.companies-list {
+    display: grid;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.company-card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: box-shadow 0.2s ease;
+}
+
+.company-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.company-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.company-header h3 {
+    margin: 0;
+    color: #333;
+}
+
+.status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.status.active {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status.inactive {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.company-details {
+    margin-bottom: 15px;
+}
+
+.company-details p {
+    margin: 5px 0;
+    color: #666;
+}
+
+.company-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.company-actions .btn {
+    font-size: 0.9em;
+}
+
+/* Users Management Styles */
+.users-management {
+    margin: 20px 0;
+}
+
+.search-filters {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.results-summary {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.users-table {
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.users-table table {
+    margin: 0;
+}
+
+.users-table th {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    color: #495057;
+}
+
+.role-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.role-badge.role-super_admin {
+    background-color: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #bbdefb;
+}
+
+.role-badge.role-admin {
+    background-color: #fff3e0;
+    color: #e65100;
+    border: 1px solid #ffcc02;
+}
+
+.role-badge.role-user {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+    border: 1px solid #ce93d8;
+}
+
+.verified.yes {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.verified.no {
+    color: #dc3545;
+    font-weight: 500;
+}
+
+/* Create Company Form */
+.create-company {
+    margin: 20px 0;
+}
+
+.create-company .card {
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    border: none;
+}
+
+.create-company .card-header {
+    background-color: #007bff;
+    color: white;
+    border-bottom: none;
+}
+
+.create-company .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.create-company .form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Modal Improvements */
+.modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.modal-title {
+    color: #495057;
+    font-weight: 600;
+}
+
+/* Pagination */
+.pagination {
+    margin-top: 20px;
+}
+
+.pagination .page-link {
+    color: #007bff;
+    border-color: #dee2e6;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.pagination .page-link:hover {
+    color: #0056b3;
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .company-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .company-actions {
+        justify-content: flex-start;
+    }
+    
+    .search-filters .row > div {
+        margin-bottom: 10px;
+    }
+    
+    .users-table {
+        overflow-x: auto;
+    }
+    
+    .users-table table {
+        min-width: 700px;
+    }
+}
+
+/* Alert Improvements */
+.alert {
+    border: none;
+    border-radius: 8px;
+}
+
+.alert-info {
+    background-color: #e3f2fd;
+    color: #1565c0;
+    border-left: 4px solid #2196f3;
+}
+
+.alert-success {
+    background-color: #e8f5e8;
+    color: #2e7d32;
+    border-left: 4px solid #4caf50;
+}
+
+.alert-warning {
+    background-color: #fff8e1;
+    color: #f57c00;
+    border-left: 4px solid #ff9800;
+}
+
+/* Button Improvements */
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.btn-danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-danger:disabled:hover {
+    transform: none;
+    box-shadow: none;
+} 

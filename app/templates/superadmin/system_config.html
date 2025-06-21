@@ -1,0 +1,762 @@
+{% extends "base.html" %}
+
+{% block title %}System Configuration - T-9{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/superadmin/main.css') }}">
+<style>
+.config-dashboard {
+    padding: 20px 0;
+}
+
+.dashboard-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.dashboard-header h2 {
+    margin: 0 0 10px 0;
+    font-size: 2.2em;
+}
+
+.dashboard-header p {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 1.1em;
+}
+
+.config-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    padding: 25px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.stat-value {
+    font-size: 2.5em;
+    font-weight: 700;
+    color: #667eea;
+    margin: 0;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin: 5px 0 0 0;
+}
+
+.config-categories {
+    margin-bottom: 30px;
+}
+
+.category-tabs {
+    border-bottom: 2px solid #dee2e6;
+    margin-bottom: 20px;
+}
+
+.category-tabs .nav-tabs {
+    border: none;
+}
+
+.category-tabs .nav-link {
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #6c757d;
+    font-weight: 500;
+    padding: 12px 20px;
+}
+
+.category-tabs .nav-link.active {
+    background: none;
+    border-bottom-color: #667eea;
+    color: #667eea;
+}
+
+.config-section {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.config-header {
+    background: #f8f9fa;
+    padding: 15px 20px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.config-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+    text-transform: capitalize;
+}
+
+.config-items {
+    padding: 0;
+}
+
+.config-item {
+    padding: 15px 20px;
+    border-bottom: 1px solid #f1f3f4;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.config-item:last-child {
+    border-bottom: none;
+}
+
+.config-info {
+    flex: 1;
+}
+
+.config-key {
+    font-weight: 500;
+    color: #333;
+    font-family: 'Courier New', monospace;
+}
+
+.config-description {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin: 2px 0 0 0;
+}
+
+.config-value {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.value-display {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    min-width: 60px;
+    text-align: center;
+}
+
+.value-string {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.value-integer, .value-float {
+    background: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.value-boolean.true {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+
+.value-boolean.false {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.value-sensitive {
+    background: #fff3e0;
+    color: #e65100;
+}
+
+.config-badges {
+    display: flex;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.config-badge {
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.7em;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.badge-sensitive {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.badge-readonly {
+    background: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.badge-type {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.config-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.create-config-section {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 30px;
+}
+
+.export-section {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    padding: 25px;
+    margin-top: 30px;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffecb5;
+    color: #856404;
+    padding: 15px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="config-dashboard">
+    <div class="dashboard-header">
+        <h2><i class="fas fa-cogs"></i> System Configuration</h2>
+        <p>Manage system-wide settings and application configuration</p>
+    </div>
+
+    <!-- Configuration Statistics -->
+    <div class="config-stats">
+        <div class="stat-card">
+            <h3 class="stat-value">{{ config_stats.total_configs }}</h3>
+            <p class="stat-label">Total Configurations</p>
+        </div>
+        <div class="stat-card">
+            <h3 class="stat-value">{{ config_stats.categories_count }}</h3>
+            <p class="stat-label">Categories</p>
+        </div>
+        <div class="stat-card">
+            <h3 class="stat-value">{{ config_stats.sensitive_configs }}</h3>
+            <p class="stat-label">Sensitive Settings</p>
+        </div>
+        <div class="stat-card">
+            <h3 class="stat-value">{{ config_stats.readonly_configs }}</h3>
+            <p class="stat-label">Read-Only Settings</p>
+        </div>
+    </div>
+
+    {% if configs_by_category %}
+    <!-- Configuration Categories -->
+    <div class="config-categories">
+        <div class="category-tabs">
+            <ul class="nav nav-tabs" id="configTab" role="tablist">
+                {% for category in categories %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if loop.first %}active{% endif %}" 
+                            id="{{ category }}-tab" 
+                            data-bs-toggle="tab" 
+                            data-bs-target="#{{ category }}" 
+                            type="button" 
+                            role="tab">
+                        {{ category.title() }} ({{ configs_by_category[category]|length }})
+                    </button>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="tab-content" id="configTabContent">
+            {% for category in categories %}
+            <div class="tab-pane fade {% if loop.first %}show active{% endif %}" 
+                 id="{{ category }}" 
+                 role="tabpanel">
+                <div class="config-section">
+                    <div class="config-header">
+                        <h4 class="config-title">{{ category.title() }} Settings</h4>
+                        <button class="btn btn-sm btn-outline-primary add-config-btn" data-category="{{ category }}">
+                            <i class="fas fa-plus"></i> Add Setting
+                        </button>
+                    </div>
+                    <div class="config-items">
+                        {% for config in configs_by_category[category] %}
+                        <div class="config-item" data-config-id="{{ config.id }}">
+                            <div class="config-info">
+                                <div class="config-key">{{ config.key }}</div>
+                                {% if config.description %}
+                                <div class="config-description">{{ config.description }}</div>
+                                {% endif %}
+                                <div class="config-badges">
+                                    <span class="config-badge badge-type">{{ config.value_type }}</span>
+                                    {% if config.is_sensitive %}
+                                    <span class="config-badge badge-sensitive">Sensitive</span>
+                                    {% endif %}
+                                    {% if config.is_readonly %}
+                                    <span class="config-badge badge-readonly">Read-Only</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="config-value">
+                                {% if config.is_sensitive %}
+                                <span class="value-display value-sensitive">***</span>
+                                {% else %}
+                                <span class="value-display value-{{ config.value_type }} {% if config.value_type == 'boolean' %}{{ config.value|string|lower }}{% endif %}">
+                                    {{ config.value }}
+                                </span>
+                                {% endif %}
+                                <div class="config-actions">
+                                    <button class="btn btn-sm btn-outline-primary edit-config-btn" 
+                                            data-config-id="{{ config.id }}"
+                                            data-config-key="{{ config.key }}"
+                                            data-config-value-type="{{ config.value_type }}"
+                                            data-config-readonly="{{ config.is_readonly|tojson }}"
+                                            data-config-sensitive="{{ config.is_sensitive|tojson }}"
+                                            {% if config.is_readonly %}disabled title="Read-only configuration"{% endif %}>
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    {% if not config.is_readonly %}
+                                    <button class="btn btn-sm btn-outline-danger delete-config-btn" 
+                                            data-config-id="{{ config.id }}"
+                                            data-config-key="{{ config.key }}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning">
+        <h5><i class="fas fa-exclamation-triangle"></i> No Configuration Found</h5>
+        <p>No system configuration has been set up yet. Click the button below to initialize default configuration values.</p>
+        <button class="btn btn-warning initialize-defaults-btn">
+            <i class="fas fa-cog"></i> Initialize Default Configuration
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Export Section -->
+    <div class="export-section">
+        <h5><i class="fas fa-download"></i> Configuration Export</h5>
+        <p class="text-muted">Export system configuration for backup or migration purposes.</p>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary export-safe-btn">
+                <i class="fas fa-download"></i> Export (Safe)
+            </button>
+            <button class="btn btn-outline-warning export-sensitive-btn">
+                <i class="fas fa-download"></i> Export (Include Sensitive)
+            </button>
+            <button class="btn btn-outline-success reinitialize-defaults-btn">
+                <i class="fas fa-sync"></i> Reinitialize Defaults
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Configuration Modal -->
+<div class="modal fade" id="editConfigModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Configuration</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editConfigForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Configuration Key</label>
+                        <input type="text" class="form-control" id="editConfigKey" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Value</label>
+                        <input type="text" class="form-control" id="editConfigValue" required>
+                        <div class="form-text" id="editConfigHelp"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="editConfigDescription" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Configuration</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Configuration Modal -->
+<div class="modal fade" id="addConfigModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Configuration</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addConfigForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Configuration Key</label>
+                        <input type="text" class="form-control" id="addConfigKey" required>
+                        <div class="form-text">Use dot notation (e.g., category.setting_name)</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Value Type</label>
+                        <select class="form-select" id="addConfigValueType" required>
+                            <option value="string">String</option>
+                            <option value="integer">Integer</option>
+                            <option value="float">Float</option>
+                            <option value="boolean">Boolean</option>
+                            <option value="json">JSON</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Value</label>
+                        <input type="text" class="form-control" id="addConfigValue" required>
+                        <div class="form-text" id="addConfigHelp">Enter the configuration value</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Category</label>
+                        <input type="text" class="form-control" id="addConfigCategory" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="addConfigDescription" rows="2"></textarea>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="addConfigSensitive">
+                        <label class="form-check-label" for="addConfigSensitive">
+                            Sensitive (hide value in UI)
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Configuration</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentEditConfigId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Update help text based on value type
+    document.getElementById('addConfigValueType').addEventListener('change', function() {
+        const helpText = document.getElementById('addConfigHelp');
+        const valueInput = document.getElementById('addConfigValue');
+        
+        switch(this.value) {
+            case 'boolean':
+                helpText.textContent = 'Enter true or false';
+                valueInput.placeholder = 'true';
+                break;
+            case 'integer':
+                helpText.textContent = 'Enter a whole number';
+                valueInput.placeholder = '123';
+                break;
+            case 'float':
+                helpText.textContent = 'Enter a decimal number';
+                valueInput.placeholder = '123.45';
+                break;
+            case 'json':
+                helpText.textContent = 'Enter valid JSON';
+                valueInput.placeholder = '{"key": "value"}';
+                break;
+            default:
+                helpText.textContent = 'Enter a text value';
+                valueInput.placeholder = 'value';
+        }
+    });
+
+    // Add event listeners for edit buttons
+    document.querySelectorAll('.edit-config-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const configId = parseInt(this.dataset.configId);
+            const key = this.dataset.configKey;
+            const valueType = this.dataset.configValueType;
+            const isReadonly = this.dataset.configReadonly === 'true';
+            const isSensitive = this.dataset.configSensitive === 'true';
+            
+            editConfigItem(configId, key, valueType, isReadonly, isSensitive);
+        });
+    });
+
+    // Add event listeners for delete buttons
+    document.querySelectorAll('.delete-config-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const configId = parseInt(this.dataset.configId);
+            const key = this.dataset.configKey;
+            
+            deleteConfigItem(configId, key);
+        });
+    });
+
+    // Add event listeners for add config buttons
+    document.querySelectorAll('.add-config-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const category = this.dataset.category;
+            addConfigItem(category);
+        });
+    });
+
+    // Add event listeners for initialize defaults buttons
+    document.querySelectorAll('.initialize-defaults-btn, .reinitialize-defaults-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            initializeDefaults();
+        });
+    });
+
+    // Add event listeners for export config buttons
+    document.querySelector('.export-safe-btn')?.addEventListener('click', function() {
+        exportConfig(false);
+    });
+
+    document.querySelector('.export-sensitive-btn')?.addEventListener('click', function() {
+        exportConfig(true);
+    });
+});
+
+// Edit configuration item
+function editConfigItem(configId, key, valueType, isReadonly, isSensitive) {
+    if (isReadonly) {
+        alert('This configuration is read-only and cannot be modified.');
+        return;
+    }
+    
+    currentEditConfigId = configId;
+    document.getElementById('editConfigKey').value = key;
+    
+    // Get current value via API
+    fetch(`/superadmin/api/system-config?include_sensitive=true`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Find the config in the response
+                for (let category in data.config) {
+                    const config = data.config[category].find(c => c.id === configId);
+                    if (config) {
+                        document.getElementById('editConfigValue').value = config.value;
+                        document.getElementById('editConfigDescription').value = config.description || '';
+                        
+                        const helpText = document.getElementById('editConfigHelp');
+                        switch(valueType) {
+                            case 'boolean':
+                                helpText.textContent = 'Enter true or false';
+                                break;
+                            case 'integer':
+                                helpText.textContent = 'Enter a whole number';
+                                break;
+                            case 'float':
+                                helpText.textContent = 'Enter a decimal number';
+                                break;
+                            case 'json':
+                                helpText.textContent = 'Enter valid JSON';
+                                break;
+                            default:
+                                helpText.textContent = 'Enter a text value';
+                        }
+                        break;
+                    }
+                }
+            }
+        });
+    
+    new bootstrap.Modal(document.getElementById('editConfigModal')).show();
+}
+
+// Add configuration item
+function addConfigItem(category) {
+    document.getElementById('addConfigCategory').value = category;
+    new bootstrap.Modal(document.getElementById('addConfigModal')).show();
+}
+
+// Delete configuration item
+function deleteConfigItem(configId, key) {
+    if (confirm(`Are you sure you want to delete the configuration "${key}"?`)) {
+        fetch(`/superadmin/api/system-config/${configId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the configuration');
+        });
+    }
+}
+
+// Initialize default configurations
+function initializeDefaults() {
+    if (confirm('Are you sure you want to initialize default system configurations? This will add missing default settings.')) {
+        fetch('/superadmin/api/system-config/initialize-defaults', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while initializing defaults');
+        });
+    }
+}
+
+// Export configuration
+function exportConfig(includeSensitive) {
+    const url = `/superadmin/api/system-config/export?include_sensitive=${includeSensitive}`;
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Create and download JSON file
+            const blob = new Blob([JSON.stringify(data.export_data, null, 2)], {
+                type: 'application/json'
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `system_config_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('Configuration exported successfully!');
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while exporting configuration');
+    });
+}
+
+// Handle edit form submission
+document.getElementById('editConfigForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const value = document.getElementById('editConfigValue').value;
+    const description = document.getElementById('editConfigDescription').value;
+    
+    fetch(`/superadmin/api/system-config/${currentEditConfigId}`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            value: value,
+            description: description
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while updating the configuration');
+    });
+});
+
+// Handle add form submission
+document.getElementById('addConfigForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        key: document.getElementById('addConfigKey').value,
+        value: document.getElementById('addConfigValue').value,
+        value_type: document.getElementById('addConfigValueType').value,
+        category: document.getElementById('addConfigCategory').value,
+        description: document.getElementById('addConfigDescription').value,
+        is_sensitive: document.getElementById('addConfigSensitive').checked
+    };
+    
+    fetch('/superadmin/api/system-config', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while adding the configuration');
+    });
+});
+</script>
+{% endblock %} 

@@ -2,8 +2,9 @@ from ..extensions import db
 import uuid
 from datetime import datetime, UTC
 from sqlalchemy import Enum
+from .mixins import TenantScopedQueryMixin, TenantScopedModelMixin
 
-class DataPointAssignment(db.Model):
+class DataPointAssignment(db.Model, TenantScopedQueryMixin, TenantScopedModelMixin):
     """Data Point Assignment model with FY and frequency configuration."""
     
     __tablename__ = 'data_point_assignments'
@@ -11,6 +12,8 @@ class DataPointAssignment(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     data_point_id = db.Column(db.String(36), db.ForeignKey('data_point.id'), nullable=False)
     entity_id = db.Column(db.Integer, db.ForeignKey('entity.id'), nullable=False)
+    # Add company_id for tenant isolation - temporarily nullable until T-3 seed data
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True)
     
     # Financial Year Configuration
     fy_start_month = db.Column(db.Integer, nullable=False, default=4)  # April = 4, January = 1
@@ -30,17 +33,20 @@ class DataPointAssignment(db.Model):
     data_point = db.relationship('DataPoint', backref='assignments')
     entity = db.relationship('Entity', backref='data_assignments')
     assigned_by_user = db.relationship('User', backref='assigned_data_points')
+    company = db.relationship('Company', backref='data_point_assignments')
     
     # Add indexes for better query performance
     __table_args__ = (
         db.Index('idx_assignment_data_entity', 'data_point_id', 'entity_id'),
         db.Index('idx_assignment_fy', 'fy_start_year', 'fy_end_year'),
+        db.Index('idx_assignment_company', 'company_id'),  # Index for tenant filtering
     )
 
     def __init__(self, data_point_id, entity_id, fy_start_month, fy_start_year, fy_end_year, 
-                 frequency, assigned_by):
+                 frequency, assigned_by, company_id=None):
         self.data_point_id = data_point_id
         self.entity_id = entity_id
+        self.company_id = company_id
         self.fy_start_month = fy_start_month
         self.fy_start_year = fy_start_year
         self.fy_end_year = fy_end_year

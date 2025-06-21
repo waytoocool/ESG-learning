@@ -13,3 +13,5 @@ redis>=4.0.0
 python-dotenv
 uuid
 python-dateutil
+alembic
+psutil
