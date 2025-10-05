@@ -115,11 +115,12 @@ class DimensionalDataHandler {
                             <tr>
                                 <td>${v.display_name}</td>
                                 <td>
-                                    <input type="number"
+                                    <input type="text"
+                                           inputmode="numeric"
+                                           pattern="[0-9,.-]*"
                                            class="matrix-input"
                                            data-dim1="${v.value}"
-                                           step="0.01"
-                                           min="0"
+                                           data-format="number"
                                            placeholder="0">
                                 </td>
                                 <td>
@@ -173,12 +174,13 @@ class DimensionalDataHandler {
             dim2Values.forEach(v2 => {
                 html += `
                     <td>
-                        <input type="number"
+                        <input type="text"
+                               inputmode="numeric"
+                               pattern="[0-9,.-]*"
                                class="matrix-input"
                                data-dim1="${v1.value}"
                                data-dim2="${v2.value}"
-                               step="0.01"
-                               min="0"
+                               data-format="number"
                                placeholder="0">
                     </td>
                 `;
@@ -220,12 +222,13 @@ class DimensionalDataHandler {
             html += `
                 <div class="combination-item">
                     <label class="combination-label">${label}</label>
-                    <input type="number"
+                    <input type="text"
+                           inputmode="numeric"
+                           pattern="[0-9,.-]*"
                            class="matrix-input"
                            data-combination='${JSON.stringify(combo)}'
                            data-index="${index}"
-                           step="0.01"
-                           min="0"
+                           data-format="number"
                            placeholder="0">
                 </div>
             `;
@@ -297,13 +300,23 @@ class DimensionalDataHandler {
         let total = 0;
 
         inputs.forEach(input => {
-            const value = parseFloat(input.value) || 0;
-            total += value;
+            // Get raw value from data attribute or parse current value
+            let value;
+            if (input.dataset.rawValue) {
+                value = parseFloat(input.dataset.rawValue);
+            } else {
+                // Parse formatted value (remove commas)
+                value = parseFloat(String(input.value).replace(/,/g, ''));
+            }
+            total += value || 0;
         });
 
         const totalCell = this.container.querySelector('.total-cell');
         if (totalCell) {
-            totalCell.textContent = total.toFixed(2);
+            totalCell.textContent = total.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
         }
     }
 
@@ -317,7 +330,16 @@ class DimensionalDataHandler {
         let grandTotal = 0;
 
         inputs.forEach(input => {
-            const value = parseFloat(input.value) || 0;
+            // Get raw value from data attribute or parse current value
+            let value;
+            if (input.dataset.rawValue) {
+                value = parseFloat(input.dataset.rawValue);
+            } else {
+                // Parse formatted value (remove commas)
+                value = parseFloat(String(input.value).replace(/,/g, ''));
+            }
+            value = value || 0;
+
             const row = input.dataset.dim1;
             const col = input.dataset.dim2;
 
@@ -326,26 +348,35 @@ class DimensionalDataHandler {
             grandTotal += value;
         });
 
-        // Update row totals
+        // Update row totals with formatting
         Object.keys(rowTotals).forEach(row => {
             const cell = this.container.querySelector(`.row-total[data-row="${row}"]`);
             if (cell) {
-                cell.textContent = rowTotals[row].toFixed(2);
+                cell.textContent = rowTotals[row].toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
             }
         });
 
-        // Update column totals
+        // Update column totals with formatting
         Object.keys(colTotals).forEach(col => {
             const cell = this.container.querySelector(`.col-total[data-col="${col}"]`);
             if (cell) {
-                cell.textContent = colTotals[col].toFixed(2);
+                cell.textContent = colTotals[col].toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
             }
         });
 
-        // Update grand total
+        // Update grand total with formatting
         const grandTotalCell = this.container.querySelector('.grand-total');
         if (grandTotalCell) {
-            grandTotalCell.textContent = grandTotal.toFixed(2);
+            grandTotalCell.textContent = grandTotal.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
         }
     }
 
@@ -357,13 +388,23 @@ class DimensionalDataHandler {
         let total = 0;
 
         inputs.forEach(input => {
-            const value = parseFloat(input.value) || 0;
-            total += value;
+            // Get raw value from data attribute or parse current value
+            let value;
+            if (input.dataset.rawValue) {
+                value = parseFloat(input.dataset.rawValue);
+            } else {
+                // Parse formatted value (remove commas)
+                value = parseFloat(String(input.value).replace(/,/g, ''));
+            }
+            total += value || 0;
         });
 
         const totalCell = this.container.querySelector('.grand-total');
         if (totalCell) {
-            totalCell.textContent = total.toFixed(2);
+            totalCell.textContent = total.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
         }
     }
 
@@ -428,7 +469,20 @@ class DimensionalDataHandler {
         const inputs = this.container.querySelectorAll('.matrix-input');
 
         inputs.forEach(input => {
-            const value = parseFloat(input.value);
+            // Get raw value from data attribute (set by number formatter) or parse directly
+            let value;
+            if (input.dataset.rawValue) {
+                value = parseFloat(input.dataset.rawValue);
+            } else {
+                // Fallback: parse the value directly (handles formatted values)
+                const formatter = input._numberFormatter;
+                if (formatter) {
+                    value = formatter.parse(input.value);
+                } else {
+                    // Remove commas and parse
+                    value = parseFloat(String(input.value).replace(/,/g, ''));
+                }
+            }
 
             if (value !== undefined && !isNaN(value)) {
                 const breakdown = {

@@ -215,19 +215,36 @@ class NumberFormatter {
         // Store reference
         inputElement._numberFormatter = this;
 
-        // Handle focus: show raw value
-        inputElement.addEventListener('focus', (e) => {
-            const raw = this.parse(e.target.value);
+        // Initialize with existing value if present
+        const existingValue = inputElement.value;
+        if (existingValue) {
+            const raw = this.parse(existingValue);
             if (raw !== null) {
-                e.target.value = raw;
+                inputElement.dataset.rawValue = String(raw);
+                inputElement.value = this.format(raw);
+            }
+        }
+
+        // Handle focus: show raw value for editing
+        inputElement.addEventListener('focus', (e) => {
+            // Get raw value from data attribute or parse current value
+            const raw = e.target.dataset.rawValue
+                ? parseFloat(e.target.dataset.rawValue)
+                : this.parse(e.target.value);
+
+            if (raw !== null && !isNaN(raw)) {
+                e.target.value = String(raw);
                 this.lastValue = raw;
             }
         });
 
-        // Handle blur: format for display
+        // Handle blur: format for display and store raw value
         inputElement.addEventListener('blur', (e) => {
             const raw = this.parse(e.target.value);
-            if (raw !== null) {
+            if (raw !== null && !isNaN(raw)) {
+                // Store raw value in data attribute for form submission
+                e.target.dataset.rawValue = String(raw);
+                // Display formatted value
                 e.target.value = this.format(raw);
                 this.lastValue = raw;
 
@@ -235,6 +252,9 @@ class NumberFormatter {
                 if (this.enableUnitConversion) {
                     this.suggestUnitConversion(raw, inputElement);
                 }
+            } else if (e.target.value === '') {
+                // Clear data attribute if empty
+                delete e.target.dataset.rawValue;
             }
         });
 

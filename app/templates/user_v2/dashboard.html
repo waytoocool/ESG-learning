@@ -545,6 +545,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const entityId = {{ current_entity.id if current_entity else 'null' }};
             const reportingDate = document.getElementById('reportingDate')?.value;
 
+            // Store field ID globally for auto-save to access
+            window.currentFieldId = fieldId;
+
             if (dimensionalDataHandler && fieldId && entityId) {
                 try {
                     // Load dimension matrix
@@ -561,6 +564,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (matrix.has_dimensions) {
                         matrixContainer.style.display = 'block';
                         valueInput.style.display = 'none'; // Hide simple value input
+
+                        // Attach number formatters to dynamically created inputs
+                        if (window.attachNumberFormatters) {
+                            // Wait for DOM to update, then attach formatters
+                            setTimeout(() => {
+                                window.attachNumberFormatters(matrixContainer);
+                                console.log('[Phase 4] ✅ Number formatters attached to dimensional inputs');
+                            }, 50);
+                        }
                     } else {
                         matrixContainer.style.display = 'none';
                         valueInput.style.display = 'block'; // Show simple value input
@@ -680,15 +692,27 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize number formatter for all number inputs
     try {
         if (typeof NumberFormatter !== 'undefined') {
-            // Apply formatter to existing number inputs
-            document.querySelectorAll('input[type="number"], input[data-format="number"]').forEach(input => {
-                const formatter = new NumberFormatter({
-                    fieldType: input.dataset.fieldType || 'DECIMAL',
-                    unit: input.dataset.unit || '',
-                    decimals: input.dataset.decimals ? parseInt(input.dataset.decimals) : 2
+            // Create global helper function to attach formatters to inputs
+            window.attachNumberFormatters = function(container) {
+                const selector = container
+                    ? container.querySelectorAll('input[type="number"], input[data-format="number"]')
+                    : document.querySelectorAll('input[type="number"], input[data-format="number"]');
+
+                selector.forEach(input => {
+                    // Skip if already has formatter attached
+                    if (input._numberFormatter) return;
+
+                    const formatter = new NumberFormatter({
+                        fieldType: input.dataset.fieldType || 'DECIMAL',
+                        unit: input.dataset.unit || '',
+                        decimals: input.dataset.decimals ? parseInt(input.dataset.decimals) : 2
+                    });
+                    formatter.attachToInput(input);
                 });
-                formatter.attachToInput(input);
-            });
+            };
+
+            // Apply formatter to existing number inputs
+            window.attachNumberFormatters();
             console.log('[Phase 4] ✅ Number formatter initialized');
 
             // Create global formatter instance for dynamic inputs
@@ -699,130 +723,129 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     console.log('[Phase 4] Advanced features initialization complete');
-});
 
-// Phase 4: Auto-save handler (initialized when modal opens)
-let autoSaveHandler = null;
-let currentFieldId = null;
+    // Phase 4: Auto-save handler (initialized when modal opens)
+    window.autoSaveHandler = null;
+    window.currentFieldId = null;
 
-// Initialize auto-save when modal is shown
-const dataCollectionModalEl = document.getElementById('dataCollectionModal');
-if (dataCollectionModalEl) {
-    dataCollectionModalEl.addEventListener('show.bs.modal', function(event) {
-        // Get the button that triggered the modal
-        const button = event.relatedTarget;
-        if (!button) return;
+    // Initialize auto-save when modal is shown (Bootstrap 5 event)
+    const dataCollectionModalEl = document.getElementById('dataCollectionModal');
+    if (dataCollectionModalEl) {
+        dataCollectionModalEl.addEventListener('shown.bs.modal', function(event) {
+            console.log('[Phase 4] Modal shown event fired');
 
-        const fieldId = button.dataset.fieldId;
-        const fieldName = button.dataset.fieldName;
+            // Get field ID from stored value (set when modal opens)
+            const fieldId = window.currentFieldId;
+            if (!fieldId) {
+                console.warn('[Phase 4] No field ID available for auto-save');
+                return;
+            }
 
-        // Store current field ID
-        currentFieldId = fieldId;
+            // Update keyboard shortcuts modal state
+            if (window.keyboardShortcuts) {
+                window.keyboardShortcuts.setModalOpen(true);
+            }
 
-        // Update keyboard shortcuts modal state
-        if (window.keyboardShortcuts) {
-            window.keyboardShortcuts.setModalOpen(true);
-        }
+            // Initialize auto-save for this field
+            const entityId = {{ current_entity.id if current_entity else 'null' }};
+            const reportingDate = document.getElementById('selectedDate')?.value || '{{ selected_date }}';
 
-        // Initialize auto-save for this field
-        const entityId = {{ current_entity.id if current_entity else 'null' }};
-        const reportingDate = document.getElementById('selectedDate')?.value || '{{ selected_date }}';
-
-        if (typeof AutoSaveHandler !== 'undefined' && fieldId && entityId) {
-            try {
-                // Stop previous auto-save if exists
-                if (autoSaveHandler) {
-                    autoSaveHandler.stop();
-                }
-
-                // Create new auto-save handler
-                autoSaveHandler = new AutoSaveHandler({
-                    fieldId: fieldId,
-                    entityId: entityId,
-                    reportingDate: reportingDate,
-                    getFormData: function() {
-                        // Get current form state from the modal
-                        const valueInput = document.getElementById('fieldValue');
-                        const notesInput = document.getElementById('fieldNotes');
-
-                        const data = {
-                            value: valueInput ? valueInput.value : null,
-                            notes: notesInput ? notesInput.value : null
-                        };
-
-                        // Add dimensional data if present
-                        if (window.dimensionalDataHandler && window.dimensionalDataHandler.getCurrentData) {
-                            data.dimension_values = window.dimensionalDataHandler.getCurrentData();
-                        }
-
-                        return data;
-                    },
-                    onSaveSuccess: function(result) {
-                        console.log('[Auto-save] Draft saved successfully:', result);
-                    },
-                    onSaveError: function(error) {
-                        console.error('[Auto-save] Error saving draft:', error);
-                    },
-                    onDraftRestored: function(draftData) {
-                        console.log('[Auto-save] Restoring draft data:', draftData);
-
-                        // Restore form data
-                        const valueInput = document.getElementById('fieldValue');
-                        const notesInput = document.getElementById('fieldNotes');
-
-                        if (valueInput && draftData.value) {
-                            valueInput.value = draftData.value;
-                        }
-                        if (notesInput && draftData.notes) {
-                            notesInput.value = draftData.notes;
-                        }
-
-                        // Restore dimensional data if present
-                        if (draftData.dimension_values && window.dimensionalDataHandler && window.dimensionalDataHandler.setCurrentData) {
-                            window.dimensionalDataHandler.setCurrentData(draftData.dimension_values);
-                        }
+            if (typeof AutoSaveHandler !== 'undefined' && fieldId && entityId) {
+                try {
+                    // Stop previous auto-save if exists
+                    if (window.autoSaveHandler) {
+                        window.autoSaveHandler.stop();
                     }
-                });
 
-                autoSaveHandler.start();
-                console.log('[Phase 4] ✅ Auto-save started for field:', fieldId);
+                    // Create new auto-save handler
+                    window.autoSaveHandler = new AutoSaveHandler({
+                        fieldId: fieldId,
+                        entityId: entityId,
+                        reportingDate: reportingDate,
+                        getFormData: function() {
+                            // Get current form state from the modal
+                            const valueInput = document.getElementById('fieldValue');
+                            const notesInput = document.getElementById('fieldNotes');
 
-                // Listen for form changes to trigger auto-save
-                const formInputs = dataCollectionModalEl.querySelectorAll('input, textarea, select');
-                formInputs.forEach(input => {
-                    input.addEventListener('input', () => {
-                        if (autoSaveHandler) {
-                            autoSaveHandler.handleFormChange();
+                            const data = {
+                                value: valueInput ? valueInput.value : null,
+                                notes: notesInput ? notesInput.value : null
+                            };
+
+                            // Add dimensional data if present
+                            if (window.dimensionalDataHandler && window.dimensionalDataHandler.getCurrentData) {
+                                data.dimension_values = window.dimensionalDataHandler.getCurrentData();
+                            }
+
+                            return data;
+                        },
+                        onSaveSuccess: function(result) {
+                            console.log('[Auto-save] Draft saved successfully:', result);
+                        },
+                        onSaveError: function(error) {
+                            console.error('[Auto-save] Error saving draft:', error);
+                        },
+                        onDraftRestored: function(draftData) {
+                            console.log('[Auto-save] Restoring draft data:', draftData);
+
+                            // Restore form data
+                            const valueInput = document.getElementById('fieldValue');
+                            const notesInput = document.getElementById('fieldNotes');
+
+                            if (valueInput && draftData.value) {
+                                valueInput.value = draftData.value;
+                            }
+                            if (notesInput && draftData.notes) {
+                                notesInput.value = draftData.notes;
+                            }
+
+                            // Restore dimensional data if present
+                            if (draftData.dimension_values && window.dimensionalDataHandler && window.dimensionalDataHandler.setCurrentData) {
+                                window.dimensionalDataHandler.setCurrentData(draftData.dimension_values);
+                            }
                         }
                     });
-                });
 
-            } catch (error) {
-                console.error('[Phase 4] Error initializing auto-save:', error);
+                    window.autoSaveHandler.start();
+                    console.log('[Phase 4] ✅ Auto-save started for field:', fieldId);
+
+                    // Listen for form changes to trigger auto-save
+                    const formInputs = dataCollectionModalEl.querySelectorAll('input, textarea, select');
+                    formInputs.forEach(input => {
+                        input.addEventListener('input', () => {
+                            if (window.autoSaveHandler) {
+                                window.autoSaveHandler.handleFormChange();
+                            }
+                        });
+                    });
+
+                } catch (error) {
+                    console.error('[Phase 4] Error initializing auto-save:', error);
+                }
             }
-        }
-    });
-}
+        });
 
-// Stop auto-save when modal closes
-if (dataCollectionModalEl) {
-    dataCollectionModalEl.addEventListener('hidden.bs.modal', function() {
-        // Update keyboard shortcuts modal state
-        if (window.keyboardShortcuts) {
-            window.keyboardShortcuts.setModalOpen(false);
-        }
+        // Stop auto-save when modal closes
+        dataCollectionModalEl.addEventListener('hidden.bs.modal', function() {
+            console.log('[Phase 4] Modal hidden event fired');
 
-        // Stop auto-save
-        if (autoSaveHandler) {
-            autoSaveHandler.stop();
-            autoSaveHandler = null;
-            console.log('[Phase 4] Auto-save stopped');
-        }
+            // Update keyboard shortcuts modal state
+            if (window.keyboardShortcuts) {
+                window.keyboardShortcuts.setModalOpen(false);
+            }
 
-        // Clear current field ID
-        currentFieldId = null;
-    });
-}
+            // Stop auto-save
+            if (window.autoSaveHandler) {
+                window.autoSaveHandler.stop();
+                window.autoSaveHandler = null;
+                console.log('[Phase 4] Auto-save stopped');
+            }
+
+            // Clear current field ID
+            window.currentFieldId = null;
+        });
+    }
+});
 </script>
 
 {% endblock %}
