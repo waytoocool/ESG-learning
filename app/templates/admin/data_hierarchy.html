@@ -1,0 +1,168 @@
+<!-- // templates/admin/data_hierarchy.html -->
+
+{% extends "base.html" %}
+
+{% block extra_head %}
+    <!-- Any additional CSS specific to data hierarchy page -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/data_hierarchy.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/sidebar.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/main-content.css') }}">
+<!-- Font Awesome for zoom control icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<style>
+#hierarchy-chart {
+  opacity: 0;
+  transition: opacity 0.3s ease-in;
+}
+#hierarchy-chart.loaded {
+  opacity: 1;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Title and Create Entity/User Buttons -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+    <h1>Data Hierarchy</h1>
+    <div>
+        <button id="open-entity-drawer" style="background-color: #4CAF50; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+            + Add Entity
+        </button>
+        <button id="open-user-drawer" style="background-color: #4CAF50; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer;">
+            + Add User
+        </button>
+    </div>
+</div>
+
+
+<!-- Legend for Entity Types -->
+<div style="padding: 10px;">
+    <span style="margin-right: 15px;"><span style="color: #1f77b4; font-size: 20px;">●</span> Top-level</span>
+    <span style="margin-right: 15px;"><span style="color: #ff7f0e; font-size: 20px;">●</span> Company</span>
+    <span style="margin-right: 15px;"><span style="color: #2ca02c; font-size: 20px;">●</span> Team</span>
+</div>
+
+<!-- Hierarchy Chart Container -->
+<div id="hierarchy-chart" style="width: 100%; height: 500px; background: #f9f9f9; border-radius: 10px; padding: 10px; margin-top: 10px;"></div>
+
+<!-- Notification Popup -->
+<div id="notificationPopup" class="popup-message">
+    <div id="popupTitle" class="popup-title"></div>
+    <div id="popupMessage" class="popup-content"></div>
+    <button class="close-button">&times;</button>
+</div>
+
+<!-- Sidebar Panel -->
+<div id="details-sidebar" class="details-sidebar">
+    <div class="details-sidebar-header">
+        <h3 id="sidebar-title">Entity Details</h3>
+        <button class="close-button" onclick="closeSidebar()">&times;</button>
+    </div>
+    <div class="details-sidebar-content"></div>
+</div>
+
+
+
+<!-- Updated Tooltip for Hover Information -->
+<div id="tooltip" style="position: absolute; background-color: white; border: 1px solid #ccc; padding: 12px; border-radius: 4px; display: none; box-shadow: 2px 2px 6px rgba(0,0,0,0.1); max-width: 300px;">
+    <div class="tooltip-header" style="border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;">
+        <strong style="font-size: 1.1em;">Entity Details</strong>
+    </div>
+    <div class="tooltip-content"></div>
+</div>
+
+<!-- New Sidebar Panel for Entity information (Option 2) -->
+<div id="details-sidebar" class="details-sidebar">
+    <div class="details-sidebar-header">
+        <h3 id="sidebar-title">Entity Details</h3>
+        <button class="close-button" onclick="closeSidebar()">&times;</button>
+    </div>
+    <div class="details-sidebar-content"></div>
+</div> -->
+
+<!-- Create Entity Sidebar Drawer -->
+<div id="entity-drawer" style="display: none; position: fixed; top: 0; right: 0; width: 300px; height: 100%; background: white; border-left: 1px solid #ddd; box-shadow: -2px 0px 5px rgba(0,0,0,0.1); padding: 20px; overflow-y: auto;">
+    <h2>Create New Entity</h2>
+    <form id="entity-form" method="post" action="{{ url_for('admin.data_hierarchy') }}">
+        <div style="margin-bottom: 15px;">
+            <label for="entity_name">Entity Name:</label>
+            <input type="text" id="entity_name" name="name" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label for="entity_type">Entity Type:</label>
+            <select id="entity_type" name="entity_type" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="">Select Type</option>
+                <option value="Company">Company</option>
+                <option value="Team">Team</option>
+                <option value="Office">Office</option>
+                <option value="Manufacturing">Manufacturing</option>
+                <option value="Warehouse">Warehouse</option>
+                <option value="Campus">Campus</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label for="parent_entity">Parent Entity:</label>
+            <select id="parent_entity" name="parent_id" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="">Select Parent</option>
+                {% for entity in entities %}
+                <option value="{{ entity.id }}">{{ entity.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="text-align: right;">
+            <button type="button" id="close-drawer" style="padding: 8px 15px; margin-right: 10px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+            <button type="submit" style="padding: 8px 15px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Save</button>
+        </div>
+    </form>
+</div>
+
+<!-- Create User Sidebar Drawer -->
+<div id="user-drawer" style="display: none; position: fixed; top: 0; right: 0; width: 300px; height: 100%; background: white; border-left: 1px solid #ddd; box-shadow: -2px 0px 5px rgba(0,0,0,0.1); padding: 20px; overflow-y: auto;">
+    <h2>Create New User</h2>
+    <form id="user-form" method="post" action="{{ url_for('admin.create_user') }}">
+        <div style="margin-bottom: 15px;">
+            <label for="user_name">Name:</label>
+            <input type="text" id="user_name" name="username" style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label for="user_email">Email:</label>
+            <input type="email" id="user_email" name="email" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label for="entity">Entity:</label>
+            <select id="entity" name="entity_id" required style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="">Select an entity</option>
+                {% for entity in entities %}
+                <option value="{{ entity.id }}">{{ entity.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="text-align: right;">
+            <button type="button" id="close-user-drawer" style="padding: 8px 15px; margin-right: 10px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+            <button type="submit" style="padding: 8px 15px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Save</button>
+        </div>
+    </form>
+</div>
+
+<!-- D3.js Library -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<script>
+    // Load Data from the Server
+    const data = JSON.parse('{{ hierarchy_data | tojson | safe }}');
+</script>
+
+{% endblock %}
+
+{% block afterbody %}
+<!--   <script src="{{ url_for('static', filename='js/admin/forms.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin/chart.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin/sidebar.js') }}"></script> -->
+<script type="module" src="{{ url_for('static', filename='js/admin/data_hierarchy.js') }}"></script>
+{% endblock %}

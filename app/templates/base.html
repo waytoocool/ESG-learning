@@ -1,0 +1,278 @@
+<!-- // templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>{% block title %}ESG Datavault{% endblock %}</title>
+    
+    <!-- Third-party CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Application CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common/popup.css') }}">
+    
+    <!-- Modern Layout System -->
+    <style>
+        /* Reset and base styles */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow-x: hidden;
+        }
+        
+        body {
+            display: flex;
+            flex-direction: row;
+            min-height: 100vh;
+        }
+        
+        /* Modern flexible layout */
+        .main-content {
+            flex: 1;
+            min-height: 100vh;
+            margin-left: clamp(200px, 15vw, 280px); /* Responsive sidebar space */
+            overflow-x: auto;
+        }
+        
+        /* Mobile responsive behavior */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            
+            .main-content {
+                margin-left: 0;
+                margin-top: 60px; /* Space for mobile header/menu */
+            }
+            
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: -100%;
+                transition: left 0.3s ease;
+                z-index: 1001;
+                width: 280px;
+            }
+            
+            .sidebar.mobile-open {
+                left: 0;
+            }
+            
+            /* Mobile toggle button */
+            .mobile-menu-toggle {
+                display: block;
+                position: fixed;
+                top: 1rem;
+                left: 1rem;
+                z-index: 1002;
+                background: #2F4728;
+                color: white;
+                border: none;
+                padding: 0.5rem;
+                border-radius: 4px;
+            }
+        }
+        
+        @media (min-width: 769px) {
+            .mobile-menu-toggle {
+                display: none;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+    
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    {% block extra_head %}{% endblock %}
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Fixed Sidebar -->
+    <aside class="sidebar">
+        <h2>ESG Datavault</h2>
+        <nav>
+            <ul>
+                {% if current_user.role == 'SUPER_ADMIN' %}
+                    <li><a href="{{ url_for('superadmin.dashboard') }}" class="{% if request.endpoint == 'superadmin.dashboard' %}active{% endif %}">Super Admin Dashboard</a></li>
+                    <li><a href="{{ url_for('superadmin.list_companies') }}" class="{% if request.endpoint == 'superadmin.list_companies' %}active{% endif %}">Companies</a></li>
+                    <li><a href="{{ url_for('superadmin.list_users') }}" class="{% if request.endpoint == 'superadmin.list_users' %}active{% endif %}">All Users</a></li>
+                    <li><a href="{{ url_for('superadmin.audit_log') }}" class="{% if request.endpoint == 'superadmin.audit_log' %}active{% endif %}">Audit Log</a></li>
+                    <li class="nav-divider">Multi-Tenant Sync</li>
+                    <li><a href="{{ url_for('superadmin.sync_dashboard') }}" class="{% if request.endpoint == 'superadmin.sync_dashboard' %}active{% endif %}">Sync Dashboard</a></li>
+                    <li><a href="{{ url_for('superadmin.framework_sync_interface') }}" class="{% if request.endpoint == 'superadmin.framework_sync_interface' %}active{% endif %}">Framework Sync</a></li>
+                    <li><a href="{{ url_for('superadmin.tenant_templates') }}" class="{% if request.endpoint == 'superadmin.tenant_templates' %}active{% endif %}">Tenant Templates</a></li>
+                    <li><a href="{{ url_for('superadmin.sync_operations') }}" class="{% if request.endpoint == 'superadmin.sync_operations' %}active{% endif %}">Sync Operations</a></li>
+                    <li><a href="{{ url_for('superadmin.analytics_dashboard') }}" class="{% if request.endpoint == 'superadmin.analytics_dashboard' %}active{% endif %}">Analytics Dashboard</a></li>
+                    <li class="nav-divider">System Administration</li>
+                    <li><a href="{{ url_for('superadmin.system_config') }}" class="{% if request.endpoint == 'superadmin.system_config' %}active{% endif %}">System Configuration</a></li>
+                    <li><a href="{{ url_for('superadmin.system_health') }}" class="{% if request.endpoint == 'superadmin.system_health' %}active{% endif %}">System Health</a></li>
+                    <li><a href="{{ url_for('admin.frameworks') }}" class="{% if request.endpoint == 'admin.frameworks' %}active{% endif %}">Frameworks</a></li>
+                    <li><a href="{{ url_for('admin.data_status_matrix') }}" class="{% if request.endpoint == 'admin.data_status_matrix' %}active{% endif %}">Global Data Status</a></li>
+                {% elif current_user.role == 'ADMIN' %}
+                    <li><a href="{{ url_for('admin.home') }}" class="{% if request.endpoint == 'admin.home' %}active{% endif %}">Home</a></li>
+                    <li><a href="{{ url_for('admin.company_settings') }}" class="{% if request.endpoint == 'admin.company_settings' %}active{% endif %}">Company Settings</a></li>
+                    <li><a href="{{ url_for('admin.data_hierarchy') }}" class="{% if request.endpoint == 'admin.data_hierarchy' %}active{% endif %}">Data Hierarchy</a></li>
+                    <li><a href="{{ url_for('admin.frameworks') }}" class="{% if request.endpoint == 'admin.frameworks' %}active{% endif %}">Frameworks</a></li>
+                    <li><a href="{{ url_for('admin.topics_management') }}" class="{% if request.endpoint == 'admin.topics_management' %}active{% endif %}">Topics</a></li>
+                    <li><a href="{{ url_for('admin_assign_data_points.assign_data_points') }}" class="{% if request.endpoint == 'admin_assign_data_points.assign_data_points' %}active{% endif %}">Assign Data Points</a></li>
+                    <li><a href="{{ url_for('admin.data_status_matrix') }}" class="{% if request.endpoint == 'admin.data_status_matrix' %}active{% endif %}">Data Status Matrix</a></li>
+                    <li><a href="{{ url_for('admin.data_review') }}" class="{% if request.endpoint == 'admin.data_review' %}active{% endif %}">Data Review</a></li>
+                    <li><a href="{{ url_for('admin.audit_log') }}" class="{% if request.endpoint == 'admin.audit_log' %}active{% endif %}">Audit Log</a></li>
+                {% elif current_user.role == 'USER' %}
+                    <li><a href="{{ url_for('user.dashboard') }}" class="{% if request.endpoint == 'user.dashboard' %}active{% endif %}">Data Entry Dashboard</a></li>
+                    <!-- Add any other user-specific navigation items here -->
+                {% endif %}
+                <li class="logout-item"><a href="{{ url_for('auth.logout') }}">Logout</a></li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-content">
+                    <h1>{% block header %}ESG Datavault{% endblock %}</h1>
+                    <div class="user-info">
+                        <span class="user-role">{{ current_user.role }}</span>
+                        <span class="user-email">{{ current_user.email }}</span>
+                        {% if current_user.role != 'SUPER_ADMIN' and g.tenant %}
+                            <span class="tenant-info">{{ g.tenant.name }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </header>
+
+            <!-- T-8 Impersonation Status Banner -->
+            {% if session.get('impersonating') %}
+            <div class="impersonation-banner" style="background-color: #ff6b35; color: white; padding: 10px; text-align: center; font-weight: bold; border-bottom: 2px solid #e55a2b;">
+                <i class="fas fa-user-secret"></i>
+                You are impersonating {{ current_user.email }} ({{ current_user.role }})
+                {% if g.tenant %}
+                    - Tenant: {{ g.tenant.name }}
+                {% endif %}
+                <button onclick="exitImpersonation()" class="btn btn-sm btn-light ms-3" style="color: #ff6b35; font-weight: bold;">
+                    <i class="fas fa-sign-out-alt"></i> Exit Impersonation
+                </button>
+            </div>
+            {% endif %}
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">
+                                {{ message }}
+                                <button type="button" class="close" onclick="this.parentElement.style.display='none';">&times;</button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- Page Content -->
+            <div class="content">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+
+    <!-- Third-party JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Mobile Menu Toggle and Impersonation JavaScript -->
+    <script>
+        // Mobile menu toggle function
+        function toggleMobileMenu() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('mobile-open');
+        }
+
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const sidebar = document.querySelector('.sidebar');
+            const toggleButton = document.querySelector('.mobile-menu-toggle');
+            
+            if (window.innerWidth <= 768) {
+                if (!sidebar.contains(event.target) && !toggleButton.contains(event.target)) {
+                    sidebar.classList.remove('mobile-open');
+                }
+            }
+        });
+
+        // Exit impersonation function
+        function exitImpersonation() {
+            if (confirm('Are you sure you want to exit impersonation?')) {
+                fetch('{{ url_for("superadmin.exit_impersonation") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = data.redirect;
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while exiting impersonation');
+                });
+            }
+        }
+
+        // Start impersonation function
+        function startImpersonation(userId, userEmail) {
+            if (confirm(`Are you sure you want to impersonate ${userEmail}?`)) {
+                fetch(`{{ url_for("superadmin.impersonate_user", user_id=0) }}`.replace('0', userId), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = data.redirect;
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while starting impersonation');
+                });
+            }
+        }
+    </script>
+    
+    <!-- Global Popup JS (ES Module) -->
+    <script type="module" src="{{ url_for('static', filename='js/common/popup.js') }}"></script>
+
+    {% block extra_js %}{% endblock %}
+    {% block afterbody %}{% endblock %}
+</body>
+</html>

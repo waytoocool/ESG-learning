@@ -1,0 +1,611 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/framework_wizard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/frameworks.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/datapoint_drawer.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="framework-wizard-container">
+    <!-- Wizard Header -->
+    <div class="wizard-header">
+        <div class="container-fluid">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="wizard-title">
+                        {% if edit_mode %}Edit Framework{% else %}Create New Framework{% endif %}
+                    </h1>
+                    <p class="wizard-subtitle text-muted">
+                        {% if edit_mode %}Modify your existing ESG framework{% else %}Build your ESG framework step by step{% endif %}
+                    </p>
+                </div>
+                <button type="button" class="btn btn-outline-secondary" id="closeWizard">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Stepper -->
+    <div class="wizard-stepper">
+        <div class="container-fluid">
+            <div class="stepper-nav">
+                <div class="stepper-item active" data-step="1">
+                    <div class="stepper-circle">
+                        <span class="stepper-number">1</span>
+                        <i class="fas fa-check stepper-check d-none"></i>
+                    </div>
+                    <div class="stepper-label">
+                        <div class="stepper-title">Basics</div>
+                        <div class="stepper-desc">Name & Details</div>
+                    </div>
+                </div>
+                <div class="stepper-line"></div>
+                <div class="stepper-item" data-step="2">
+                    <div class="stepper-circle">
+                        <span class="stepper-number">2</span>
+                        <i class="fas fa-check stepper-check d-none"></i>
+                    </div>
+                    <div class="stepper-label">
+                        <div class="stepper-title">Topics</div>
+                        <div class="stepper-desc">Organization</div>
+                        <div class="stepper-badge d-none">
+                            <i class="fas fa-exclamation-triangle text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="stepper-line"></div>
+                <div class="stepper-item" data-step="3">
+                    <div class="stepper-circle">
+                        <span class="stepper-number">3</span>
+                        <i class="fas fa-check stepper-check d-none"></i>
+                    </div>
+                    <div class="stepper-label">
+                        <div class="stepper-title">Data Points</div>
+                        <div class="stepper-desc">Fields & Metrics</div>
+                    </div>
+                </div>
+                <div class="stepper-line"></div>
+                <div class="stepper-item" data-step="4">
+                    <div class="stepper-circle">
+                        <span class="stepper-number">4</span>
+                        <i class="fas fa-check stepper-check d-none"></i>
+                    </div>
+                    <div class="stepper-label">
+                        <div class="stepper-title">Review</div>
+                        <div class="stepper-desc">Publish</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wizard Content -->
+    <div class="wizard-content">
+        <div class="container-fluid">
+            <!-- Step 1: Basics -->
+            <div class="wizard-step active" id="step-1">
+                <div class="step-container">
+                    <div class="step-header">
+                        <h2>Framework Basics</h2>
+                        <p class="text-muted">Start with the fundamental information about your framework</p>
+                        
+                        <!-- Phase 3: Company Framework Indicator -->
+                        <div class="alert alert-info d-flex align-items-center mt-3">
+                            <i class="fas fa-building me-2"></i>
+                            <div>
+                                <strong>Company-Specific Framework</strong><br>
+                                <small>This framework will be created for your company and can be used across all your entities.</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-body">
+                        <form id="basicsForm" class="wizard-form">
+                            <div class="mb-3">
+                                <label for="frameworkName" class="form-label">Framework Name *</label>
+                                <input type="text" class="form-control" id="frameworkName" name="framework_name" required>
+                                <div class="form-text">
+                                    <strong>Slug:</strong> <span id="frameworkSlug" class="text-muted">will-be-generated</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="frameworkDescription" class="form-label">Description</label>
+                                <textarea class="form-control" id="frameworkDescription" name="framework_description" rows="4" placeholder="Describe the purpose and scope of this framework..."></textarea>
+                                <div class="form-text">Markdown formatting supported</div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Topics -->
+            <div class="wizard-step" id="step-2">
+                <div class="step-container">
+                    <div class="step-header">
+                        <h2>Topics & Organization</h2>
+                        <p class="text-muted">Organize your framework with topics and hierarchies (Optional)</p>
+                    </div>
+                    <div class="step-body">
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <div class="topics-panel">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h5>Framework Topics</h5>
+                                        <button type="button" class="btn btn-success btn-sm" id="addTopicWizard">
+                                            <i class="fas fa-plus"></i> Add Topic
+                                        </button>
+                                    </div>
+                                    <div id="topicsWizardContainer">
+                                        <div class="empty-state text-center py-5" id="emptyTopicsState">
+                                            <i class="fas fa-sitemap text-muted" style="font-size: 3rem;"></i>
+                                            <h5 class="text-muted mt-3">No Topics Added</h5>
+                                            <p class="text-muted">Topics help organize your data points</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <div class="organization-panel">
+                                    <h5>Organization Settings</h5>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="useCompanyTopics">
+                                        <label class="form-check-label" for="useCompanyTopics">
+                                            Use company-wide topics
+                                        </label>
+                                        <small class="form-text text-muted d-block">
+                                            Include topics shared across your organization
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Data Points -->
+            <div class="wizard-step" id="step-3">
+                <div class="step-container">
+                    <div class="step-header">
+                        <h2>Data Points</h2>
+                        <p class="text-muted">Define the metrics and fields for your framework</p>
+                    </div>
+                    <div class="step-body">
+                        <!-- Toolbar -->
+                        <div class="datapoints-toolbar">
+                            <div class="toolbar-left">
+                                <button type="button" class="btn btn-success" id="addDataPointWizard">
+                                    <i class="fas fa-plus"></i> New Data Point
+                                </button>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                                        <i class="fas fa-download"></i> Import Template
+                                    </button>
+                                    <ul class="dropdown-menu" id="templateDropdown">
+                                        <li><a class="dropdown-item" href="#" data-template="gri">GRI Standards</a></li>
+                                        <li><a class="dropdown-item" href="#" data-template="sasb">SASB Framework</a></li>
+                                        <li><a class="dropdown-item" href="#" data-template="tcfd">TCFD Guidelines</a></li>
+                                        <li><a class="dropdown-item" href="#" data-template="csrd">CSRD Requirements</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="toolbar-right">
+                                <div class="search-box">
+                                    <input type="text" class="form-control" id="searchDataPoints" placeholder="Search data points...">
+                                    <i class="fas fa-search search-icon"></i>
+                                </div>
+                                <div class="view-toggle">
+                                    <button type="button" class="btn btn-outline-secondary active" data-view="cards">
+                                        <i class="fas fa-th"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" data-view="list">
+                                        <i class="fas fa-list"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Data Points Container -->
+                        <div id="dataPointsWizardContainer" class="datapoints-container">
+                            <div class="empty-state text-center py-5" id="emptyDataPointsWizardState">
+                                <i class="fas fa-database text-muted" style="font-size: 3rem;"></i>
+                                <h5 class="text-muted mt-3">No Data Points Added</h5>
+                                <p class="text-muted">Start by adding a data point or importing from a template</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Review -->
+            <div class="wizard-step" id="step-4">
+                <div class="step-container">
+                    <div class="step-header">
+                        <h2>Review & Publish</h2>
+                        <p class="text-muted">Review your framework before publishing</p>
+                    </div>
+                    <div class="step-body">
+                        <div class="review-content">
+                            <!-- Basics Summary -->
+                            <div class="accordion" id="reviewAccordion">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#reviewBasics" data-bs-parent="#reviewAccordion">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            Framework Basics
+                                        </button>
+                                    </h2>
+                                    <div id="reviewBasics" class="accordion-collapse collapse show">
+                                        <div class="accordion-body" id="reviewBasicsContent">
+                                            <!-- Content will be populated by JS -->
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#reviewTopics" data-bs-parent="#reviewAccordion">
+                                            <i class="fas fa-sitemap me-2"></i>
+                                            Topics & Organization
+                                            <span class="badge bg-secondary ms-2" id="topicsCount">0</span>
+                                        </button>
+                                    </h2>
+                                    <div id="reviewTopics" class="accordion-collapse collapse">
+                                        <div class="accordion-body" id="reviewTopicsContent">
+                                            <!-- Content will be populated by JS -->
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#reviewDataPoints" data-bs-parent="#reviewAccordion">
+                                            <i class="fas fa-database me-2"></i>
+                                            Data Points
+                                            <span class="badge bg-primary ms-2" id="dataPointsCount">0</span>
+                                        </button>
+                                    </h2>
+                                    <div id="reviewDataPoints" class="accordion-collapse collapse">
+                                        <div class="accordion-body" id="reviewDataPointsContent">
+                                            <!-- Content will be populated by JS -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wizard Footer -->
+    <div class="wizard-footer">
+        <div class="container-fluid">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="footer-left">
+                    <button type="button" class="btn btn-outline-secondary" id="prevStep" style="display: none;">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button type="button" class="btn btn-outline-warning" id="skipStep" style="display: none;">
+                        Skip This Step
+                    </button>
+                </div>
+                <div class="footer-center">
+                    <button type="button" class="btn btn-outline-success" id="saveDraft">
+                        <i class="fas fa-save"></i> Save Draft
+                    </button>
+                </div>
+                <div class="footer-right">
+                    <button type="button" class="btn btn-success" id="nextStep">
+                        Next <i class="fas fa-arrow-right"></i>
+                    </button>
+                    <button type="button" class="btn btn-success" id="publishFramework" style="display: none;">
+                        <i class="fas fa-rocket"></i> Publish Framework
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-center">
+            <div class="modal-body py-5">
+                <div class="success-animation mb-4">
+                    <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                </div>
+                <h3>Framework Created Successfully!</h3>
+                <p class="text-muted">Your framework has been published and is ready to use.</p>
+                <div class="mt-4">
+                    <button type="button" class="btn btn-success" id="goToFramework">
+                        View Framework
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary ms-2" id="createAnother">
+                        Create Another
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reuse existing modals and drawers -->
+<!-- Topic Creation Modal (reuse from frameworks.html) -->
+<div class="modal fade" id="topicModal" tabindex="-1" aria-labelledby="topicModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="topicModalLabel">Add Topic</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="topicForm">
+                    <div class="mb-3">
+                        <label for="topicName" class="form-label">Topic Name</label>
+                        <input type="text" class="form-control" id="topicName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="topicDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="topicDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="parentTopic" class="form-label">Parent Topic (Optional)</label>
+                        <select class="form-control" id="parentTopic">
+                            <option value="">-- Root Topic --</option>
+                        </select>
+                        <small class="text-muted">Select a parent to create a sub-topic</small>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="isCustomTopic">
+                        <label class="form-check-label" for="isCustomTopic">Make this a company-wide topic</label>
+                        <small class="form-text text-muted d-block">Company-wide topics are available across all frameworks for your company.</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveTopicWizard">Save Topic</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data Point Drawer (reuse from existing implementation) -->
+<div id="dataPointDrawer" class="data-point-drawer">
+    <div class="drawer-header">
+        <h3 id="drawerTitle">Add Data Point</h3>
+        <button type="button" class="btn-close" id="closeDrawer" aria-label="Close">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="drawer-content">
+        <form id="dataPointForm">
+            <!-- Basic Information Section -->
+            <div class="form-section">
+                <h5 class="section-title">Basic Information</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="dpName" class="form-label">Name *</label>
+                        <input type="text" class="form-control" id="dpName" name="name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="dpFieldCode" class="form-label">Field Code</label>
+                        <input type="text" class="form-control" id="dpFieldCode" name="field_code">
+                        <small class="text-muted">Leave blank for auto-generation</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="dpValueType" class="form-label">Value Type *</label>
+                        <select class="form-control" id="dpValueType" name="value_type" required>
+                            <option value="">Select Type</option>
+                            <option value="Numeric">Numeric</option>
+                            <option value="Text">Text</option>
+                            <option value="Boolean">Boolean</option>
+                            <option value="Date">Date</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="dpUnitCategory" class="form-label">Unit Category</label>
+                        <select class="form-control" id="dpUnitCategory" name="unit_category">
+                            <option value="">Select Category</option>
+                            <option value="energy">Energy</option>
+                            <option value="money">Money</option>
+                            <option value="emission">Emission</option>
+                            <option value="weight">Weight</option>
+                            <option value="volume">Volume</option>
+                            <option value="percentage">Percentage</option>
+                            <option value="time">Time</option>
+                            <option value="count">Count</option>
+                        </select>
+                    </div>
+                    <div class="col-md-12">
+                        <label for="dpTopic" class="form-label">Topic</label>
+                        <select class="form-control" id="dpTopic" name="topic_id">
+                            <option value="">-- Select Topic --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Fields Section (Collapsible) -->
+            <div class="form-section">
+                <div class="d-flex justify-content-between align-items-center" data-bs-toggle="collapse" data-bs-target="#advancedFields" aria-expanded="false" style="cursor: pointer;">
+                    <h5 class="section-title mb-0">Advanced Fields</h5>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <div class="collapse mt-3" id="advancedFields">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="dpDefaultUnit" class="form-label">Default Unit</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="dpDefaultUnit" name="default_unit" placeholder="e.g., kWh, USD, kg">
+                                <button type="button" class="btn btn-outline-info" id="convertUnitsBtn" title="Unit Converter">
+                                    <i class="fas fa-exchange-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Dimensions</label>
+                            <div class="dimension-assignment">
+                                <button type="button" class="btn btn-outline-primary btn-sm w-100" id="manageDimensionsBtn">
+                                    <i class="fas fa-tags"></i> MANAGE
+                                </button>
+                                <div class="dimension-summary mt-2">
+                                    <small class="text-muted">No dimensions assigned</small>
+                                </div>
+                                <input type="hidden" id="fieldDimensions" name="field_dimensions" value="">
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <label for="dpDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="dpDescription" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="dpComputed" name="is_computed">
+                                <label class="form-check-label" for="dpComputed">
+                                    Computed Field
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-12" id="formulaSection" style="display: none;">
+                            <label for="dpFormula" class="form-label">Formula</label>
+                            <input type="text" class="form-control" id="dpFormula" name="formula" placeholder="e.g., (A + B) / C">
+                            <small class="text-muted">Use variables (A, B, C...) to represent fields</small>
+                            <div class="mt-3">
+                                <label class="form-label">Field Mappings</label>
+                                <div id="fieldMappings">
+                                    <!-- Field mappings will be added here -->
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-success" id="addFieldMapping">
+                                    <i class="fas fa-plus"></i> Add Field Mapping
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="drawer-footer">
+        <button type="button" class="btn btn-secondary" id="cancelDataPoint">Cancel</button>
+        <button type="button" class="btn btn-success" id="saveDataPoint">
+            <i class="fas fa-save"></i> Save Data Point
+        </button>
+    </div>
+</div>
+
+<!-- Overlay for drawer -->
+<div id="drawerOverlay" class="drawer-overlay"></div>
+
+<!-- Dimension Modal (reused from frameworks.html) -->
+<div class="modal fade" id="dimensionModal" tabindex="-1" aria-labelledby="dimensionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dimensionModalLabel">Manage Dimensions for <span id="dimensionFieldName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Available Dimensions</h6>
+                        <div id="availableDimensions" class="dimension-list">
+                            <!-- Available dimensions will be loaded here -->
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-success mt-2" id="createDimensionBtn">
+                            <i class="fas fa-plus"></i> Create New Dimension
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Assigned Dimensions</h6>
+                        <div id="assignedDimensions" class="dimension-list">
+                            <!-- Assigned dimensions will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveDimensions">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Dimension Modal (reused from frameworks.html) -->
+<div class="modal fade" id="createDimensionModal" tabindex="-1" aria-labelledby="createDimensionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createDimensionModalLabel">Create New Dimension</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createDimensionForm">
+                    <div class="mb-3">
+                        <label for="dimensionName" class="form-label">Dimension Name *</label>
+                        <input type="text" class="form-control" id="dimensionName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="dimensionDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="dimensionDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dimension Values *</label>
+                        <div id="dimensionValues">
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control dimension-value-input" placeholder="e.g., Male" required>
+                                <input type="text" class="form-control" placeholder="Display name (optional)">
+                                <button type="button" class="btn btn-outline-danger remove-value-btn">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="addDimensionValue">
+                            <i class="fas fa-plus"></i> Add Value
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveDimension">Create Dimension</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block afterbody %}
+<!-- Include modular frameworks system for data points -->
+<script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-topics.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-dimensions.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-datapoints.js') }}"></script>
+    <!-- Added missing modules for variable mapping and unit utilities -->
+    <script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-field-mapping.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-unit-management.js') }}"></script>
+
+<script src="{{ url_for('static', filename='js/admin/frameworks/framework-wizard.js') }}"></script>
+<!-- Framework data for JavaScript -->
+<script id="framework-config" type="application/json">
+{
+  "editMode": {{ 'true' if edit_mode else 'false' }},
+  "frameworkData": {{ framework_data|tojson|safe if (edit_mode and framework_data) else 'null' }}
+}
+</script>
+<script type="text/javascript">
+// Parse framework configuration
+(function() {
+    const config = JSON.parse(document.getElementById('framework-config').textContent);
+    window.editMode = config.editMode;
+    window.frameworkData = config.frameworkData;
+})();
+</script>
+{% endblock %} 

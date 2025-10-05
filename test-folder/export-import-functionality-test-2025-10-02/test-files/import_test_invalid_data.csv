@@ -1,0 +1,3 @@
+Field ID,Field Name,Entity ID,Entity Name,Frequency,Start Date,End Date,Required,Unit Override,Topic,Status,Version,Notes
+INVALID-UUID-123,High Coverage Framework Field 1,not-a-number,Alpha HQ,InvalidFrequency,,,Yes,,Energy Management,active,1,Invalid UUID and Entity ID
+054dd45e-9265-4527-9206-09fab8886863,Complete Framework Field 6,3,Alpha Factory,BadFreq,,,No,,Social Impact,active,2,Invalid frequency value

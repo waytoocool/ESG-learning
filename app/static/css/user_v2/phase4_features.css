@@ -1,0 +1,568 @@
+/**
+ * Phase 4: Advanced Features CSS
+ * ================================
+ *
+ * Styles for:
+ * - Auto-save status indicator
+ * - Keyboard shortcuts help overlay
+ * - Bulk paste preview modal
+ * - Number formatting tooltips
+ * - Performance indicators
+ */
+
+/* ===================================================================
+   Auto-Save Status Indicator
+   =================================================================== */
+
+.auto-save-status-container {
+    display: inline-block;
+    margin-left: auto;
+}
+
+.auto-save-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    transition: all 0.3s ease;
+}
+
+.auto-save-status .status-icon {
+    font-size: 1rem;
+    animation: pulse 1s ease-in-out infinite;
+}
+
+.auto-save-status.status-pending {
+    background-color: #fff3cd;
+    border-color: #ffc107;
+    color: #856404;
+}
+
+.auto-save-status.status-saving {
+    background-color: #cfe2ff;
+    border-color: #0d6efd;
+    color: #084298;
+}
+
+.auto-save-status.status-saved {
+    background-color: #d1e7dd;
+    border-color: #198754;
+    color: #0a3622;
+}
+
+.auto-save-status.status-error {
+    background-color: #f8d7da;
+    border-color: #dc3545;
+    color: #721c24;
+}
+
+.auto-save-status.status-restored {
+    background-color: #d1ecf1;
+    border-color: #17a2b8;
+    color: #0c5460;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* ===================================================================
+   Keyboard Shortcuts Help Overlay
+   =================================================================== */
+
+.keyboard-shortcuts-help-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    padding: 20px;
+}
+
+.keyboard-shortcuts-help-overlay .help-content {
+    background-color: #fff;
+    border-radius: 8px;
+    max-width: 900px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.keyboard-shortcuts-help-overlay .help-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.keyboard-shortcuts-help-overlay .help-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #212529;
+}
+
+.keyboard-shortcuts-help-overlay .close-help {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    line-height: 1;
+}
+
+.keyboard-shortcuts-help-overlay .close-help:hover {
+    color: #212529;
+}
+
+.keyboard-shortcuts-help-overlay .help-sections {
+    padding: 30px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+}
+
+.keyboard-shortcuts-help-overlay .help-section h3 {
+    font-size: 1.125rem;
+    margin-bottom: 15px;
+    color: #495057;
+}
+
+.keyboard-shortcuts-help-overlay .shortcuts-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.keyboard-shortcuts-help-overlay .shortcuts-table tr {
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.keyboard-shortcuts-help-overlay .shortcuts-table td {
+    padding: 8px 0;
+    font-size: 0.875rem;
+}
+
+.keyboard-shortcuts-help-overlay .shortcuts-table td:first-child {
+    font-weight: 500;
+    width: 45%;
+}
+
+.keyboard-shortcuts-help-overlay .shortcuts-table td:last-child {
+    color: #6c757d;
+}
+
+.keyboard-shortcuts-help-overlay kbd {
+    display: inline-block;
+    padding: 3px 8px;
+    margin: 0 2px;
+    font-size: 0.75rem;
+    font-family: 'Courier New', monospace;
+    line-height: 1.4;
+    color: #212529;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 3px;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
+}
+
+.keyboard-shortcuts-help-overlay .help-footer {
+    padding: 15px 30px;
+    border-top: 1px solid #dee2e6;
+    background-color: #f8f9fa;
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+/* ===================================================================
+   Keyboard Feedback Toast
+   =================================================================== */
+
+.keyboard-feedback {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    background-color: #212529;
+    color: #fff;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    z-index: 9999;
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+.keyboard-feedback.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ===================================================================
+   Table Keyboard Navigation
+   =================================================================== */
+
+td.keyboard-selected {
+    outline: 2px solid #0d6efd;
+    outline-offset: -2px;
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+/* ===================================================================
+   Bulk Paste Preview Modal
+   =================================================================== */
+
+.bulk-paste-preview-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    padding: 20px;
+}
+
+.bulk-paste-preview-modal .preview-content {
+    background-color: #fff;
+    border-radius: 8px;
+    max-width: 1200px;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.bulk-paste-preview-modal .preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.bulk-paste-preview-modal .preview-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.bulk-paste-preview-modal .close-preview {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #6c757d;
+    cursor: pointer;
+}
+
+.bulk-paste-preview-modal .preview-body {
+    padding: 20px 30px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.bulk-paste-preview-modal .dimension-mapping {
+    margin-bottom: 20px;
+}
+
+.bulk-paste-preview-modal .dimension-mapping h4 {
+    font-size: 1rem;
+    margin-bottom: 10px;
+}
+
+.bulk-paste-preview-modal .mapping-controls {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.bulk-paste-preview-modal .mapping-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.bulk-paste-preview-modal .mapping-control label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin: 0;
+}
+
+.bulk-paste-preview-modal .mapping-control select {
+    padding: 4px 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.bulk-paste-preview-modal .preview-table-container {
+    overflow-x: auto;
+    margin: 20px 0;
+}
+
+.bulk-paste-preview-modal .preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.bulk-paste-preview-modal .preview-table th {
+    background-color: #f8f9fa;
+    padding: 10px;
+    text-align: left;
+    border: 1px solid #dee2e6;
+    font-weight: 600;
+}
+
+.bulk-paste-preview-modal .preview-table td {
+    padding: 8px 10px;
+    border: 1px solid #dee2e6;
+}
+
+.bulk-paste-preview-modal .preview-table tr.valid-row {
+    background-color: rgba(25, 135, 84, 0.05);
+}
+
+.bulk-paste-preview-modal .preview-table tr.invalid-row {
+    background-color: rgba(220, 53, 69, 0.05);
+}
+
+.bulk-paste-preview-modal .preview-table td.invalid-cell {
+    background-color: rgba(220, 53, 69, 0.2);
+    border-color: #dc3545;
+}
+
+.bulk-paste-preview-modal .validation-summary {
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.bulk-paste-preview-modal .validation-stats {
+    display: flex;
+    gap: 20px;
+    font-size: 0.875rem;
+}
+
+.bulk-paste-preview-modal .validation-stats .stat-valid {
+    color: #198754;
+    font-weight: 500;
+}
+
+.bulk-paste-preview-modal .validation-stats .stat-invalid {
+    color: #dc3545;
+    font-weight: 500;
+}
+
+.bulk-paste-preview-modal .preview-footer {
+    padding: 15px 30px;
+    border-top: 1px solid #dee2e6;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* ===================================================================
+   Bulk Paste Indicator
+   =================================================================== */
+
+.bulk-paste-indicator {
+    padding: 10px 15px;
+    background-color: #f8f9fa;
+    border: 1px dashed #ced4da;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+.bulk-paste-indicator .indicator-icon {
+    font-size: 1.25rem;
+}
+
+/* ===================================================================
+   Bulk Paste Success Toast
+   =================================================================== */
+
+.bulk-paste-success-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    background-color: #198754;
+    color: #fff;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 9999;
+    animation: slideIn 0.3s ease-out;
+}
+
+.bulk-paste-success-toast.fade-out {
+    animation: slideOut 0.3s ease-in;
+}
+
+.bulk-paste-success-toast .toast-icon {
+    font-size: 1.5rem;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* ===================================================================
+   Unit Conversion Tooltip
+   =================================================================== */
+
+.unit-conversion-tooltip {
+    position: absolute;
+    padding: 8px 12px;
+    background-color: #212529;
+    color: #fff;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    z-index: 1000;
+    pointer-events: none;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.unit-conversion-tooltip::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 10px;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 4px solid #212529;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ===================================================================
+   Virtual Scroll Container
+   =================================================================== */
+
+.virtual-scroll-container {
+    position: relative;
+}
+
+.virtual-scroll-viewport {
+    overflow-y: auto;
+}
+
+/* ===================================================================
+   Responsive Adjustments
+   =================================================================== */
+
+@media (max-width: 768px) {
+    .keyboard-shortcuts-help-overlay .help-sections {
+        grid-template-columns: 1fr;
+    }
+
+    .bulk-paste-preview-modal .preview-content {
+        max-width: 100%;
+    }
+
+    .auto-save-status {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+    }
+
+    .keyboard-feedback {
+        top: 10px;
+        right: 10px;
+        padding: 10px 15px;
+        font-size: 0.75rem;
+    }
+}
+
+/* ===================================================================
+   Dark Mode Support (Optional)
+   =================================================================== */
+
+@media (prefers-color-scheme: dark) {
+    .keyboard-shortcuts-help-overlay .help-content {
+        background-color: #1e1e1e;
+        color: #e0e0e0;
+    }
+
+    .keyboard-shortcuts-help-overlay .help-header {
+        border-bottom-color: #333;
+    }
+
+    .keyboard-shortcuts-help-overlay .help-header h2 {
+        color: #e0e0e0;
+    }
+
+    .keyboard-shortcuts-help-overlay kbd {
+        background-color: #2a2a2a;
+        border-color: #444;
+        color: #e0e0e0;
+    }
+
+    .keyboard-shortcuts-help-overlay .help-footer {
+        background-color: #2a2a2a;
+        border-top-color: #333;
+        color: #999;
+    }
+
+    .bulk-paste-preview-modal .preview-content {
+        background-color: #1e1e1e;
+        color: #e0e0e0;
+    }
+
+    .bulk-paste-preview-modal .preview-table th {
+        background-color: #2a2a2a;
+        border-color: #444;
+    }
+
+    .bulk-paste-preview-modal .preview-table td {
+        border-color: #444;
+    }
+}

@@ -1,0 +1,996 @@
+{% extends "base.html" %}
+
+{% block title %}Cross-Tenant Analytics - T-8b Phase 3{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/superadmin/main.css') }}">
+<style>
+.analytics-dashboard {
+    padding: 20px 0;
+}
+
+.dashboard-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.dashboard-header h2 {
+    margin: 0 0 10px 0;
+    font-size: 2.2em;
+}
+
+.dashboard-header p {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 1.1em;
+}
+
+.analytics-tabs {
+    margin-bottom: 30px;
+}
+
+.analytics-tabs .nav-tabs {
+    border-bottom: 2px solid #dee2e6;
+}
+
+.analytics-tabs .nav-link {
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #6c757d;
+    font-weight: 500;
+    padding: 12px 20px;
+}
+
+.analytics-tabs .nav-link.active {
+    background: none;
+    border-bottom-color: #667eea;
+    color: #667eea;
+}
+
+.analytics-tabs .nav-link:hover {
+    border-bottom-color: #667eea;
+    color: #667eea;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.metric-card {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    padding: 25px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.metric-value {
+    font-size: 2.5em;
+    font-weight: 700;
+    color: #667eea;
+    margin: 0;
+}
+
+.metric-label {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin: 5px 0 0 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metric-change {
+    font-size: 0.8em;
+    margin-top: 5px;
+}
+
+.metric-change.positive {
+    color: #28a745;
+}
+
+.metric-change.negative {
+    color: #dc3545;
+}
+
+.chart-container {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.chart-title {
+    font-size: 1.3em;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.chart-filters {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.chart-filters select {
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 0.9em;
+}
+
+.chart-canvas {
+    position: relative;
+    height: 400px;
+    width: 100%;
+}
+
+.comparison-table {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.comparison-table table {
+    margin: 0;
+    width: 100%;
+}
+
+.comparison-table th {
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    padding: 15px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.comparison-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.comparison-table tr:hover {
+    background: #f8f9fa;
+}
+
+.tenant-id {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    color: #6c757d;
+}
+
+.completion-bar {
+    width: 100px;
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.completion-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #dc3545, #ffc107, #28a745);
+    transition: width 0.3s ease;
+}
+
+.industry-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 500;
+    background: #e9ecef;
+    color: #495057;
+}
+
+.export-section {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    padding: 25px;
+    margin-top: 30px;
+}
+
+.export-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.export-card {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.export-card:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+}
+
+.export-card i {
+    font-size: 2em;
+    color: #667eea;
+    margin-bottom: 10px;
+}
+
+.export-card h6 {
+    margin: 0 0 5px 0;
+    color: #333;
+}
+
+.export-card p {
+    margin: 0;
+    font-size: 0.9em;
+    color: #6c757d;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    z-index: 10;
+}
+
+.privacy-notice {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.privacy-notice i {
+    color: #0c5460;
+    margin-right: 8px;
+}
+
+.benchmark-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.benchmark-stat {
+    text-align: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.benchmark-stat .value {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: #667eea;
+}
+
+.benchmark-stat .label {
+    font-size: 0.8em;
+    color: #6c757d;
+    text-transform: uppercase;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="analytics-dashboard">
+    <div class="dashboard-header">
+        <h2><i class="fas fa-chart-line"></i> Cross-Tenant Analytics</h2>
+        <p>Anonymized insights and benchmarking across all ESG data tenants</p>
+    </div>
+
+    <div class="privacy-notice">
+        <i class="fas fa-shield-alt"></i>
+        <strong>Privacy First:</strong> All analytics are anonymized and aggregated to protect tenant privacy. 
+        Individual tenant data is never exposed in cross-tenant comparisons.
+    </div>
+
+    <!-- Analytics Tabs -->
+    <div class="analytics-tabs">
+        <ul class="nav nav-tabs" id="analyticsTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="global-tab" data-bs-toggle="tab" data-bs-target="#global" type="button" role="tab">
+                    <i class="fas fa-globe"></i> Global Metrics
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="comparison-tab" data-bs-toggle="tab" data-bs-target="#comparison" type="button" role="tab">
+                    <i class="fas fa-balance-scale"></i> Tenant Comparison
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="benchmarks-tab" data-bs-toggle="tab" data-bs-target="#benchmarks" type="button" role="tab">
+                    <i class="fas fa-trophy"></i> Benchmarks
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="trends-tab" data-bs-toggle="tab" data-bs-target="#trends" type="button" role="tab">
+                    <i class="fas fa-chart-area"></i> Trends
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="analyticsTabContent">
+        <!-- Global Metrics Tab -->
+        <div class="tab-pane fade show active" id="global" role="tabpanel">
+            <div class="metrics-grid" id="globalMetrics">
+                <!-- Metrics will be loaded here -->
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h5 class="chart-title">Industry Distribution</h5>
+                        </div>
+                        <div class="chart-canvas">
+                            <canvas id="industryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h5 class="chart-title">Framework Usage</h5>
+                        </div>
+                        <div class="chart-canvas">
+                            <canvas id="frameworkChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tenant Comparison Tab -->
+        <div class="tab-pane fade" id="comparison" role="tabpanel">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h5 class="chart-title">Tenant Performance Comparison</h5>
+                    <div class="chart-filters">
+                        <select id="industryFilter" class="form-select">
+                            <option value="">All Industries</option>
+                            {% for industry in industries %}
+                            <option value="{{ industry }}">{{ industry }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="btn btn-sm btn-outline-primary" onclick="refreshComparison()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                <div class="comparison-table">
+                    <table class="table" id="comparisonTable">
+                        <thead>
+                            <tr>
+                                <th>Tenant ID</th>
+                                <th>Industry</th>
+                                <th>Entities</th>
+                                <th>Data Points</th>
+                                <th>Completion Rate</th>
+                                <th>Performance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Comparison data will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Benchmarks Tab -->
+        <div class="tab-pane fade" id="benchmarks" role="tabpanel">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h5 class="chart-title">ESG Performance Benchmarks</h5>
+                    <div class="chart-filters">
+                        <select id="frameworkFilter" class="form-select">
+                            <option value="">All Frameworks</option>
+                            {% for framework in frameworks %}
+                            <option value="{{ framework.id }}">{{ framework.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <select id="benchmarkIndustryFilter" class="form-select">
+                            <option value="">All Industries</option>
+                            {% for industry in industries %}
+                            <option value="{{ industry }}">{{ industry }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="btn btn-sm btn-outline-primary" onclick="refreshBenchmarks()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                <div id="benchmarkContent">
+                    <!-- Benchmark data will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Trends Tab -->
+        <div class="tab-pane fade" id="trends" role="tabpanel">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h5 class="chart-title">Data Entry Trends</h5>
+                    <div class="chart-filters">
+                        <select id="trendPeriod" class="form-select" onchange="refreshTrends()">
+                            <option value="30">Last 30 Days</option>
+                            <option value="90" selected>Last 90 Days</option>
+                            <option value="180">Last 180 Days</option>
+                            <option value="365">Last Year</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="trendsChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h5 class="chart-title">Framework Adoption</h5>
+                        </div>
+                        <div class="chart-canvas">
+                            <canvas id="frameworkTrendsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h5 class="chart-title">Company Onboarding</h5>
+                        </div>
+                        <div class="chart-canvas">
+                            <canvas id="companyTrendsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Section -->
+    <div class="export-section">
+        <h5><i class="fas fa-download"></i> Export Analytics Reports</h5>
+        <p class="text-muted">Generate comprehensive reports for stakeholders and compliance.</p>
+        
+        <div class="export-options">
+            <div class="export-card" onclick="exportReport('global')">
+                <i class="fas fa-globe"></i>
+                <h6>Global Report</h6>
+                <p>System-wide metrics and overview</p>
+            </div>
+            <div class="export-card" onclick="exportReport('comparison')">
+                <i class="fas fa-balance-scale"></i>
+                <h6>Comparison Report</h6>
+                <p>Anonymized tenant benchmarking</p>
+            </div>
+            <div class="export-card" onclick="exportReport('benchmarks')">
+                <i class="fas fa-trophy"></i>
+                <h6>Benchmark Report</h6>
+                <p>Performance percentiles and statistics</p>
+            </div>
+            <div class="export-card" onclick="exportReport('trends')">
+                <i class="fas fa-chart-area"></i>
+                <h6>Trends Report</h6>
+                <p>Historical analysis and forecasting</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables for charts
+let industryChart, frameworkChart, trendsChart, frameworkTrendsChart, companyTrendsChart;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize dashboard
+    loadGlobalMetrics();
+    
+    // Tab change handlers
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function(event) {
+            const target = event.target.getAttribute('data-bs-target');
+            switch(target) {
+                case '#global':
+                    loadGlobalMetrics();
+                    break;
+                case '#comparison':
+                    loadTenantComparison();
+                    break;
+                case '#benchmarks':
+                    loadBenchmarks();
+                    break;
+                case '#trends':
+                    loadTrends();
+                    break;
+            }
+        });
+    });
+});
+
+function loadGlobalMetrics() {
+    showLoading('globalMetrics');
+    
+    fetch('/superadmin/api/analytics/global-metrics')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayGlobalMetrics(data.metrics);
+                createIndustryChart(data.metrics.industry_distribution);
+                createFrameworkChart(data.metrics.framework_usage);
+            } else {
+                showError('globalMetrics', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading global metrics:', error);
+            showError('globalMetrics', 'Failed to load global metrics');
+        });
+}
+
+function displayGlobalMetrics(metrics) {
+    const container = document.getElementById('globalMetrics');
+    const systemOverview = metrics.system_overview;
+    const dataQuality = metrics.data_quality;
+    
+    container.innerHTML = `
+        <div class="metric-card">
+            <h3 class="metric-value">${systemOverview.total_companies}</h3>
+            <p class="metric-label">Active Companies</p>
+        </div>
+        <div class="metric-card">
+            <h3 class="metric-value">${systemOverview.total_entities}</h3>
+            <p class="metric-label">Total Entities</p>
+        </div>
+        <div class="metric-card">
+            <h3 class="metric-value">${systemOverview.total_data_points.toLocaleString()}</h3>
+            <p class="metric-label">Data Points</p>
+        </div>
+        <div class="metric-card">
+            <h3 class="metric-value">${systemOverview.total_esg_records.toLocaleString()}</h3>
+            <p class="metric-label">ESG Records</p>
+        </div>
+        <div class="metric-card">
+            <h3 class="metric-value">${dataQuality.completion_rate}%</h3>
+            <p class="metric-label">Completion Rate</p>
+        </div>
+        <div class="metric-card">
+            <h3 class="metric-value">${dataQuality.recent_updates}</h3>
+            <p class="metric-label">Recent Updates</p>
+            <p class="metric-change">Last 30 days</p>
+        </div>
+    `;
+}
+
+function createIndustryChart(industryData) {
+    const ctx = document.getElementById('industryChart').getContext('2d');
+    
+    if (industryChart) {
+        industryChart.destroy();
+    }
+    
+    industryChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: industryData.map(item => item.industry),
+            datasets: [{
+                data: industryData.map(item => item.count),
+                backgroundColor: [
+                    '#667eea', '#764ba2', '#f093fb', '#f5576c',
+                    '#4facfe', '#00f2fe', '#43e97b', '#38f9d7'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function createFrameworkChart(frameworkData) {
+    const ctx = document.getElementById('frameworkChart').getContext('2d');
+    
+    if (frameworkChart) {
+        frameworkChart.destroy();
+    }
+    
+    frameworkChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: frameworkData.map(item => item.framework),
+            datasets: [{
+                label: 'Usage Count',
+                data: frameworkData.map(item => item.usage_count),
+                backgroundColor: '#667eea',
+                borderColor: '#667eea',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function loadTenantComparison() {
+    const industry = document.getElementById('industryFilter').value;
+    const url = `/superadmin/api/analytics/tenant-comparison${industry ? `?industry=${encodeURIComponent(industry)}` : ''}`;
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayTenantComparison(data.comparison);
+            } else {
+                showError('comparisonTable', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading tenant comparison:', error);
+            showError('comparisonTable', 'Failed to load tenant comparison');
+        });
+}
+
+function displayTenantComparison(comparison) {
+    const tbody = document.querySelector('#comparisonTable tbody');
+    
+    tbody.innerHTML = comparison.tenant_data.map(tenant => `
+        <tr>
+            <td><span class="tenant-id">${tenant.tenant_id}</span></td>
+            <td><span class="industry-badge">${tenant.industry}</span></td>
+            <td>${tenant.entity_count}</td>
+            <td>${tenant.data_point_count.toLocaleString()}</td>
+            <td>
+                <div class="completion-bar">
+                    <div class="completion-fill" style="width: ${tenant.completion_rate}%"></div>
+                </div>
+                <small>${tenant.completion_rate}%</small>
+            </td>
+            <td>
+                <small>${tenant.completed_data_points} / ${tenant.data_point_count}</small>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function loadBenchmarks() {
+    const frameworkId = document.getElementById('frameworkFilter').value;
+    const industry = document.getElementById('benchmarkIndustryFilter').value;
+    
+    let url = '/superadmin/api/analytics/benchmark-data';
+    const params = new URLSearchParams();
+    if (frameworkId) params.append('framework_id', frameworkId);
+    if (industry) params.append('industry', industry);
+    if (params.toString()) url += '?' + params.toString();
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayBenchmarks(data.benchmarks);
+            } else {
+                showError('benchmarkContent', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading benchmarks:', error);
+            showError('benchmarkContent', 'Failed to load benchmarks');
+        });
+}
+
+function displayBenchmarks(benchmarks) {
+    const container = document.getElementById('benchmarkContent');
+    
+    if (Object.keys(benchmarks.data).length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                <h5>No Benchmark Data Available</h5>
+                <p class="text-muted">Insufficient data for benchmarking with current filters.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = Object.entries(benchmarks.data).map(([key, data]) => `
+        <div class="mb-4 p-3 border rounded">
+            <h6>${data.framework} - ${data.field}</h6>
+            <p class="text-muted">Sample Size: ${data.sample_size} | Industries: ${data.industries_covered.join(', ')}</p>
+            <div class="benchmark-stats">
+                <div class="benchmark-stat">
+                    <div class="value">${data.statistics.min.toFixed(2)}</div>
+                    <div class="label">Min</div>
+                </div>
+                <div class="benchmark-stat">
+                    <div class="value">${data.statistics.percentile_25.toFixed(2)}</div>
+                    <div class="label">25th %ile</div>
+                </div>
+                <div class="benchmark-stat">
+                    <div class="value">${data.statistics.median.toFixed(2)}</div>
+                    <div class="label">Median</div>
+                </div>
+                <div class="benchmark-stat">
+                    <div class="value">${data.statistics.mean.toFixed(2)}</div>
+                    <div class="label">Mean</div>
+                </div>
+                <div class="benchmark-stat">
+                    <div class="value">${data.statistics.percentile_75.toFixed(2)}</div>
+                    <div class="label">75th %ile</div>
+                </div>
+                <div class="benchmark-stat">
+                    <div class="value">${data.statistics.percentile_90.toFixed(2)}</div>
+                    <div class="label">90th %ile</div>
+                </div>
+                <div class="benchmark-stat">
+                    <div class="value">${data.statistics.max.toFixed(2)}</div>
+                    <div class="label">Max</div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function loadTrends() {
+    const days = document.getElementById('trendPeriod').value;
+    
+    fetch(`/superadmin/api/analytics/trend-analysis?days=${days}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                createTrendsCharts(data.trends);
+            } else {
+                console.error('Error loading trends:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading trends:', error);
+        });
+}
+
+function createTrendsCharts(trends) {
+    // Data entry trends
+    const trendsCtx = document.getElementById('trendsChart').getContext('2d');
+    if (trendsChart) trendsChart.destroy();
+    
+    trendsChart = new Chart(trendsCtx, {
+        type: 'line',
+        data: {
+            labels: trends.daily_data_entries.map(item => item.date),
+            datasets: [{
+                label: 'Daily Data Entries',
+                data: trends.daily_data_entries.map(item => item.count),
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'day'
+                    }
+                },
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+    
+    // Framework adoption trends
+    const frameworkTrendsCtx = document.getElementById('frameworkTrendsChart').getContext('2d');
+    if (frameworkTrendsChart) frameworkTrendsChart.destroy();
+    
+    const frameworkNames = [...new Set(trends.framework_adoption.map(item => item.framework))];
+    const datasets = frameworkNames.map((name, index) => ({
+        label: name,
+        data: trends.framework_adoption
+            .filter(item => item.framework === name)
+            .map(item => ({x: item.date, y: item.new_data_points})),
+        borderColor: `hsl(${index * 360 / frameworkNames.length}, 70%, 50%)`,
+        fill: false
+    }));
+    
+    frameworkTrendsChart = new Chart(frameworkTrendsCtx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'day'
+                    }
+                },
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+    
+    // Company onboarding trends
+    const companyTrendsCtx = document.getElementById('companyTrendsChart').getContext('2d');
+    if (companyTrendsChart) companyTrendsChart.destroy();
+    
+    companyTrendsChart = new Chart(companyTrendsCtx, {
+        type: 'bar',
+        data: {
+            labels: trends.company_onboarding.map(item => item.date),
+            datasets: [{
+                label: 'New Companies',
+                data: trends.company_onboarding.map(item => item.new_companies),
+                backgroundColor: '#28a745'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'day'
+                    }
+                },
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function refreshComparison() {
+    loadTenantComparison();
+}
+
+function refreshBenchmarks() {
+    loadBenchmarks();
+}
+
+function refreshTrends() {
+    loadTrends();
+}
+
+function exportReport(reportType) {
+    const filters = {};
+    
+    // Add relevant filters based on report type
+    if (reportType === 'comparison') {
+        const industry = document.getElementById('industryFilter').value;
+        if (industry) filters.industry = industry;
+        filters.anonymize = true;
+    } else if (reportType === 'benchmarks') {
+        const frameworkId = document.getElementById('frameworkFilter').value;
+        const industry = document.getElementById('benchmarkIndustryFilter').value;
+        if (frameworkId) filters.framework_id = parseInt(frameworkId);
+        if (industry) filters.industry = industry;
+    } else if (reportType === 'trends') {
+        filters.days = parseInt(document.getElementById('trendPeriod').value);
+    }
+    
+    fetch('/superadmin/api/analytics/export-report', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            report_type: reportType,
+            filters: filters
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Create and download JSON file
+            const blob = new Blob([JSON.stringify(data, null, 2)], {
+                type: 'application/json'
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `analytics_${reportType}_report_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('Report exported successfully!');
+        } else {
+            alert('Error exporting report: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error exporting report:', error);
+        alert('An error occurred while exporting the report');
+    });
+}
+
+function showLoading(containerId) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = `
+        <div class="loading-overlay">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+}
+
+function showError(containerId, message) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = `
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i>
+            Error: ${message}
+        </div>
+    `;
+}
+</script>
+{% endblock %} 

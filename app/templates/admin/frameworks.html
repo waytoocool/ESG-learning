@@ -1,0 +1,776 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/frameworks_responsive.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/datapoint_drawer.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+
+    <div class="row">
+        <!-- Choose Your Approach - Hero Panel -->
+        <div class="col-md-12 mb-5">
+            <div class="approach-hero shadow-sm" id="chooseApproachSection">
+                <h2 class="approach-heading text-center mb-3">Choose Your Approach</h2>
+                <p class="text-center text-muted mb-4 fs-6">
+                    Pick how you'd like to get started with ESG frameworks
+                </p>
+                <div class="row justify-content-center g-4 position-relative">
+                    <div class="col-md-5 mb-4">
+                        <div class="choice-card use-existing" id="useExistingChoice">
+                            <div class="card h-100 shadow-sm border-0" style="cursor: pointer; transition: all 0.3s ease;">
+                                <div class="card-body text-center p-4">
+                                    <div class="choice-icon mb-3">
+                                        <div class="icon-circle">
+                                            <i class="fas fa-list fa-3x text-success"></i>
+                                        </div>
+                                    </div>
+                                    <h3 class="card-title text-success mb-3">Use Existing Framework</h3>
+                                    <p class="card-text text-muted mb-4">Browse and work with your current frameworks. View coverage, manage data points, and analyze performance.</p>
+                                    <button class="btn btn-success btn-lg w-100">
+                                        <i class="fas fa-search me-2"></i>Browse Frameworks
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- OR Badge for Desktop -->
+                    <div class="col-auto d-none d-md-flex align-items-center justify-content-center">
+                        <span class="or-badge">OR</span>
+                    </div>
+                    
+                    <div class="col-md-5 mb-4">
+                        <div class="choice-card create-new" id="createNewChoice">
+                            <div class="card h-100 shadow-sm border-0" style="cursor: pointer; transition: all 0.3s ease;">
+                                <div class="card-body text-center p-4">
+                                    <div class="choice-icon mb-3">
+                                        <div class="icon-circle">
+                                            <i class="fas fa-plus-circle fa-3x text-success"></i>
+                                        </div>
+                                    </div>
+                                    <h3 class="card-title text-success mb-3">Create New Framework</h3>
+                                    <p class="card-text text-muted mb-4">Build a custom framework from scratch or import from standard templates like GRI, SASB, TCFD.</p>
+                                    <button class="btn btn-success btn-lg w-100">
+                                        <i class="fas fa-plus me-2"></i>Create Framework
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- OR Badge for Mobile -->
+                    <div class="col-12 text-center my-3 d-md-none">
+                        <span class="or-badge or-badge-mobile">OR</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Statistics - Moved Below Choice Section -->
+        <div class="col-md-12 mb-4" id="dashboardSection">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card text-center p-3 shadow-sm kpi-card">
+                        <h5 class="card-title">Total Frameworks</h5>
+                        <p class="card-text fs-4 fw-bold" id="total-frameworks-stat">
+                            <span class="skeleton-loader">0</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center p-3 shadow-sm kpi-card">
+                        <h5 class="card-title">Active Assignments</h5>
+                        <p class="card-text fs-4 fw-bold" id="active-assignments-stat">
+                            <span class="skeleton-loader">0</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center p-3 shadow-sm kpi-card">
+                        <h5 class="card-title">Overall Coverage</h5>
+                        <p class="card-text fs-4 fw-bold" id="overall-coverage-stat">
+                            <span class="skeleton-loader">0%</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center p-3 shadow-sm kpi-card">
+                        <h5 class="card-title">Recent Activity</h5>
+                        <p class="card-text fs-4 fw-bold" id="recent-activity-stat">
+                            <span class="skeleton-loader">N/A</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="col-md-12 mb-4" id="chartsSection">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card shadow-sm p-3 chart-card">
+                        <h5 class="card-title">Top 5 Frameworks by Coverage</h5>
+                        <canvas id="topFrameworksChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card shadow-sm p-3 chart-card">
+                        <h5 class="card-title">Framework Type Distribution</h5>
+                        <canvas id="frameworkTypeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-12 mb-5 position-relative" id="existingFrameworksSection">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="text-success mb-0">Existing Frameworks</h2>
+                <div class="d-flex align-items-center">
+                    <input type="text" id="frameworkSearch" class="form-control me-2" placeholder="Search frameworks...">
+                    <select id="frameworkSort" class="form-select me-2">
+                        <option value="name_asc">Sort by Name (A-Z)</option>
+                        <option value="name_desc">Sort by Name (Z-A)</option>
+                        <option value="coverage_asc">Sort by Coverage (Low to High)</option>
+                        <option value="coverage_desc">Sort by Coverage (High to Low)</option>
+                        <option value="type_asc">Sort by Type (Global First)</option>
+                        <option value="type_desc">Sort by Type (Company First)</option>
+                    </select>
+                    <div class="btn-group" role="group" aria-label="View Toggle">
+                        <button type="button" class="btn btn-outline-success active" id="cardViewBtn" title="Card View">
+                            <i class="fas fa-th-large"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-success" id="tableViewBtn" title="Table View">
+                            <i class="fas fa-table"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Phase 3: Framework Type Filter -->
+            <div class="framework-type-filter mb-3">
+                <button type="button" class="btn btn-outline-secondary active" id="filterAll">
+                    <i class="fas fa-list"></i> All Frameworks
+                </button>
+                <button type="button" class="btn btn-outline-info btn-global" id="filterGlobal">
+                    <i class="fas fa-globe"></i> Global
+                </button>
+                <button type="button" class="btn btn-outline-success btn-company" id="filterCompany">
+                    <i class="fas fa-building"></i> Company
+                </button>
+            </div>
+
+            <div id="frameworkCardView" class="frameworks-scroll-container">
+                <div class="scroll-navigation">
+                    <button id="scrollLeft" class="scroll-btn scroll-btn-left">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
+                    <div class="frameworks-card-deck" id="frameworkCardDeck">
+                        {% if frameworks %}
+                        {% for framework in frameworks %}
+                            <div class="card shadow-sm framework-card {% if framework.is_global %}global-framework{% else %}company-framework{% endif %}{% if framework.is_global and not framework.is_editable %} read-only{% endif %}" 
+                                 data-framework-id="{{ framework.framework_id }}" 
+                                 data-framework-name="{{ framework.framework_name }}"
+                                 data-is-global="{{ framework.is_global|lower }}"
+                                 data-is-editable="{{ framework.is_editable|lower }}">
+                                
+                                <!-- Phase 3: Framework Type Badge -->
+                                <div class="framework-type-badge {% if framework.is_global %}global{% else %}company{% endif %}">
+                                    {% if framework.is_global %}Global{% else %}Company{% endif %}
+                                </div>
+                                
+                            <div class="card-body">
+                                    <div class="framework-card-header">
+                                        <div class="framework-card-title-section">
+                                            <h5 class="card-title">{{ framework.framework_name }}</h5>
+                                            <div class="framework-owner-info {% if framework.is_global %}global{% else %}company{% endif %}">
+                                                {% if framework.is_global %}
+                                                    <i class="fas fa-globe"></i> Available to all companies
+                                                {% else %}
+                                                    <i class="fas fa-building"></i> Company-specific framework
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                <p class="card-text text-muted">{{ (framework.description or '')[:100] }}{% if (framework.description or '')|length > 100 %}...{% endif %}</p>
+                                
+                                <!-- Phase 4.3: Coverage Dashboard -->
+                                <div class="coverage-info mb-2">
+                                    <small class="text-muted">Coverage:</small>
+                                    <div class="progress" style="height: 8px;">
+                                            <div class="progress-bar coverage-progress {% if framework.is_global %}bg-info{% else %}bg-success{% endif %}" 
+                                                 role="progressbar" 
+                                                 style="width: {{ framework.coverage_percentage or 0 }}%" 
+                                                 aria-valuenow="{{ framework.coverage_percentage or 0 }}" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                            </div>
+                                    </div>
+                                    <div class="coverage-stats mt-1">
+                                        <small class="text-info">
+                                                <span class="coverage-text">{{ framework.coverage_percentage or 0 }}% ({{ framework.total_fields or 0 }} fields)</span>
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                    <!-- Phase 3: Read-only Indicator -->
+                                    {% if framework.is_global and not framework.is_editable %}
+                                    <div class="read-only-indicator">
+                                        <i class="fas fa-lock"></i> Read-only
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="framework-actions">
+                                        <button class="btn btn-outline-{% if framework.is_global %}info{% else %}success{% endif %} view-details-btn" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#frameworkDetailsModal"
+                                                data-framework-id="{{ framework.framework_id }}">
+                                        View Details
+                                        </button>
+                                        {% if not framework.is_global %}
+                                        <button class="btn btn-outline-primary ms-2 edit-framework-btn" 
+                                                data-framework-id="{{ framework.framework_id }}" 
+                                                title="Edit Framework">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </button>
+                                        <button class="btn btn-outline-danger ms-2 delete-framework-btn" 
+                                                data-framework-id="{{ framework.framework_id }}" 
+                                                title="Delete Framework">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <div class="alert alert-info text-center w-100">No frameworks created yet.</div>
+                        {% endif %}
+                    </div>
+                    <button id="scrollRight" class="scroll-btn scroll-btn-right">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="frameworkTableView" class="table-responsive mt-4" style="display: none;">
+                <table class="table table-hover table-striped shadow-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Framework Name</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Coverage</th>
+                            <th>Total Fields</th>
+                            <th>Last Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="frameworkTableBody">
+                        <!-- Framework rows will be inserted here by JavaScript -->
+                    </tbody>
+                </table>
+                <div id="noFrameworksTable" class="alert alert-info text-center" style="display: none;">No frameworks created yet.</div>
+            </div>
+
+
+        </div>
+
+        <!-- Framework Details Modal remains the same -->
+        <div class="modal fade" id="frameworkDetailsModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title" id="frameworkModalTitle"></h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="frameworkModalBody">
+                        <!-- Dynamic content will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
+    </div>
+</div>
+
+<!-- Topic Creation Modal -->
+<div class="modal fade" id="topicModal" tabindex="-1" aria-labelledby="topicModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="topicModalLabel">Add Topic</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="topicForm">
+                    <div class="mb-3">
+                        <label for="topicName" class="form-label">Topic Name</label>
+                        <input type="text" class="form-control" id="topicName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="topicDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="topicDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="parentTopic" class="form-label">Parent Topic (Optional)</label>
+                        <select class="form-control" id="parentTopic">
+                            <option value="">-- Root Topic --</option>
+                        </select>
+                        <small class="text-muted">Select a parent to create a sub-topic</small>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="isCustomTopic">
+                        <label class="form-check-label" for="isCustomTopic">
+                            Company-specific topic
+                        </label>
+                        <small class="text-muted d-block">Custom topics can be used across frameworks within your company</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveTopic">Save Topic</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Phase 4.2: Template Import Modal -->
+<div class="modal fade" id="templateImportModal" tabindex="-1" aria-labelledby="templateImportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="templateImportModalLabel">Import Framework Template</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Step 1: Template Selection -->
+                <div id="templateSelectionStep">
+                    <h6 class="mb-3">Step 1: Choose Template</h6>
+                    <div class="row" id="templatesContainer">
+                        <!-- Templates will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Step 2: Preview & Customize -->
+                <div id="templatePreviewStep" class="d-none">
+                    <h6 class="mb-3">Step 2: Preview & Customize Import</h6>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="templateFrameworkName" class="form-label">Framework Name</label>
+                            <input type="text" class="form-control" id="templateFrameworkName" placeholder="Override template name">
+                        </div>
+                        <div class="col-md-6">
+                            <div class="import-summary p-3 bg-light rounded">
+                                <h6>Import Summary</h6>
+                                <div id="importSummary"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="preview-tabs">
+                        <ul class="nav nav-tabs" id="previewTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="new-fields-tab" data-bs-toggle="tab" data-bs-target="#new-fields" type="button" role="tab">
+                                    New Fields <span class="badge bg-success" id="newFieldsBadge">0</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="duplicate-fields-tab" data-bs-toggle="tab" data-bs-target="#duplicate-fields" type="button" role="tab">
+                                    Duplicates <span class="badge bg-warning" id="duplicateFieldsBadge">0</span>
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content" id="previewTabsContent">
+                            <div class="tab-pane fade show active" id="new-fields" role="tabpanel">
+                                <div class="table-responsive mt-3">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th width="30"><input type="checkbox" id="selectAllNewFields" checked></th>
+                                                <th>Field Name</th>
+                                                <th>Code</th>
+                                                <th>Topic</th>
+                                                <th>Unit</th>
+                                                <th>Type</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="newFieldsList">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="duplicate-fields" role="tabpanel">
+                                <div class="table-responsive mt-3">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Field Name</th>
+                                                <th>Code</th>
+                                                <th>Topic</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="duplicateFieldsList">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-info" id="backToTemplatesBtn" style="display: none;">
+                    <i class="fas fa-arrow-left"></i> Back to Templates
+                </button>
+                <button type="button" class="btn btn-primary" id="previewTemplateBtn" style="display: none;">
+                    Preview Import <i class="fas fa-arrow-right"></i>
+                </button>
+                <button type="button" class="btn btn-success" id="confirmImportBtn" style="display: none;">
+                    <i class="fas fa-download"></i> Import Framework
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Phase 2.5: Dimension Management Modal -->
+<div class="modal fade" id="dimensionModal" tabindex="-1" aria-labelledby="dimensionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dimensionModalLabel">Manage Field Dimensions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Available Dimensions</h6>
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-success btn-sm" id="createDimensionBtn">
+                                <i class="fas fa-plus"></i> Create New Dimension
+                            </button>
+                        </div>
+                        <div id="availableDimensions" class="dimension-list">
+                            <!-- Available dimensions will be loaded here -->
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Field Dimensions</h6>
+                        <p class="text-muted">Dimensions assigned to: <span id="dimensionFieldName">-</span></p>
+                        <div id="assignedDimensions" class="dimension-list">
+                            <!-- Assigned dimensions will be shown here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveDimensions">Save Dimensions</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Dimension Modal -->
+<div class="modal fade" id="createDimensionModal" tabindex="-1" aria-labelledby="createDimensionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createDimensionModalLabel">Create New Dimension</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createDimensionForm">
+                    <div class="mb-3">
+                        <label for="dimensionName" class="form-label">Dimension Name</label>
+                        <input type="text" class="form-control" id="dimensionName" required placeholder="e.g., Gender, Age, Department">
+                    </div>
+                    <div class="mb-3">
+                        <label for="dimensionDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="dimensionDescription" rows="3" placeholder="Describe how this dimension categorizes data"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dimension Values</label>
+                        <div id="dimensionValues">
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control dimension-value-input" placeholder="e.g., Male">
+                                <input type="text" class="form-control" placeholder="Display name (optional)">
+                                <button type="button" class="btn btn-outline-danger remove-value-btn">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="addDimensionValue">
+                            <i class="fas fa-plus"></i> Add Value
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveDimension">Create Dimension</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Phase 4.1: Unit Conversion Helper Modal -->
+<div class="modal fade" id="unitConverterModal" tabindex="-1" aria-labelledby="unitConverterModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="unitConverterModalLabel">Unit Converter</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">From Value</label>
+                        <input type="number" class="form-control" id="fromValue" placeholder="Enter value">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">From Unit</label>
+                        <select class="form-control" id="fromUnit">
+                            <option value="">Select unit</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">To Value</label>
+                        <input type="number" class="form-control" id="toValue" readonly>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">To Unit</label>
+                        <select class="form-control" id="toUnit">
+                            <option value="">Select unit</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <button type="button" class="btn btn-primary" id="convertUnitsBtn">
+                            <i class="fas fa-exchange-alt"></i> Convert
+                        </button>
+                        <div id="conversionResult" class="mt-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data Point Sidebar Drawer -->
+<div id="dataPointDrawer" class="data-point-drawer">
+    <div class="drawer-header">
+        <h3 id="drawerTitle">Add Data Point</h3>
+        <button type="button" class="btn-close" id="closeDrawer" aria-label="Close">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="drawer-content">
+        <form id="dataPointForm">
+            <!-- Basic Information Section -->
+            <div class="form-section">
+                <h5 class="section-title">Basic Information</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="dpName" class="form-label">Name *</label>
+                        <input type="text" class="form-control" id="dpName" name="name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="dpFieldCode" class="form-label">Field Code</label>
+                        <input type="text" class="form-control" id="dpFieldCode" name="field_code">
+                        <small class="text-muted">Leave blank for auto-generation</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="dpValueType" class="form-label">Value Type *</label>
+                        <select class="form-control" id="dpValueType" name="value_type" required>
+                            <option value="">Select Type</option>
+                            <option value="Numeric">Numeric</option>
+                            <option value="Text">Text</option>
+                            <option value="Boolean">Boolean</option>
+                            <option value="Date">Date</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="dpUnitCategory" class="form-label">Unit Category</label>
+                        <select class="form-control" id="dpUnitCategory" name="unit_category">
+                            <option value="">Select Category</option>
+                            <option value="energy">Energy</option>
+                            <option value="money">Money</option>
+                            <option value="emission">Emission</option>
+                            <option value="weight">Weight</option>
+                            <option value="volume">Volume</option>
+                            <option value="percentage">Percentage</option>
+                            <option value="time">Time</option>
+                            <option value="count">Count</option>
+                        </select>
+                    </div>
+                    <div class="col-md-12">
+                        <label for="dpTopic" class="form-label">Topic</label>
+                        <select class="form-control" id="dpTopic" name="topic_id">
+                            <option value="">-- Select Topic --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Fields Section (Collapsible) -->
+            <div class="form-section">
+                <div class="d-flex justify-content-between align-items-center" data-bs-toggle="collapse" data-bs-target="#advancedFields" aria-expanded="false" style="cursor: pointer;">
+                    <h5 class="section-title mb-0">Advanced Fields</h5>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <div class="collapse mt-3" id="advancedFields">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="dpDefaultUnit" class="form-label">Default Unit</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="dpDefaultUnit" name="default_unit" placeholder="e.g., kWh, USD, kg">
+                                <button type="button" class="btn btn-outline-info" id="convertUnitsBtn" title="Unit Converter">
+                                    <i class="fas fa-exchange-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Dimensions</label>
+                            <div class="dimension-assignment">
+                                <button type="button" class="btn btn-outline-primary btn-sm w-100" id="manageDimensionsBtn">
+                                    <i class="fas fa-tags"></i> MANAGE
+                                </button>
+                                <div class="dimension-summary mt-2">
+                                    <small class="text-muted">No dimensions assigned</small>
+                                </div>
+                                <input type="hidden" id="fieldDimensions" name="field_dimensions" value="">
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <label for="dpDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="dpDescription" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="dpComputed" name="is_computed">
+                                <label class="form-check-label" for="dpComputed">
+                                    Computed Field
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-12" id="formulaSection" style="display: none;">
+                            <label for="dpFormula" class="form-label">Formula</label>
+                            <input type="text" class="form-control" id="dpFormula" name="formula" placeholder="e.g., (A + B) / C">
+                            <small class="text-muted">Use variables (A, B, C...) to represent fields</small>
+                            <div class="mt-3">
+                                <label class="form-label">Field Mappings</label>
+                                <div id="fieldMappings">
+                                    <!-- Field mappings will be added here -->
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-success" id="addFieldMapping">
+                                    <i class="fas fa-plus"></i> Add Field Mapping
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Dependencies</label>
+                            <div id="dependencyInfo" class="text-muted">
+                                <small>Dependencies will be calculated automatically</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="drawer-footer">
+        <button type="button" class="btn btn-secondary" id="cancelDataPoint">Cancel</button>
+        <button type="button" class="btn btn-success" id="saveDataPoint">
+            <i class="fas fa-save"></i> Save Data Point
+        </button>
+    </div>
+</div>
+
+<!-- Overlay for drawer -->
+<div id="drawerOverlay" class="drawer-overlay"></div>
+{% endblock %}
+
+{% block afterbody %}
+<!-- Modular Framework JavaScript Files -->
+    <script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-common.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-statistics.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-topics.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-dimensions.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-datapoints.js') }}"></script>
+    <!-- New Missing Modules -->
+    <script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-field-mapping.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-unit-management.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-dependencies.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-ui-utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin/frameworks/frameworks-permissions.js') }}"></script>
+    <!-- Main Coordinator -->
+    <script src="{{ url_for('static', filename='js/admin/frameworks/frameworks.js') }}"></script>
+
+<!-- Framework Wizard Integration -->
+<script src="{{ url_for('static', filename='js/admin/framework_wizard.js') }}"></script>
+
+<script>
+    // Framework system initialization
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Frameworks page: Initializing modular framework system...');
+        
+        // The modular system will auto-initialize through frameworks.js
+        // Add any page-specific initialization here if needed
+        
+        // Fallback for hero section interactions (in case modules fail to load)
+        const chooseApproachSection = document.querySelector('.approach-hero');
+        const existingFrameworksSection = document.getElementById('existingFrameworksSection');
+        const useExistingChoice = document.getElementById('useExistingChoice');
+        const createNewChoice = document.getElementById('createNewChoice');
+
+        if (useExistingChoice && !useExistingChoice.dataset.fallbackAttached) {
+            useExistingChoice.dataset.fallbackAttached = 'true';
+            useExistingChoice.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (chooseApproachSection) {
+                    chooseApproachSection.classList.add('hero-minified');
+                }
+                if (existingFrameworksSection) {
+                    existingFrameworksSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        }
+
+        if (createNewChoice && !createNewChoice.dataset.fallbackAttached) {
+            createNewChoice.dataset.fallbackAttached = 'true';
+            createNewChoice.addEventListener('click', function(e) {
+                e.preventDefault();
+                window.location.href = '/admin/frameworks/wizard';
+            });
+        }
+        
+        // Debug helper - accessible via browser console
+        window.debugFrameworks = function() {
+            if (window.FrameworksDebug) {
+                window.FrameworksDebug.showInfo();
+            } else {
+                console.log('Frameworks debug not available - modules may not be loaded');
+            }
+        };
+        
+        console.log('💡 Tip: Use debugFrameworks() in console to see module status');
+    });
+</script>
+{% endblock %}

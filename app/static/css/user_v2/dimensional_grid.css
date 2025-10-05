@@ -1,0 +1,401 @@
+/**
+ * Dimensional Grid CSS for User Dashboard V2
+ * Styles for dimensional data matrix tables and inputs
+ */
+
+/* Matrix Container Styles */
+.dimension-matrix-header {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.5rem;
+}
+
+/* 1D Matrix Styles */
+.dimension-1d-container {
+    margin-top: 1rem;
+}
+
+.dimension-1d-container h5 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: #34495e;
+}
+
+.matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.matrix-table thead {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.matrix-table th {
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.matrix-table tbody tr {
+    border-bottom: 1px solid #e0e0e0;
+    transition: background-color 0.2s ease;
+}
+
+.matrix-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.matrix-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.matrix-table td {
+    padding: 10px 15px;
+    vertical-align: middle;
+}
+
+/* 2D Matrix Styles */
+.dimension-2d-container {
+    margin-top: 1rem;
+    overflow-x: auto;
+}
+
+.matrix-2d {
+    min-width: 600px;
+}
+
+.matrix-2d .corner-cell {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: bold;
+}
+
+.matrix-2d .col-header,
+.matrix-2d .row-header {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+}
+
+.matrix-2d .row-header {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background-color: #f8f9fa;
+}
+
+/* Input Styles */
+.matrix-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    background-color: white;
+}
+
+.matrix-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.matrix-input:hover {
+    border-color: #b0b0b0;
+}
+
+.matrix-input::placeholder {
+    color: #bbb;
+    font-style: italic;
+}
+
+.matrix-notes {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.matrix-notes:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+/* Total Cell Styles */
+.total-row {
+    background-color: #e9ecef;
+    font-weight: 700;
+}
+
+.total-row td {
+    border-top: 2px solid #495057;
+}
+
+.row-total,
+.col-total,
+.grand-total,
+.total-cell {
+    background-color: #e3f2fd;
+    font-weight: 600;
+    color: #1976d2;
+    text-align: center;
+    font-size: 1rem;
+}
+
+.grand-total {
+    background-color: #c5e1a5;
+    color: #33691e;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.total-header {
+    background: linear-gradient(135deg, #43a047 0%, #66bb6a 100%);
+    color: white;
+}
+
+/* Multi-Dimensional List Styles */
+.dimension-multi-container {
+    margin-top: 1rem;
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+}
+
+.dimension-info {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background-color: #e3f2fd;
+    border-left: 4px solid #1976d2;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: #1565c0;
+}
+
+.combination-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.combination-item {
+    background-color: white;
+    padding: 1rem;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.combination-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.combination-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #495057;
+}
+
+.multi-total {
+    padding: 1rem;
+    background-color: #c5e1a5;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 1.1rem;
+}
+
+.multi-total strong {
+    color: #33691e;
+    margin-right: 0.5rem;
+}
+
+.multi-total .grand-total {
+    background: none;
+    color: #1b5e20;
+    font-size: 1.3rem;
+}
+
+/* Simple Input Container */
+.simple-input-container {
+    padding: 2rem;
+    text-align: center;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    color: #6c757d;
+}
+
+.simple-input-container p {
+    margin: 0;
+    font-style: italic;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .matrix-table {
+        font-size: 0.85rem;
+    }
+
+    .matrix-table th,
+    .matrix-table td {
+        padding: 8px 10px;
+    }
+
+    .matrix-input {
+        padding: 6px 8px;
+        font-size: 0.85rem;
+    }
+
+    .dimension-2d-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .combination-list {
+        grid-template-columns: 1fr;
+    }
+
+    .matrix-2d {
+        min-width: 500px;
+    }
+}
+
+@media (max-width: 480px) {
+    .matrix-table {
+        font-size: 0.75rem;
+    }
+
+    .matrix-table th,
+    .matrix-table td {
+        padding: 6px 8px;
+    }
+
+    .matrix-input {
+        padding: 4px 6px;
+        font-size: 0.8rem;
+    }
+
+    .dimension-matrix-header {
+        font-size: 1rem;
+    }
+
+    .combination-item {
+        padding: 0.75rem;
+    }
+}
+
+/* Loading State */
+.matrix-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 3rem;
+    color: #6c757d;
+}
+
+.matrix-loading::after {
+    content: '';
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-left: 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Error State */
+.matrix-error {
+    padding: 1.5rem;
+    background-color: #f8d7da;
+    border: 1px solid #f5c2c7;
+    border-radius: 8px;
+    color: #842029;
+    text-align: center;
+}
+
+.matrix-error strong {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+
+/* Success State */
+.matrix-success {
+    padding: 1rem;
+    background-color: #d1e7dd;
+    border: 1px solid #badbcc;
+    border-radius: 6px;
+    color: #0f5132;
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.matrix-success::before {
+    content: '✓';
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    background-color: #198754;
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 24px;
+    margin-right: 0.75rem;
+    font-weight: bold;
+}
+
+/* Accessibility Improvements */
+.matrix-input:focus-visible,
+.matrix-notes:focus-visible {
+    outline: 3px solid #667eea;
+    outline-offset: 2px;
+}
+
+/* Print Styles */
+@media print {
+    .matrix-table {
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+
+    .matrix-input {
+        border: 1px solid #000;
+        background: white;
+    }
+
+    .total-row,
+    .row-total,
+    .col-total,
+    .grand-total {
+        background-color: #e0e0e0 !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}

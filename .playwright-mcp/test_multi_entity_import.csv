@@ -1,0 +1,3 @@
+Field ID,Field Name,Entity Name,Frequency,Unit Override,Topic,Notes
+GRI-302-1,Energy Consumption within the organization,"Alpha HQ, Alpha Factory, Warehouse A",Monthly,kWh,Energy Management,Test multi-entity assignment
+GRI-305-1,Direct GHG emissions (Scope 1),"Alpha HQ, Alpha Factory",Quarterly,tCO2e,Emissions Tracking,Test two entities

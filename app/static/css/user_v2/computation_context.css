@@ -1,0 +1,485 @@
+/**
+ * Computation Context Modal Styles
+ * Phase 3: User Dashboard Enhancements
+ */
+
+/* Modal Styles */
+#computationContextModal {
+    max-width: 900px;
+    width: 90%;
+    max-height: 90vh;
+    border: none;
+    border-radius: 12px;
+    padding: 0;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Ensure modal is visible when open */
+#computationContextModal[open] {
+    display: block !important;
+}
+
+#computationContextModal::backdrop {
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+#computationContextModal[open]::backdrop {
+    display: block !important;
+}
+
+/* Loading & Error States */
+.loading-state,
+.error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.error-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+}
+
+.error-state p {
+    color: #e74c3c;
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+
+/* Computation Context Container */
+.computation-context {
+    padding: 30px;
+    overflow-y: auto;
+    max-height: calc(90vh - 80px);
+}
+
+/* Header */
+.context-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.header-content h3 {
+    margin: 0 0 5px 0;
+    color: #2c3e50;
+    font-size: 1.5em;
+    font-weight: 600;
+}
+
+.field-code {
+    color: #7f8c8d;
+    font-size: 0.9em;
+    margin: 0;
+}
+
+.status-badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.status-badge.complete {
+    background-color: #27ae60;
+    color: white;
+}
+
+.status-badge.partial {
+    background-color: #f39c12;
+    color: white;
+}
+
+.status-badge.failed {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.status-badge.no_data {
+    background-color: #95a5a6;
+    color: white;
+}
+
+/* Section Styles */
+.formula-section,
+.steps-section,
+.dependencies-section,
+.trend-section {
+    margin-bottom: 35px;
+}
+
+.formula-section h4,
+.steps-section h4,
+.dependencies-section h4,
+.trend-section h4 {
+    color: #34495e;
+    margin-bottom: 15px;
+    font-size: 1.15em;
+    font-weight: 600;
+}
+
+/* Formula Display */
+.formula-display {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-left: 5px solid #3498db;
+    padding: 20px;
+    font-family: 'Courier New', Consolas, monospace;
+    font-size: 1.1em;
+    color: #2c3e50;
+    border-radius: 8px;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Calculation Steps */
+.calculation-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.step {
+    display: flex;
+    gap: 15px;
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 20px;
+    transition: all 0.3s ease;
+}
+
+.step:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.step-number {
+    flex-shrink: 0;
+    width: 45px;
+    height: 45px;
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.3em;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+}
+
+.step-content {
+    flex-grow: 1;
+}
+
+.step-description {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 10px;
+    font-size: 1.05em;
+}
+
+.step-operation {
+    color: #7f8c8d;
+    font-size: 0.9em;
+    margin-bottom: 10px;
+    font-style: italic;
+}
+
+.step-inputs {
+    color: #34495e;
+    font-size: 0.95em;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.step-output {
+    color: #27ae60;
+    font-weight: 600;
+    padding-top: 12px;
+    border-top: 1px solid #ecf0f1;
+    font-size: 1.05em;
+}
+
+/* Dependency Tree */
+.dependency-tree {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.tree-node {
+    margin-bottom: 8px;
+}
+
+.node-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 15px;
+    background-color: white;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.node-content:hover {
+    background-color: #e8f4f8;
+    transform: translateX(4px);
+}
+
+.node-content.available {
+    border-left: 4px solid #27ae60;
+}
+
+.node-content.missing {
+    border-left: 4px solid #e74c3c;
+}
+
+.node-content.partial {
+    border-left: 4px solid #f39c12;
+}
+
+.node-icon {
+    font-weight: bold;
+    font-size: 1.2em;
+    width: 24px;
+    text-align: center;
+}
+
+.node-content.available .node-icon {
+    color: #27ae60;
+}
+
+.node-content.missing .node-icon {
+    color: #e74c3c;
+}
+
+.node-content.partial .node-icon {
+    color: #f39c12;
+}
+
+.node-name {
+    flex-grow: 1;
+    color: #2c3e50;
+    font-weight: 500;
+}
+
+.node-value {
+    font-weight: 600;
+    color: #3498db;
+    font-family: 'Courier New', monospace;
+}
+
+.node-children {
+    margin-left: 20px;
+    margin-top: 4px;
+}
+
+/* Missing Dependencies Warning */
+.missing-dependencies {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border: 2px solid #ffc107;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 35px;
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);
+}
+
+.missing-dependencies h4 {
+    color: #856404;
+    margin: 0 0 15px 0;
+    font-size: 1.1em;
+}
+
+.missing-dependencies p {
+    color: #856404;
+    margin-bottom: 12px;
+}
+
+.missing-dependencies ul {
+    margin: 0;
+    padding-left: 25px;
+}
+
+.missing-dependencies li {
+    color: #856404;
+    margin-bottom: 10px;
+    line-height: 1.5;
+}
+
+.missing-dependencies li strong {
+    color: #664d03;
+}
+
+/* Historical Trend */
+.trend-stats {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.trend-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.stat-label {
+    color: #7f8c8d;
+    font-size: 0.9em;
+    font-weight: 500;
+}
+
+.stat-value {
+    color: #2c3e50;
+    font-size: 1.2em;
+    font-weight: 600;
+}
+
+.stat-value.trend-increasing {
+    color: #27ae60;
+}
+
+.stat-value.trend-decreasing {
+    color: #e74c3c;
+}
+
+.stat-value.trend-stable {
+    color: #3498db;
+}
+
+.chart-container {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.chart-container canvas {
+    max-height: 300px;
+}
+
+/* No Data Message */
+.no-data {
+    color: #7f8c8d;
+    font-style: italic;
+    padding: 20px;
+    text-align: center;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    #computationContextModal {
+        width: 95%;
+        max-height: 95vh;
+    }
+
+    .computation-context {
+        padding: 20px 15px;
+    }
+
+    .context-header {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .step {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .step-number {
+        align-self: flex-start;
+    }
+
+    .trend-stats {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .formula-display {
+        font-size: 0.95em;
+        padding: 15px;
+    }
+
+    .node-content {
+        flex-wrap: wrap;
+    }
+
+    .node-value {
+        flex-basis: 100%;
+        margin-top: 5px;
+    }
+}
+
+@media (max-width: 480px) {
+    .computation-context {
+        padding: 15px 10px;
+    }
+
+    .context-header h3 {
+        font-size: 1.2em;
+    }
+
+    .formula-display {
+        font-size: 0.9em;
+    }
+
+    .step-number {
+        width: 35px;
+        height: 35px;
+        font-size: 1.1em;
+    }
+}
+
+/* Print Styles */
+@media print {
+    #computationContextModal::backdrop {
+        display: none;
+    }
+
+    .computation-context {
+        padding: 20px;
+    }
+
+    .step {
+        page-break-inside: avoid;
+    }
+
+    .chart-container {
+        page-break-inside: avoid;
+    }
+}

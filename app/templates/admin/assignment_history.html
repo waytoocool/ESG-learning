@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+
+{% block title %}Assignment History - ESG Datavault{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/assignment_history.css') }}">
+{% endblock %}
+
+{% block header %}Assignment History{% endblock %}
+
+{% block content %}
+<div class="assignment-history-container">
+    <!-- Header Section with Overview Stats -->
+    <div class="history-header">
+        <div class="header-content">
+            <h1>Assignment History</h1>
+            <p class="header-description">
+                Track the evolution of data point assignments across your organization. 
+                View version history, changes, and data impact analysis.
+            </p>
+        </div>
+        
+        <div class="stats-overview">
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.total_assignments }}</div>
+                <div class="stat-label">Total Assignments</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.active_assignments }}</div>
+                <div class="stat-label">Active Assignments</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.total_series }}</div>
+                <div class="stat-label">Data Series</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.versioned_assignments }}</div>
+                <div class="stat-label">Modified Assignments</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Controls Section -->
+    <div class="controls-section">
+        <div class="filters-container">
+            <div class="filter-group">
+                <label for="fieldFilter" class="filter-label">Field:</label>
+                <select id="fieldFilter" class="filter-select">
+                    <option value="">All Fields</option>
+                    <!-- Options populated by JavaScript -->
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="entityFilter" class="filter-label">Entity:</label>
+                <select id="entityFilter" class="filter-select">
+                    <option value="">All Entities</option>
+                    <!-- Options populated by JavaScript -->
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="dateFromFilter" class="filter-label">From Date:</label>
+                <input type="date" id="dateFromFilter" class="filter-input">
+            </div>
+            
+            <div class="filter-group">
+                <label for="dateToFilter" class="filter-label">To Date:</label>
+                <input type="date" id="dateToFilter" class="filter-input">
+            </div>
+            
+            <div class="filter-group">
+                <label for="searchFilter" class="filter-label">Search:</label>
+                <input type="text" id="searchFilter" class="filter-input" placeholder="Search fields, entities, or users...">
+            </div>
+        </div>
+        
+        <div class="controls-actions">
+            <button id="clearFilters" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Clear Filters
+            </button>
+            <button id="exportHistory" class="btn btn-primary">
+                <i class="fas fa-download"></i> Export
+            </button>
+        </div>
+    </div>
+
+    <!-- Timeline Section -->
+    <div class="timeline-section">
+        <div class="timeline-header">
+            <h2>Assignment Timeline</h2>
+            <div class="timeline-status">
+                <span class="loading-indicator" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i> Loading...
+                </span>
+            </div>
+        </div>
+        
+        <!-- Timeline Container -->
+        <div class="timeline-container" id="timelineContainer">
+            <!-- Timeline items will be populated by JavaScript -->
+        </div>
+        
+        <!-- Pagination -->
+        <div class="pagination-container" id="paginationContainer">
+            <!-- Pagination controls will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading-state" id="loadingState" style="display: none;">
+        <div class="loading-content">
+            <i class="fas fa-spinner fa-spin fa-2x"></i>
+            <p>Loading assignment history...</p>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-content">
+            <i class="fas fa-history fa-3x"></i>
+            <h3>No Assignment History Found</h3>
+            <p>No assignments match your current filters. Try adjusting the search criteria or clearing filters.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Assignment Details Modal -->
+<div class="modal fade" id="assignmentDetailsModal" tabindex="-1" aria-labelledby="assignmentDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="assignmentDetailsModalLabel">Assignment Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="assignmentDetailsContent">
+                <!-- Content loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data Series Modal -->
+<div class="modal fade" id="dataSeriesModal" tabindex="-1" aria-labelledby="dataSeriesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dataSeriesModalLabel">Data Series History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="dataSeriesContent">
+                <!-- Content loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data Entries Modal -->
+<div class="modal fade" id="dataEntriesModal" tabindex="-1" aria-labelledby="dataEntriesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dataEntriesModalLabel">Affected Data Entries</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="dataEntriesContent">
+                <!-- Content loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin/assignment_history.js') }}"></script>
+{% endblock %}

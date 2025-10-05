@@ -1,0 +1,16 @@
+#// ./requirements.txt
+# To install all libraries use pip install -r requirements.txt
+pandas
+plotly
+Flask
+Flask-SQLAlchemy
+Flask-Login
+Werkzeug
+flask_mail
+itsdangerous
+hypercorn
+redis>=4.0.0
+python-dotenv
+uuid
+python-dateutil
+psutil

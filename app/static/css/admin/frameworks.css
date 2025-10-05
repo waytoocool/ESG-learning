@@ -1,0 +1,16 @@
+
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Chart.js Canvas Responsiveness */
+.chart-card {
+    max-width: 600px; /* Limit chart card width on large screens */
+    margin: 0 auto; /* Center the card if it's smaller than its container */
+}
+
+.chart-card canvas {
+    width: 100% !important;
+    height: 100% !important;
+}

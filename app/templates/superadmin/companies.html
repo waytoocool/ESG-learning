@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}Companies Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/superadmin/main.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="companies-management">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2>Companies Management</h2>
+            <p>Manage all companies in the system.</p>
+        </div>
+        <div>
+            <a href="{{ url_for('superadmin.show_create_company_form') }}" class="btn btn-primary" id="createCompanyBtn">
+                <i class="fas fa-plus"></i> Create Company
+            </a>
+        </div>
+    </div>
+
+    <div class="companies-list">
+        {% for item in company_data %}
+        <div class="company-card">
+            <div class="company-header">
+                <h3>{{ item.company.name }}</h3>
+                <span class="status {{ 'active' if item.company.is_active else 'inactive' }}">
+                    {{ 'Active' if item.company.is_active else 'Inactive' }}
+                </span>
+            </div>
+            <div class="company-details">
+                <p><strong>Slug:</strong> {{ item.company.slug }}</p>
+                <p><strong>Users:</strong> {{ item.user_count }}</p>
+                <p><strong>Entities:</strong> {{ item.entity_count }}</p>
+                <p><strong>ESG Records:</strong> {{ item.esg_data_count }}</p>
+                <p><strong>Created:</strong> {{ item.company.created_at.strftime('%Y-%m-%d') }}</p>
+            </div>
+            <div class="company-actions">
+                <a href="{{ url_for('superadmin.company_details', company_id=item.company.id) }}" class="btn btn-primary">View Details</a>
+                <button class="btn btn-secondary toggle-status" data-company-id="{{ item.company.id }}">
+                    {{ 'Deactivate' if item.company.is_active else 'Activate' }}
+                </button>
+                {% if item.company.is_active %}
+                <button class="btn btn-success create-admin-btn" data-company-id="{{ item.company.id }}" data-company-name="{{ item.company.name }}">
+                    Create Admin
+                </button>
+                {% endif %}
+                <button class="btn btn-danger delete-company-btn" data-company-id="{{ item.company.id }}" data-company-name="{{ item.company.name }}" {{ 'disabled' if item.active_user_count > 0 }}>
+                    Delete
+                </button>
+                {% if item.active_user_count > 0 %}
+                <small class="text-muted d-block">Cannot delete: {{ item.active_user_count }} active users</small>
+                {% endif %}
+
+                {# Hard delete button shown only when company is already inactive #}
+                {% if not item.company.is_active %}
+                <button class="btn btn-outline-danger hard-delete-company-btn mt-2" data-company-id="{{ item.company.id }}" data-company-name="{{ item.company.name }}" {{ 'disabled' if item.active_user_count > 0 }}>
+                    Hard&nbsp;Delete
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Create Admin User Modal -->
+<div class="modal fade" id="createAdminModal" tabindex="-1" role="dialog" aria-labelledby="createAdminModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createAdminModalLabel">Create Admin User for <span id="modal-company-name"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="createAdminForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="admin-email">Email Address *</label>
+                        <input type="email" class="form-control" id="admin-email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="admin-username">Name</label>
+                        <input type="text" class="form-control" id="admin-username" name="username">
+                    </div>
+                    <div class="alert alert-info">
+                        <small>A temporary password will be generated and displayed. In production, a password reset email would be sent instead.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Admin User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal for Admin Creation -->
+<div class="modal fade" id="adminCreatedModal" tabindex="-1" role="dialog" aria-labelledby="adminCreatedModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="adminCreatedModalLabel">Admin User Created Successfully</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-success">
+                    <p><strong>Admin user created successfully!</strong></p>
+                    <p><strong>Email:</strong> <span id="created-user-email"></span></p>
+                    <p><strong>Temporary Password:</strong> <code id="created-user-password"></code></p>
+                </div>
+                <div class="alert alert-warning">
+                    <small>Please save this password securely. It will not be shown again. In production, a password reset email would be sent instead.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentCompanyId = null;
+    
+    // Debug Create Company button
+    const createBtn = document.getElementById('createCompanyBtn');
+    if (createBtn) {
+        createBtn.addEventListener('click', function(e) {
+            console.log('Create Company button clicked');
+            console.log('Target URL:', this.href);
+            // Don't prevent default - let it navigate
+        });
+    } else {
+        console.log('Create Company button not found!');
+    }
+    
+    // Debug View Details buttons
+    document.querySelectorAll('a[href*="company_details"]').forEach((btn, index) => {
+        btn.addEventListener('click', function(e) {
+            console.log(`View Details button ${index} clicked`);
+            console.log('Target URL:', this.href);
+            // Don't prevent default - let it navigate
+        });
+    });
+
+    // Toggle company status
+    document.querySelectorAll('.toggle-status').forEach(button => {
+        button.addEventListener('click', function() {
+            console.log('Toggle status button clicked');
+            const companyId = this.dataset.companyId;
+            console.log('Company ID:', companyId);
+            
+            fetch(`/superadmin/api/companies/${companyId}/toggle-status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Toggle status error:', error);
+                alert('An error occurred while toggling company status.');
+            });
+        });
+    });
+
+    // Delete company
+    document.querySelectorAll('.delete-company-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            console.log('Delete button clicked');
+            if (this.disabled) {
+                console.log('Delete button is disabled');
+                return;
+            }
+            
+            const companyId = this.dataset.companyId;
+            const companyName = this.dataset.companyName;
+            console.log('Company ID:', companyId, 'Name:', companyName);
+            
+            if (confirm(`Are you sure you want to delete/deactivate "${companyName}"? This action cannot be undone.`)) {
+                fetch(`/superadmin/companies/${companyId}/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Delete company error:', error);
+                    alert('An error occurred while deleting the company.');
+                });
+            }
+        });
+    });
+
+    // Hard delete company (irreversible)
+    document.querySelectorAll('.hard-delete-company-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            if (this.disabled) { return; }
+            const companyId = this.dataset.companyId;
+            const companyName = this.dataset.companyName;
+
+            if (confirm(`This will permanently delete "${companyName}" and ALL its data. This action cannot be undone. Continue?`)) {
+                fetch(`/superadmin/companies/${companyId}/hard-delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(resp => resp.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(err => {
+                    console.error('Hard delete error', err);
+                    alert('An error occurred while hard deleting the company.');
+                });
+            }
+        });
+    });
+
+    // Create admin user modal
+    document.querySelectorAll('.create-admin-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            console.log('Create Admin button clicked');
+            currentCompanyId = this.dataset.companyId;
+            const companyName = this.dataset.companyName;
+            
+            document.getElementById('modal-company-name').textContent = companyName;
+            document.getElementById('createAdminForm').reset();
+            
+            // Use Bootstrap 5 Modal API
+            const modal = new bootstrap.Modal(document.getElementById('createAdminModal'));
+            modal.show();
+        });
+    });
+
+    // Handle admin creation form submission
+    document.getElementById('createAdminForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        fetch(`/superadmin/companies/${currentCompanyId}/create-admin`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Hide create modal using Bootstrap 5 API
+                const createModal = bootstrap.Modal.getInstance(document.getElementById('createAdminModal'));
+                createModal.hide();
+                
+                // Show success modal with credentials
+                document.getElementById('created-user-email').textContent = data.user_email;
+                document.getElementById('created-user-password').textContent = data.temporary_password;
+                
+                const successModal = new bootstrap.Modal(document.getElementById('adminCreatedModal'));
+                successModal.show();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while creating the admin user.');
+        });
+    });
+});
+</script>
+{% endblock %} 

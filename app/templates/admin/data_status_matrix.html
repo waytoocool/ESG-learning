@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}Data Collection Status Matrix{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/data_status_matrix.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="data-status-matrix-container">
+    <!-- Header Section -->
+    <div class="page-header">
+        <h1>Data Collection Status Matrix</h1>
+        <p class="page-description">Monitor data collection progress across all subsidiaries and data points</p>
+    </div>
+
+    <!-- Period Selector -->
+    <div class="period-selector-section">
+        <div class="selector-card">
+            <div class="selector-header">
+                <i class="fas fa-calendar-alt"></i>
+                <h3>Reporting Period</h3>
+            </div>
+            <div class="selector-content">
+                <form method="GET" id="periodForm">
+                    <div class="date-input-group">
+                        <label for="reporting_date">Select Date:</label>
+                        <input type="date" 
+                               id="reporting_date" 
+                               name="reporting_date" 
+                               value="{{ selected_date }}"
+                               class="period-input">
+                        <button type="submit" class="update-btn">
+                            <i class="fas fa-sync-alt"></i>
+                            Update
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="summary-stats">
+        <div class="stat-card completed">
+            <div class="stat-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ completed_assignments }}</h3>
+                <p>Completed</p>
+            </div>
+        </div>
+        <div class="stat-card total">
+            <div class="stat-icon">
+                <i class="fas fa-list"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ total_assignments }}</h3>
+                <p>Total Assignments</p>
+            </div>
+        </div>
+        <div class="stat-card progress">
+            <div class="stat-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ "%.1f"|format(completion_rate) }}%</h3>
+                <p>Completion Rate</p>
+            </div>
+        </div>
+        <div class="stat-card pending">
+            <div class="stat-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ total_assignments - completed_assignments }}</h3>
+                <p>Pending</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Matrix Table -->
+    <div class="matrix-section">
+        {% if matrix_data %}
+        <div class="matrix-container">
+            <div class="matrix-wrapper">
+                <table class="status-matrix-table">
+                    <thead>
+                        <tr>
+                            <th class="data-point-header">Data Points</th>
+                            {% for entity in entities_with_data_points %}
+                            <th class="entity-header" title="{{ entity.name }} ({{ entity.entity_type }})">
+                                <div class="entity-header-content">
+                                    <span class="entity-name">{{ entity.name }}</span>
+                                    <span class="entity-type">{{ entity.entity_type }}</span>
+                                </div>
+                            </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for field_id, dp_data in matrix_data.items() %}
+                        <tr class="matrix-row" data-field-id="{{ field_id }}">
+                            <td class="data-point-cell">
+                                <div class="data-point-info">
+                                    <span class="data-point-name">{{ dp_data.field.field_name }}</span>
+                                    <span class="data-point-framework">
+                                        {% if dp_data.field.framework %}
+                                            {{ dp_data.field.framework.framework_name }}
+                                        {% endif %}
+                                    </span>
+                                    <span class="data-point-type">
+                                        {{ 'Computed' if dp_data.is_computed else 'Raw' }}
+                                    </span>
+                                </div>
+                            </td>
+                            {% for entity in entities_with_data_points %}
+                            <td class="status-cell">
+                                {% if entity.id in dp_data.entities %}
+                                    {% set entity_data = dp_data.entities[entity.id] %}
+                                    <div class="status-indicator {{ entity_data.status }}" 
+                                         title="Status: {{ entity_data.status.title() }}{% if entity_data.last_updated %} | Last updated: {{ entity_data.last_updated.strftime('%Y-%m-%d %H:%M') }}{% endif %}">
+                                        
+                                        {% if entity_data.status == 'completed' %}
+                                            <i class="fas fa-check-circle"></i>
+                                            <span class="status-value">{{ entity_data.value }}</span>
+                                        {% elif entity_data.status == 'incomplete' %}
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            <span class="status-text">Incomplete</span>
+                                        {% else %}
+                                            <i class="fas fa-clock"></i>
+                                            <span class="status-text">Pending</span>
+                                        {% endif %}
+                                        
+                                        {% if entity_data.esg_data %}
+                                        <div class="status-actions">
+                                            <button class="view-details-btn" 
+                                                    onclick="viewDetails('{{ entity_data.esg_data.id }}', '{{ dp_data.field.field_name }}', '{{ entity.name }}')"
+                                                    title="View details">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <div class="status-indicator not-assigned" title="Not assigned to this entity">
+                                        <i class="fas fa-minus"></i>
+                                        <span class="status-text">N/A</span>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-inbox"></i>
+            </div>
+            <h3>No Data Assignments Found</h3>
+            <p>No data points have been assigned to entities yet.</p>
+            <a href="{{ url_for('admin_assign_data_points.assign_data_points') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
+                Assign Data Points
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Legend -->
+    <div class="legend-section">
+        <h3>Status Legend</h3>
+        <div class="legend-items">
+            <div class="legend-item">
+                <div class="legend-indicator completed">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <span>Completed - Data submitted and validated</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-indicator incomplete">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <span>Incomplete - Data entry started but not completed</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-indicator pending">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <span>Pending - No data submitted yet</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-indicator not-assigned">
+                    <i class="fas fa-minus"></i>
+                </div>
+                <span>Not Assigned - Data point not assigned to this entity</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Details Modal -->
+<div id="detailsModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">Data Details</h3>
+            <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+        <div class="modal-body" id="modalBody">
+            <!-- Details will be loaded here -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+            <a id="editDataLink" href="#" class="btn btn-primary">
+                <i class="fas fa-edit"></i>
+                Edit in Data Review
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notifications -->
+<div id="toast-container"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin/data_status_matrix.js') }}"></script>
+{% endblock %} 

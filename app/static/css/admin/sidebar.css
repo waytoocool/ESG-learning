@@ -1,0 +1,31 @@
+/* Sidebar specific styles */
+
+.details-sidebar {
+  position: fixed;
+  top: 0;
+  right: -400px; /* Start off-screen */
+  width: 400px;
+  height: 100%;
+  background: white;
+  box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+  transition: right 0.3s ease;
+  z-index: 1000;
+}
+
+.details-sidebar.open {
+  right: 0;
+}
+
+.details-sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.details-sidebar-content {
+  padding: 20px;
+  overflow-y: auto;
+  height: calc(100% - 70px);
+}

@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Users Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/superadmin/main.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="users-management">
+    <h2>Users Management</h2>
+    <p>Manage all users across all tenants.</p>
+
+    <!-- Search and Filter Form -->
+    <form method="GET" class="search-filters mb-3">
+        <div class="row">
+            <div class="col-md-4">
+                <input type="text" name="search" class="form-control" placeholder="Search by email or name" value="{{ search }}">
+            </div>
+            <div class="col-md-2">
+                <select name="role" class="form-control">
+                    <option value="">All Roles</option>
+                    <option value="SUPER_ADMIN" {{ 'selected' if role_filter == 'SUPER_ADMIN' }}>Super Admin</option>
+                    <option value="ADMIN" {{ 'selected' if role_filter == 'ADMIN' }}>Admin</option>
+                    <option value="USER" {{ 'selected' if role_filter == 'USER' }}>User</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="company" class="form-control">
+                    <option value="">All Companies</option>
+                    {% for company in companies %}
+                    <option value="{{ company.id }}" {{ 'selected' if company_filter == company.id }}>{{ company.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary">Filter</button>
+            </div>
+            <div class="col-md-1">
+                <a href="{{ url_for('superadmin.list_users') }}" class="btn btn-secondary">Clear</a>
+            </div>
+        </div>
+    </form>
+
+    <!-- Results Summary -->
+    <div class="results-summary mb-3">
+        <p>Showing {{ pagination.per_page * (pagination.page - 1) + 1 }} to {{ pagination.per_page * (pagination.page - 1) + users|length }} of {{ pagination.total }} users</p>
+    </div>
+
+    <div class="users-table">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Company</th>
+                    <th>Status</th>
+                    <th>Verified</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.email }}</td>
+                    <td>{{ user.name or 'N/A' }}</td>
+                    <td>
+                        <span class="role-badge role-{{ user.role.lower() }}">
+                            {{ user.role }}
+                        </span>
+                    </td>
+                    <td>{{ user.company.name if user.company else 'N/A' }}</td>
+                    <td>
+                        <span class="status {{ 'active' if user.is_active else 'inactive' }}">
+                            {{ 'Active' if user.is_active else 'Inactive' }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="verified {{ 'yes' if user.is_email_verified else 'no' }}">
+                            {{ 'Yes' if user.is_email_verified else 'No' }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('superadmin.user_details', user_id=user.id) }}" class="btn btn-sm btn-primary">View</a>
+                        {% if user.id != current_user.id %}
+                        <button class="btn btn-sm btn-secondary toggle-user-status" data-user-id="{{ user.id }}">
+                            {{ 'Deactivate' if user.is_active else 'Activate' }}
+                        </button>
+                        {% if user.is_active %}
+                        <button class="btn btn-sm btn-warning impersonate-user" data-user-id="{{ user.id }}" data-user-email="{{ user.email }}" title="T-8 Impersonation">
+                            <i class="fas fa-user-secret"></i> Impersonate
+                        </button>
+                        {% endif %}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center">No users found matching the criteria.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <nav aria-label="Users pagination">
+        <ul class="pagination justify-content-center">
+            {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('superadmin.list_users', page=pagination.prev_num, search=search, role=role_filter, company=company_filter) }}">Previous</a>
+                </li>
+            {% endif %}
+            
+            {% for page_num in pagination.iter_pages() %}
+                {% if page_num %}
+                    {% if page_num != pagination.page %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('superadmin.list_users', page=page_num, search=search, role=role_filter, company=company_filter) }}">{{ page_num }}</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                    {% endif %}
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('superadmin.list_users', page=pagination.next_num, search=search, role=role_filter, company=company_filter) }}">Next</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.toggle-user-status').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            fetch(`/superadmin/api/users/${userId}/toggle-status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            });
+        });
+    });
+
+    // T-8 Impersonation functionality
+    document.querySelectorAll('.impersonate-user').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            const userEmail = this.dataset.userEmail;
+            startImpersonation(userId, userEmail);
+        });
+    });
+});
+</script>
+{% endblock %} 

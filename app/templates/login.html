@@ -1,0 +1,138 @@
+<!-- // templates/login.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Login - ESG Datavault</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common/popup.css') }}">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <h1 class="login-header">Welcome to <span>ESG Datavault</span></h1>
+            <form class="login-form" method="POST" action="{{ url_for('auth.login') }}" 
+                  data-login-url="{{ url_for('auth.login') }}"
+                  data-registration-success="{% if session.pop('registration_success', False) %}true{% else %}false{% endif %}">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="text" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn">Login</button>
+            </form>
+            <div class="forgot-password">
+                <a href="{{ url_for('auth.forgot_password') }}">Forgot Password?</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flash messages container (hidden) -->
+    <div id="flash-messages" style="display: none;">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div data-category="{{ category }}" data-message="{{ message|e }}"></div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <footer>
+        <p>&copy; 2024 ESG Datavault. All rights reserved.</p>
+    </footer>
+
+    <!-- Login functionality -->
+    <script type="module">
+        import { PopupManager } from '{{ url_for("static", filename="js/common/popup.js") }}';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize popup system
+            PopupManager.init();
+            
+            // Show flash messages
+            const flashContainer = document.getElementById('flash-messages');
+            if (flashContainer) {
+                const flashMessages = flashContainer.querySelectorAll('[data-category]');
+                flashMessages.forEach(msg => {
+                    const category = msg.getAttribute('data-category');
+                    const message = msg.getAttribute('data-message');
+                    
+                    switch(category) {
+                        case 'success':
+                            PopupManager.showSuccess('Success', message);
+                            break;
+                        case 'error':
+                            PopupManager.showError('Error', message);
+                            break;
+                        case 'warning':
+                            PopupManager.showWarning('Warning', message);
+                            break;
+                        default:
+                            PopupManager.showInfo('Info', message);
+                    }
+                });
+            }
+            
+            // Handle form submission
+            const loginForm = document.querySelector('.login-form');
+            if (loginForm) {
+                // Show registration success popup if needed
+                if (loginForm.getAttribute('data-registration-success') === 'true') {
+                    PopupManager.showSuccess('Success', 'Registration successful! You can now log in.');
+                }
+                
+                loginForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    try {
+                        const formData = new FormData(e.target);
+                        const loginUrl = loginForm.getAttribute('data-login-url');
+                        
+                        const response = await fetch(loginUrl, {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            credentials: 'same-origin'
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+
+                        const data = await response.json();
+                        
+                        console.log('Login response:', data);
+                        
+                        if (data.success) {
+                            PopupManager.showSuccess('Success', 'Login successful! Redirecting...');
+                            console.log('Redirecting to:', data.redirect);
+                            
+                            // Redirect after a short delay to show the success message
+                            setTimeout(() => {
+                                console.log('Executing redirect now...');
+                                window.location.href = data.redirect || '/';
+                            }, 1500);
+                        } else {
+                            PopupManager.showError('Error', data.message || 'Invalid credentials');
+                        }
+                    } catch (error) {
+                        console.error('Login error:', error);
+                        PopupManager.showError('Error', 'An error occurred during login. Please try again.');
+                    }
+                });
+            }
+        });
+    </script>
+
+</body>
+</html>

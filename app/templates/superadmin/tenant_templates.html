@@ -1,0 +1,727 @@
+{% extends "base.html" %}
+
+{% block title %}Tenant Templates - T-8b Phase 2{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/superadmin/main.css') }}">
+<style>
+.template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.template-card {
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 20px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.template-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+.template-header {
+    display: flex;
+    justify-content: between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.template-title {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.template-badges {
+    display: flex;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.template-badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.badge-public {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.badge-builtin {
+    background-color: #cce5ff;
+    color: #004085;
+}
+
+.badge-private {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.template-description {
+    color: #666;
+    font-size: 0.9em;
+    margin-bottom: 15px;
+    line-height: 1.4;
+}
+
+.template-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 15px;
+    font-size: 0.85em;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.template-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.template-actions .btn {
+    font-size: 0.85em;
+    padding: 6px 12px;
+}
+
+.stats-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.stat-card h3 {
+    font-size: 2em;
+    margin: 0 0 5px 0;
+}
+
+.stat-card p {
+    margin: 0;
+    opacity: 0.9;
+}
+
+.create-template-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+}
+
+.provision-modal .modal-body {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.company-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.progress-container {
+    margin-top: 15px;
+}
+
+.progress-bar {
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: #e9ecef;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745, #20c997);
+    transition: width 0.3s ease;
+}
+
+.template-preview {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.preview-section {
+    margin-bottom: 15px;
+}
+
+.preview-section h6 {
+    color: #495057;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.preview-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.preview-list li {
+    padding: 4px 0;
+    color: #6c757d;
+    font-size: 0.9em;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 3em;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tenant-templates-management">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-layer-group"></i> Tenant Templates</h2>
+            <p class="text-muted">Manage tenant templates for rapid provisioning and standardization</p>
+        </div>
+        <div>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTemplateModal">
+                <i class="fas fa-plus"></i> Create Template
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Overview -->
+    <div class="stats-overview">
+        <div class="stat-card">
+            <h3>{{ template_stats.total_templates }}</h3>
+            <p>Total Templates</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ template_stats.public_templates }}</h3>
+            <p>Public Templates</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ template_stats.builtin_templates }}</h3>
+            <p>Built-in Templates</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ template_stats.total_usage }}</h3>
+            <p>Total Usage</p>
+        </div>
+    </div>
+
+    <!-- Templates Grid -->
+    {% if templates %}
+    <div class="template-grid">
+        {% for template in templates %}
+        <div class="template-card">
+            <div class="template-header">
+                <div>
+                    <h4 class="template-title">{{ template.name }}</h4>
+                    <div class="template-badges">
+                        {% if template.is_public %}
+                        <span class="template-badge badge-public">Public</span>
+                        {% else %}
+                        <span class="template-badge badge-private">Private</span>
+                        {% endif %}
+                        {% if template.is_builtin %}
+                        <span class="template-badge badge-builtin">Built-in</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <p class="template-description">{{ template.description or 'No description provided' }}</p>
+            
+            <div class="template-stats">
+                <div class="stat-item">
+                    <span>Industry:</span>
+                    <strong>{{ template.industry or 'General' }}</strong>
+                </div>
+                <div class="stat-item">
+                    <span>Usage Count:</span>
+                    <strong>{{ template.usage_count }}</strong>
+                </div>
+                <div class="stat-item">
+                    <span>Created:</span>
+                    <strong>{{ template.created_at.strftime('%Y-%m-%d') }}</strong>
+                </div>
+                <div class="stat-item">
+                    <span>Version:</span>
+                    <strong>{{ template.version }}</strong>
+                </div>
+            </div>
+            
+            <div class="template-actions">
+                <button class="btn btn-sm btn-outline-primary preview-template" 
+                        data-template-id="{{ template.id }}"
+                        data-bs-toggle="modal" 
+                        data-bs-target="#previewTemplateModal">
+                    <i class="fas fa-eye"></i> Preview
+                </button>
+                <button class="btn btn-sm btn-success provision-template" 
+                        data-template-id="{{ template.id }}"
+                        data-template-name="{{ template.name }}"
+                        data-bs-toggle="modal" 
+                        data-bs-target="#provisionModal">
+                    <i class="fas fa-rocket"></i> Provision
+                </button>
+                {% if not template.is_builtin %}
+                <button class="btn btn-sm btn-outline-danger delete-template" 
+                        data-template-id="{{ template.id }}"
+                        data-template-name="{{ template.name }}">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-layer-group"></i>
+        <h4>No Templates Available</h4>
+        <p>Create your first tenant template to get started with rapid provisioning.</p>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTemplateModal">
+            <i class="fas fa-plus"></i> Create First Template
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Create Template Modal -->
+<div class="modal fade" id="createTemplateModal" tabindex="-1" aria-labelledby="createTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createTemplateModalLabel">
+                    <i class="fas fa-plus"></i> Create Tenant Template
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="createTemplateForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="sourceCompany" class="form-label">Source Company *</label>
+                                <select class="form-select" id="sourceCompany" name="source_company_id" required>
+                                    <option value="">Select a company to use as template</option>
+                                    {% for company in companies %}
+                                    <option value="{{ company.id }}">{{ company.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">The company whose configuration will be used as the template</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="templateName" class="form-label">Template Name *</label>
+                                <input type="text" class="form-control" id="templateName" name="name" required>
+                                <div class="form-text">A descriptive name for this template</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="templateIndustry" class="form-label">Industry</label>
+                                <select class="form-select" id="templateIndustry" name="industry">
+                                    <option value="">General</option>
+                                    <option value="Manufacturing">Manufacturing</option>
+                                    <option value="Technology">Technology</option>
+                                    <option value="Financial Services">Financial Services</option>
+                                    <option value="Healthcare">Healthcare</option>
+                                    <option value="Energy">Energy</option>
+                                    <option value="Retail">Retail</option>
+                                    <option value="Real Estate">Real Estate</option>
+                                    <option value="Transportation">Transportation</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="templateVersion" class="form-label">Version</label>
+                                <input type="text" class="form-control" id="templateVersion" name="version" value="1.0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="templateDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="templateDescription" name="description" rows="3" 
+                                  placeholder="Describe what this template includes and when to use it"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="isPublic" name="is_public" checked>
+                                <label class="form-check-label" for="isPublic">
+                                    Make Public
+                                </label>
+                                <div class="form-text">Public templates can be used by all administrators</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="includeData" name="include_sample_data">
+                                <label class="form-check-label" for="includeData">
+                                    Include Sample Data
+                                </label>
+                                <div class="form-text">Include anonymized sample ESG data</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Create Template
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Provision Tenant Modal -->
+<div class="modal fade" id="provisionModal" tabindex="-1" aria-labelledby="provisionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="provisionModalLabel">
+                    <i class="fas fa-rocket"></i> Provision New Tenant
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="provisionForm">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Template:</strong> <span id="selectedTemplateName"></span>
+                    </div>
+                    
+                    <div class="company-form-grid">
+                        <div class="mb-3">
+                            <label for="companyName" class="form-label">Company Name *</label>
+                            <input type="text" class="form-control" id="companyName" name="company_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="companySlug" class="form-label">Company Slug *</label>
+                            <input type="text" class="form-control" id="companySlug" name="company_slug" required>
+                            <div class="form-text">URL-friendly identifier (auto-generated from name)</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="adminEmail" class="form-label">Admin Email *</label>
+                            <input type="email" class="form-control" id="adminEmail" name="admin_email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="adminName" class="form-label">Admin Name</label>
+                            <input type="text" class="form-control" id="adminName" name="admin_name">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="companyDescription" class="form-label">Company Description</label>
+                        <textarea class="form-control" id="companyDescription" name="description" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="sendWelcomeEmail" name="send_welcome_email" checked>
+                        <label class="form-check-label" for="sendWelcomeEmail">
+                            Send welcome email to admin
+                        </label>
+                    </div>
+                    
+                    <div class="progress-container" id="provisionProgress" style="display: none;">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Provisioning Progress</span>
+                            <span id="progressPercentage">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                        </div>
+                        <div class="mt-2">
+                            <small id="progressStatus" class="text-muted">Initializing...</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success" id="provisionBtn">
+                        <i class="fas fa-rocket"></i> Provision Tenant
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Template Preview Modal -->
+<div class="modal fade" id="previewTemplateModal" tabindex="-1" aria-labelledby="previewTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewTemplateModalLabel">
+                    <i class="fas fa-eye"></i> Template Preview
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="templatePreviewContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading template preview...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-generate slug from company name
+    document.getElementById('companyName')?.addEventListener('input', function() {
+        const name = this.value;
+        const slug = name.toLowerCase()
+                        .replace(/[^a-z0-9]+/g, '-')
+                        .replace(/^-+|-+$/g, '');
+        document.getElementById('companySlug').value = slug;
+    });
+
+    // Create Template Form
+    document.getElementById('createTemplateForm')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const sourceCompanyId = formData.get('source_company_id');
+        
+        fetch(`/superadmin/api/templates/create-from-tenant/${sourceCompanyId}`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Template created successfully!');
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while creating the template');
+        });
+    });
+
+    // Provision Tenant Form
+    document.getElementById('provisionForm')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const templateId = document.getElementById('provisionBtn').dataset.templateId;
+        
+        // Show progress
+        document.getElementById('provisionProgress').style.display = 'block';
+        document.getElementById('provisionBtn').disabled = true;
+        
+        // Simulate progress updates
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            progress += Math.random() * 20;
+            if (progress > 90) progress = 90;
+            
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('progressPercentage').textContent = Math.round(progress) + '%';
+            
+            if (progress > 30) document.getElementById('progressStatus').textContent = 'Creating company...';
+            if (progress > 60) document.getElementById('progressStatus').textContent = 'Setting up frameworks...';
+            if (progress > 80) document.getElementById('progressStatus').textContent = 'Creating admin user...';
+        }, 500);
+        
+        fetch(`/superadmin/api/templates/${templateId}/provision`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            clearInterval(progressInterval);
+            
+            if (data.success) {
+                // Complete progress
+                document.getElementById('progressFill').style.width = '100%';
+                document.getElementById('progressPercentage').textContent = '100%';
+                document.getElementById('progressStatus').textContent = 'Tenant provisioned successfully!';
+                
+                setTimeout(() => {
+                    alert('Tenant provisioned successfully!');
+                    location.reload();
+                }, 1000);
+            } else {
+                document.getElementById('progressStatus').textContent = 'Error: ' + data.error;
+                document.getElementById('provisionBtn').disabled = false;
+            }
+        })
+        .catch(error => {
+            clearInterval(progressInterval);
+            console.error('Error:', error);
+            document.getElementById('progressStatus').textContent = 'An error occurred';
+            document.getElementById('provisionBtn').disabled = false;
+        });
+    });
+
+    // Provision button click
+    document.querySelectorAll('.provision-template').forEach(button => {
+        button.addEventListener('click', function() {
+            const templateId = this.dataset.templateId;
+            const templateName = this.dataset.templateName;
+            
+            document.getElementById('selectedTemplateName').textContent = templateName;
+            document.getElementById('provisionBtn').dataset.templateId = templateId;
+            
+            // Reset form
+            document.getElementById('provisionForm').reset();
+            document.getElementById('provisionProgress').style.display = 'none';
+            document.getElementById('provisionBtn').disabled = false;
+        });
+    });
+
+    // Preview template
+    document.querySelectorAll('.preview-template').forEach(button => {
+        button.addEventListener('click', function() {
+            const templateId = this.dataset.templateId;
+            
+            // Load template preview
+            fetch(`/superadmin/api/templates/${templateId}/preview`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const preview = data.preview;
+                    document.getElementById('templatePreviewContent').innerHTML = `
+                        <div class="template-preview">
+                            <div class="preview-section">
+                                <h6><i class="fas fa-building"></i> Company Structure</h6>
+                                <ul class="preview-list">
+                                    <li>Entities: ${preview.entities_count || 0}</li>
+                                    <li>Users: ${preview.users_count || 0}</li>
+                                    <li>Admin Users: ${preview.admin_users_count || 0}</li>
+                                </ul>
+                            </div>
+                            <div class="preview-section">
+                                <h6><i class="fas fa-layer-group"></i> Frameworks</h6>
+                                <ul class="preview-list">
+                                    ${(preview.frameworks || []).map(f => `<li>${f.name} (${f.fields_count} fields)</li>`).join('')}
+                                </ul>
+                            </div>
+                            <div class="preview-section">
+                                <h6><i class="fas fa-chart-bar"></i> Data Points</h6>
+                                <ul class="preview-list">
+                                    <li>Total Data Points: ${preview.data_points_count || 0}</li>
+                                    <li>Sample Data Records: ${preview.sample_data_count || 0}</li>
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('templatePreviewContent').innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Error loading template preview: ${data.error}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('templatePreviewContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        An error occurred while loading the preview
+                    </div>
+                `;
+            });
+        });
+    });
+
+    // Delete template
+    document.querySelectorAll('.delete-template').forEach(button => {
+        button.addEventListener('click', function() {
+            const templateId = this.dataset.templateId;
+            const templateName = this.dataset.templateName;
+            
+            if (confirm(`Are you sure you want to delete the template "${templateName}"? This action cannot be undone.`)) {
+                fetch(`/superadmin/api/templates/${templateId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Template deleted successfully!');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while deleting the template');
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %} 

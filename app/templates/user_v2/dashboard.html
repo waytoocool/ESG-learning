@@ -1,0 +1,851 @@
+{% extends "base.html" %}
+
+{% block title %}User Dashboard V2{% endblock %}
+
+{% block content %}
+<!-- Phase 3: Computation Context CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user_v2/computation_context.css') }}">
+
+<!-- Chart.js for historical trends -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<div class="container-fluid user-dashboard-v2">
+    <!-- Header with Entity Switcher -->
+    <div class="dashboard-header">
+        <div class="row align-items-center mb-4">
+            <div class="col-md-6">
+                <h1>Data Entry Dashboard</h1>
+                <p class="text-muted">Welcome, {{ user_name }}!</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <!-- Entity Switcher (only visible for admins with multiple entities) -->
+                {% if user_role == 'ADMIN' and entities|length > 1 %}
+                <div class="entity-switcher">
+                    <label for="entitySelect" class="form-label">Current Entity:</label>
+                    <select id="entitySelect" class="form-select entity-dropdown" style="max-width: 300px; display: inline-block;">
+                        {% for entity in entities %}
+                        <option value="{{ entity.id }}" {% if entity.is_current %}selected{% endif %}>
+                            {{ entity.name }} ({{ entity.type }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% elif current_entity %}
+                <div class="current-entity-display">
+                    <strong>Entity:</strong> {{ current_entity.name }} <span class="badge bg-secondary">{{ current_entity.type }}</span>
+                </div>
+                {% endif %}
+
+                <!-- Toggle Button (future implementation) -->
+                <button id="toggleViewBtn" class="btn btn-outline-primary ms-3" title="Toggle to legacy dashboard">
+                    <i class="fas fa-exchange-alt"></i> Legacy View
+                </button>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Fields</h5>
+                        <p class="card-text display-6">{{ total_fields }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Raw Input Fields</h5>
+                        <p class="card-text display-6">{{ raw_count }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Computed Fields</h5>
+                        <p class="card-text display-6">{{ computed_count }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Date</h5>
+                        <p class="card-text">
+                            <input type="date" id="selectedDate" class="form-control" value="{{ selected_date }}">
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Message Display -->
+    {% if error_message %}
+    <div class="alert alert-danger" role="alert">
+        <i class="fas fa-exclamation-triangle"></i> {{ error_message }}
+    </div>
+    {% endif %}
+
+    <!-- Data Points Table -->
+    <div class="data-points-section">
+        <!-- Raw Input Fields -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3>Raw Input Fields</h3>
+            </div>
+            <div class="card-body">
+                {% if raw_input_fields %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Field Name</th>
+                                <th>Topic</th>
+                                <th>Frequency</th>
+                                <th>Unit</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for field in raw_input_fields %}
+                            <tr>
+                                <td>{{ field.field_name }}</td>
+                                <td>{{ field.topic_name or 'N/A' }}</td>
+                                <td><span class="badge bg-info">{{ field.frequency }}</span></td>
+                                <td>{{ field.default_unit or 'N/A' }}</td>
+                                <td>
+                                    {% if field.status == 'complete' %}
+                                        <span class="badge bg-success">Complete</span>
+                                    {% elif field.status == 'partial' %}
+                                        <span class="badge bg-warning">Partial</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Empty</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary open-data-modal"
+                                            data-field-id="{{ field.field_id }}"
+                                            data-field-name="{{ field.field_name }}"
+                                            data-field-type="raw_input">
+                                        <i class="fas fa-edit"></i> Enter Data
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No raw input fields assigned to this entity.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Computed Fields -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Computed Fields</h3>
+            </div>
+            <div class="card-body">
+                {% if computed_fields %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Field Name</th>
+                                <th>Topic</th>
+                                <th>Frequency</th>
+                                <th>Unit</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for field in computed_fields %}
+                            <tr>
+                                <td>{{ field.field_name }}</td>
+                                <td>{{ field.topic_name or 'N/A' }}</td>
+                                <td><span class="badge bg-info">{{ field.frequency }}</span></td>
+                                <td>{{ field.default_unit or 'N/A' }}</td>
+                                <td>
+                                    {% if field.status == 'complete' %}
+                                        <span class="badge bg-success">Computed</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-info open-data-modal"
+                                            data-field-id="{{ field.field_id }}"
+                                            data-field-name="{{ field.field_name }}"
+                                            data-field-type="computed">
+                                        <i class="fas fa-eye"></i> View Details
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary show-computation-context"
+                                            data-field-id="{{ field.field_id }}"
+                                            title="View Computation Context">
+                                        <i class="fas fa-info-circle"></i> Formula
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No computed fields assigned to this entity.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Collection Modal -->
+    <div class="modal fade" id="dataCollectionModal" tabindex="-1" aria-labelledby="dataCollectionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-container">
+                <!-- Modal Header -->
+                <div class="modal-header">
+                    <h2 class="modal-title" id="dataCollectionModalLabel">
+                        Enter Data: <span id="modalFieldName">Field Name</span> -
+                        <span id="modalEntityName">{{ current_entity.name if current_entity else 'Entity' }}</span>
+                    </h2>
+                    <button type="button" class="btn-close modal-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <!-- Tab Navigation -->
+                <div class="modal-tabs">
+                    <button class="tab active" data-tab="entry" id="tab-entry">Current Entry</button>
+                    <button class="tab" data-tab="history" id="tab-history">Historical Data</button>
+                    <button class="tab" data-tab="info" id="tab-info">Field Info</button>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="modal-body">
+                    <!-- Current Entry Tab -->
+                    <div class="tab-content active" id="entry-tab">
+                        <form id="dataEntryForm">
+                            <div class="mb-3">
+                                <label for="reportingDate" class="form-label">Reporting Date</label>
+                                <input type="date" class="form-control" id="reportingDate" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="dataValue" class="form-label">Value</label>
+                                <input type="text" class="form-control" id="dataValue" required>
+                            </div>
+
+                            <!-- Dimensional Data Matrix Container -->
+                            <div class="mb-3" id="dimensionMatrixContainer" style="display: none;">
+                                <!-- Dimensional matrix will be rendered here by DimensionalDataHandler -->
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">File Attachments</label>
+                                <div class="file-upload-area" id="fileUploadArea">
+                                    <p>Drag and drop files here or click to browse</p>
+                                    <input type="file" id="fileInput" multiple style="display: none;">
+                                </div>
+                                <div id="fileList" class="mt-2"></div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Historical Data Tab -->
+                    <div class="tab-content" id="history-tab">
+                        <div id="historicalDataContent">
+                            <p class="text-muted">Loading historical data...</p>
+                        </div>
+                    </div>
+
+                    <!-- Field Info Tab -->
+                    <div class="tab-content" id="info-tab">
+                        <div id="fieldInfoContent">
+                            <p class="text-muted">Loading field information...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-cancel" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-outline-primary btn-save-draft" id="saveDraftBtn">Save Draft</button>
+                    <button type="button" class="btn btn-primary btn-submit" id="submitDataBtn">Submit Data</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Computation Context Modal (Phase 3) -->
+    <dialog id="computationContextModal" class="modal">
+        <div class="modal-header">
+            <h2>Computation Context</h2>
+            <button class="btn-close close-btn" onclick="document.getElementById('computationContextModal').close()" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="context-container">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+        </div>
+    </dialog>
+</div>
+
+<style>
+/* User Dashboard V2 Styles */
+.user-dashboard-v2 {
+    padding: 20px;
+}
+
+.dashboard-header {
+    margin-bottom: 30px;
+}
+
+.entity-switcher {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.stats-card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 8px;
+}
+
+.stats-card .card-body {
+    text-align: center;
+    padding: 20px;
+}
+
+.stats-card .card-title {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.stats-card .display-6 {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #333;
+}
+
+/* Modal Styles */
+.modal-xl {
+    max-width: 90%;
+}
+
+.modal-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.modal-header {
+    padding: 20px 30px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-tabs {
+    display: flex;
+    border-bottom: 2px solid #dee2e6;
+    padding: 0 30px;
+    gap: 10px;
+}
+
+.modal-tabs .tab {
+    padding: 12px 24px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-weight: 500;
+    color: #666;
+    transition: all 0.3s;
+}
+
+.modal-tabs .tab.active {
+    color: #0d6efd;
+    border-bottom-color: #0d6efd;
+}
+
+.modal-tabs .tab:hover {
+    color: #0d6efd;
+    background: rgba(13, 110, 253, 0.05);
+}
+
+.modal-body {
+    padding: 30px;
+    min-height: 400px;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.file-upload-area {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.file-upload-area:hover {
+    border-color: #0d6efd;
+    background: rgba(13, 110, 253, 0.05);
+}
+
+.modal-footer {
+    padding: 20px 30px;
+    border-top: 1px solid #dee2e6;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .modal-xl {
+        max-width: 100%;
+        margin: 10px;
+    }
+
+    .stats-card {
+        margin-bottom: 15px;
+    }
+
+    .entity-switcher {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
+
+<script>
+// Phase 1: Basic Modal Functionality (JavaScript implementation will be added in Phase 2)
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = new bootstrap.Modal(document.getElementById('dataCollectionModal'));
+
+    // Open modal when clicking "Enter Data" buttons
+    document.querySelectorAll('.open-data-modal').forEach(button => {
+        button.addEventListener('click', function() {
+            const fieldId = this.dataset.fieldId;
+            const fieldName = this.dataset.fieldName;
+            const fieldType = this.dataset.fieldType;
+
+            document.getElementById('modalFieldName').textContent = fieldName;
+
+            // Load field details via API (placeholder for Phase 2)
+            console.log('Opening modal for field:', fieldId, fieldType);
+
+            modal.show();
+        });
+    });
+
+    // Tab switching
+    document.querySelectorAll('.modal-tabs .tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabName = this.dataset.tab;
+
+            // Update tab buttons
+            document.querySelectorAll('.modal-tabs .tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName + '-tab').classList.add('active');
+        });
+    });
+
+    // Entity switcher (for admins)
+    const entitySelect = document.getElementById('entitySelect');
+    if (entitySelect) {
+        entitySelect.addEventListener('change', function() {
+            const entityId = this.value;
+
+            // Call API to switch entity (placeholder for Phase 2)
+            console.log('Switching to entity:', entityId);
+
+            // For now, just reload the page
+            // In Phase 2, this will use the API endpoint
+            // window.location.reload();
+        });
+    }
+
+    // File upload area
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const fileInput = document.getElementById('fileInput');
+
+    if (fileUploadArea && fileInput) {
+        fileUploadArea.addEventListener('click', () => fileInput.click());
+
+        fileUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadArea.style.borderColor = '#0d6efd';
+        });
+
+        fileUploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            fileUploadArea.style.borderColor = '#dee2e6';
+        });
+
+        fileUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUploadArea.style.borderColor = '#dee2e6';
+
+            const files = e.dataTransfer.files;
+            console.log('Files dropped:', files.length);
+            // Handle files (Phase 2)
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            console.log('Files selected:', files.length);
+            // Handle files (Phase 2)
+        });
+    }
+
+    // Toggle button to switch back to legacy dashboard
+    const toggleViewBtn = document.getElementById('toggleViewBtn');
+    if (toggleViewBtn) {
+        toggleViewBtn.addEventListener('click', function() {
+            window.location.href = '{{ url_for("user.dashboard") }}';
+        });
+    }
+});
+</script>
+
+<!-- Phase 2: Dimensional Data Handler -->
+<script src="{{ url_for('static', filename='js/user_v2/dimensional_data_handler.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user_v2/dimensional_grid.css') }}">
+
+<script>
+// Initialize Dimensional Data Handler
+let dimensionalDataHandler = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const dimensionContainer = document.getElementById('dimensionMatrixContainer');
+    if (dimensionContainer) {
+        dimensionalDataHandler = new DimensionalDataHandler(dimensionContainer);
+    }
+
+    // Enhanced modal open to check for dimensional fields
+    document.querySelectorAll('.open-data-modal').forEach(button => {
+        button.addEventListener('click', async function() {
+            const fieldId = this.dataset.fieldId;
+            const entityId = {{ current_entity.id if current_entity else 'null' }};
+            const reportingDate = document.getElementById('reportingDate')?.value;
+
+            // Store field ID globally for auto-save to access
+            window.currentFieldId = fieldId;
+
+            if (dimensionalDataHandler && fieldId && entityId) {
+                try {
+                    // Load dimension matrix
+                    const matrix = await dimensionalDataHandler.loadDimensionMatrix(
+                        fieldId,
+                        entityId,
+                        reportingDate || new Date().toISOString().split('T')[0]
+                    );
+
+                    // Show/hide dimensional matrix based on field
+                    const matrixContainer = document.getElementById('dimensionMatrixContainer');
+                    const valueInput = document.getElementById('dataValue').closest('.mb-3');
+
+                    if (matrix.has_dimensions) {
+                        matrixContainer.style.display = 'block';
+                        valueInput.style.display = 'none'; // Hide simple value input
+
+                        // Attach number formatters to dynamically created inputs
+                        if (window.attachNumberFormatters) {
+                            // Wait for DOM to update, then attach formatters
+                            setTimeout(() => {
+                                window.attachNumberFormatters(matrixContainer);
+                                console.log('[Phase 4] ✅ Number formatters attached to dimensional inputs');
+                            }, 50);
+                        }
+                    } else {
+                        matrixContainer.style.display = 'none';
+                        valueInput.style.display = 'block'; // Show simple value input
+                    }
+                } catch (error) {
+                    console.error('Error loading dimension matrix:', error);
+                }
+            }
+        });
+    });
+
+    // Enhanced submit button to handle dimensional data
+    const submitBtn = document.getElementById('submitDataBtn');
+    if (submitBtn && dimensionalDataHandler) {
+        submitBtn.addEventListener('click', async function() {
+            try {
+                const matrixContainer = document.getElementById('dimensionMatrixContainer');
+
+                if (matrixContainer.style.display !== 'none' && dimensionalDataHandler.currentMatrix) {
+                    // Submit dimensional data
+                    await dimensionalDataHandler.submitDimensionalData();
+                } else {
+                    // Submit simple data (existing logic)
+                    console.log('Submitting simple data...');
+                }
+            } catch (error) {
+                console.error('Error submitting data:', error);
+            }
+        });
+    }
+
+    // Phase 3: Computation Context Handler
+    // Add event listeners for "Formula" buttons
+    document.querySelectorAll('.show-computation-context').forEach(button => {
+        button.addEventListener('click', function() {
+            const fieldId = this.dataset.fieldId;
+            const entityId = {{ current_entity.id if current_entity else 'null' }};
+            const reportingDate = document.getElementById('selectedDate').value || '{{ selected_date }}';
+
+            if (window.showComputationContext) {
+                window.showComputationContext(fieldId, entityId, reportingDate);
+            } else {
+                console.error('Computation context handler not loaded');
+            }
+        });
+    });
+});
+</script>
+
+<!-- Phase 3: Load Computation Context Handler -->
+<script src="{{ url_for('static', filename='js/user_v2/computation_context_handler.js') }}"></script>
+
+<!-- Phase 4: Advanced Features - CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user_v2/phase4_features.css') }}">
+
+<!-- Phase 4: Advanced Features - JavaScript Handlers -->
+<script src="{{ url_for('static', filename='js/user_v2/auto_save_handler.js') }}"></script>
+<script src="{{ url_for('static', filename='js/user_v2/keyboard_shortcuts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/user_v2/number_formatter.js') }}"></script>
+<script src="{{ url_for('static', filename='js/user_v2/bulk_paste_handler.js') }}"></script>
+<script src="{{ url_for('static', filename='js/user_v2/performance_optimizer.js') }}"></script>
+
+<script>
+// Phase 4: Initialize advanced features
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('[Phase 4] Initializing advanced features...');
+
+    // Initialize keyboard shortcuts globally
+    try {
+        if (typeof KeyboardShortcutHandler !== 'undefined') {
+            window.keyboardShortcuts = new KeyboardShortcutHandler({
+                onSave: function() {
+                    if (autoSaveHandler && autoSaveHandler.isActive) {
+                        autoSaveHandler.forceSave();
+                    } else {
+                        console.log('[Keyboard] Save triggered but auto-save not active');
+                    }
+                },
+                onSubmit: function() {
+                    const submitBtn = document.querySelector('#dataCollectionModal .btn-primary[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.click();
+                    }
+                },
+                onClose: function() {
+                    const modal = document.getElementById('dataCollectionModal');
+                    if (modal) {
+                        const bsModal = bootstrap.Modal.getInstance(modal);
+                        if (bsModal) {
+                            bsModal.hide();
+                        }
+                    }
+                }
+            });
+            window.keyboardShortcuts.enable(); // Correct method name
+            console.log('[Phase 4] ✅ Keyboard shortcuts initialized');
+        }
+    } catch (error) {
+        console.error('[Phase 4] Error initializing keyboard shortcuts:', error);
+    }
+
+    // Initialize performance optimizer
+    try {
+        if (typeof PerformanceOptimizer !== 'undefined') {
+            window.perfOptimizer = new PerformanceOptimizer({
+                enableLazyLoading: true,
+                enableCaching: true,
+                enableWebWorkers: false // Disabled for now to avoid complexity
+            });
+            window.perfOptimizer.initialize(); // Correct method name
+            console.log('[Phase 4] ✅ Performance optimizer initialized');
+        }
+    } catch (error) {
+        console.error('[Phase 4] Error initializing performance optimizer:', error);
+    }
+
+    // Initialize number formatter for all number inputs
+    try {
+        if (typeof NumberFormatter !== 'undefined') {
+            // Create global helper function to attach formatters to inputs
+            window.attachNumberFormatters = function(container) {
+                const selector = container
+                    ? container.querySelectorAll('input[type="number"], input[data-format="number"]')
+                    : document.querySelectorAll('input[type="number"], input[data-format="number"]');
+
+                selector.forEach(input => {
+                    // Skip if already has formatter attached
+                    if (input._numberFormatter) return;
+
+                    const formatter = new NumberFormatter({
+                        fieldType: input.dataset.fieldType || 'DECIMAL',
+                        unit: input.dataset.unit || '',
+                        decimals: input.dataset.decimals ? parseInt(input.dataset.decimals) : 2
+                    });
+                    formatter.attachToInput(input);
+                });
+            };
+
+            // Apply formatter to existing number inputs
+            window.attachNumberFormatters();
+            console.log('[Phase 4] ✅ Number formatter initialized');
+
+            // Create global formatter instance for dynamic inputs
+            window.numberFormatter = new NumberFormatter();
+        }
+    } catch (error) {
+        console.error('[Phase 4] Error initializing number formatter:', error);
+    }
+
+    console.log('[Phase 4] Advanced features initialization complete');
+
+    // Phase 4: Auto-save handler (initialized when modal opens)
+    window.autoSaveHandler = null;
+    window.currentFieldId = null;
+
+    // Initialize auto-save when modal is shown (Bootstrap 5 event)
+    const dataCollectionModalEl = document.getElementById('dataCollectionModal');
+    if (dataCollectionModalEl) {
+        dataCollectionModalEl.addEventListener('shown.bs.modal', function(event) {
+            console.log('[Phase 4] Modal shown event fired');
+
+            // Get field ID from stored value (set when modal opens)
+            const fieldId = window.currentFieldId;
+            if (!fieldId) {
+                console.warn('[Phase 4] No field ID available for auto-save');
+                return;
+            }
+
+            // Update keyboard shortcuts modal state
+            if (window.keyboardShortcuts) {
+                window.keyboardShortcuts.setModalOpen(true);
+            }
+
+            // Initialize auto-save for this field
+            const entityId = {{ current_entity.id if current_entity else 'null' }};
+            const reportingDate = document.getElementById('selectedDate')?.value || '{{ selected_date }}';
+
+            if (typeof AutoSaveHandler !== 'undefined' && fieldId && entityId) {
+                try {
+                    // Stop previous auto-save if exists
+                    if (window.autoSaveHandler) {
+                        window.autoSaveHandler.stop();
+                    }
+
+                    // Create new auto-save handler
+                    window.autoSaveHandler = new AutoSaveHandler({
+                        fieldId: fieldId,
+                        entityId: entityId,
+                        reportingDate: reportingDate,
+                        getFormData: function() {
+                            // Get current form state from the modal
+                            const valueInput = document.getElementById('fieldValue');
+                            const notesInput = document.getElementById('fieldNotes');
+
+                            const data = {
+                                value: valueInput ? valueInput.value : null,
+                                notes: notesInput ? notesInput.value : null
+                            };
+
+                            // Add dimensional data if present
+                            if (window.dimensionalDataHandler && window.dimensionalDataHandler.getCurrentData) {
+                                data.dimension_values = window.dimensionalDataHandler.getCurrentData();
+                            }
+
+                            return data;
+                        },
+                        onSaveSuccess: function(result) {
+                            console.log('[Auto-save] Draft saved successfully:', result);
+                        },
+                        onSaveError: function(error) {
+                            console.error('[Auto-save] Error saving draft:', error);
+                        },
+                        onDraftRestored: function(draftData) {
+                            console.log('[Auto-save] Restoring draft data:', draftData);
+
+                            // Restore form data
+                            const valueInput = document.getElementById('fieldValue');
+                            const notesInput = document.getElementById('fieldNotes');
+
+                            if (valueInput && draftData.value) {
+                                valueInput.value = draftData.value;
+                            }
+                            if (notesInput && draftData.notes) {
+                                notesInput.value = draftData.notes;
+                            }
+
+                            // Restore dimensional data if present
+                            if (draftData.dimension_values && window.dimensionalDataHandler && window.dimensionalDataHandler.setCurrentData) {
+                                window.dimensionalDataHandler.setCurrentData(draftData.dimension_values);
+                            }
+                        }
+                    });
+
+                    window.autoSaveHandler.start();
+                    console.log('[Phase 4] ✅ Auto-save started for field:', fieldId);
+
+                    // Listen for form changes to trigger auto-save
+                    const formInputs = dataCollectionModalEl.querySelectorAll('input, textarea, select');
+                    formInputs.forEach(input => {
+                        input.addEventListener('input', () => {
+                            if (window.autoSaveHandler) {
+                                window.autoSaveHandler.handleFormChange();
+                            }
+                        });
+                    });
+
+                } catch (error) {
+                    console.error('[Phase 4] Error initializing auto-save:', error);
+                }
+            }
+        });
+
+        // Stop auto-save when modal closes
+        dataCollectionModalEl.addEventListener('hidden.bs.modal', function() {
+            console.log('[Phase 4] Modal hidden event fired');
+
+            // Update keyboard shortcuts modal state
+            if (window.keyboardShortcuts) {
+                window.keyboardShortcuts.setModalOpen(false);
+            }
+
+            // Stop auto-save
+            if (window.autoSaveHandler) {
+                window.autoSaveHandler.stop();
+                window.autoSaveHandler = null;
+                console.log('[Phase 4] Auto-save stopped');
+            }
+
+            // Clear current field ID
+            window.currentFieldId = null;
+        });
+    }
+});
+</script>
+
+{% endblock %}
