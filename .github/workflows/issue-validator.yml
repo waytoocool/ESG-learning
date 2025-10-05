@@ -1,0 +1,61 @@
+name: Issue Validator
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  validate-issue:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Issue Validation
+        id: claude-validation
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ github.event.issue.number }}
+            ISSUE TITLE: ${{ github.event.issue.title }}
+            ISSUE BODY: ${{ github.event.issue.body }}
+
+            You are the Issue Validation Agent for the ESG DataVault application.
+
+            Your task is to:
+            1. Analyze the reported issue thoroughly
+            2. Determine if it's a bug report, feature request, or question
+            3. For bug reports: Attempt to reproduce the issue using the ui-testing-agent if applicable
+            4. Assess the criticality: CRITICAL / HIGH / MEDIUM / LOW
+            5. Identify affected components and potential impact
+            6. Suggest initial troubleshooting steps or validation tests
+
+            Based on your analysis, provide:
+            - **Issue Type**: [Bug/Feature/Question/Documentation]
+            - **Criticality**: [Critical/High/Medium/Low]
+            - **Reproducibility**: [Confirmed/Cannot Reproduce/Needs More Info]
+            - **Affected Area**: [Component/Module names]
+            - **Impact Assessment**: Brief description
+            - **Recommended Action**: Next steps
+
+            If this is a bug report and you can validate it:
+            - Use the ui-testing-agent to attempt reproduction
+            - Start MCP server with: npm run mcp:start
+            - Run relevant tests to validate the issue
+            - Capture screenshots if validation succeeds/fails
+
+            After your analysis, use `gh issue comment` to post your findings on issue #${{ github.event.issue.number }}.
+
+            Format your comment professionally with clear sections and markdown formatting.
+
+          claude_args: '--allowed-tools "Bash(npm run mcp:*),Bash(gh issue comment:*),Bash(gh issue view:*),Bash(gh issue edit:*),Bash(python3:*),Bash(node:*),Task(*)"'
