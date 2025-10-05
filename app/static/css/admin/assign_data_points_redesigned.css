@@ -1,0 +1,1572 @@
+/* Modern ESG Data Points Assignment Interface - Redesigned */
+
+/* === Global Design System === */
+:root {
+    /* Typography & Fonts */
+    --font-stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    --line-height: 1.6;
+
+    /* Font Sizes */
+    --fs-page-title: 22px;
+    --fs-panel-header: 16px;
+    --fs-data-point-title: 10px;
+    --fs-body: 12px;
+    --fs-button: 12px;
+    --fs-badge: 10px;
+
+    /* Font Weights */
+    --fw-bold: 700;
+    --fw-semibold: 600;
+    --fw-medium: 500;
+    --fw-normal: 400;
+
+    /* Colors */
+    --sidebar-gradient: linear-gradient(135deg, #1e3a2e 0%, #2d5a3d 100%);
+    --header-gradient: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    --primary-blue: #3b82f6;
+    --success-green: #10b981;
+    --dark-text: #1e293b;
+    --medium-text: #64748b;
+    --light-background: #f8fafc;
+    --border-color: #e2e8f0;
+    --border-color-darker: #d1d5db;
+    --white: #ffffff;
+
+    /* Spacing System (4px base unit for more compact layout) */
+    --space-xs: 4px;
+    --space-sm: 6px;
+    --space-md: 8px;
+    --space-lg: 12px;
+    --space-xl: 16px;
+    --space-xxl: 20px;
+
+    /* Button & Component Sizes */
+    --btn-padding: 6px 12px;
+    --btn-padding-sm: 4px 8px;
+    --btn-border-radius: 6px;
+    --action-btn-size: 28px;
+    --action-btn-border-radius: 6px;
+
+    /* Transitions */
+    --transition-fast: 0.2s ease;
+}
+
+/* === Base Styles === */
+body {
+    font-family: var(--font-stack);
+    line-height: var(--line-height);
+    color: var(--dark-text);
+}
+
+/* === Main Container === */
+.assign-data-points-redesigned {
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--light-background);
+    overflow: hidden;
+    font-family: var(--font-stack);
+}
+
+/* === Header/Toolbar === */
+.toolbar {
+    background: var(--white);
+    border-bottom: 1px solid var(--border-color);
+    padding: var(--space-xs) var(--space-sm);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    gap: var(--space-xs);
+    flex-wrap: nowrap;
+    min-height: 48px;
+}
+
+/* Toolbar sections */
+.toolbar-center {
+    flex: 0 0 auto;
+}
+
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+}
+
+/* Toolbar specific button optimizations */
+.toolbar .btn {
+    padding: var(--btn-padding-sm);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    white-space: nowrap;
+    height: 32px;
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
+}
+
+.toolbar .btn-group {
+    gap: var(--space-xs);
+}
+
+.toolbar .btn-group .btn {
+    border-radius: 0;
+}
+
+.toolbar .btn-group .btn:first-child {
+    border-top-left-radius: var(--btn-border-radius);
+    border-bottom-left-radius: var(--btn-border-radius);
+}
+
+.toolbar .btn-group .btn:last-child {
+    border-top-right-radius: var(--btn-border-radius);
+    border-bottom-right-radius: var(--btn-border-radius);
+}
+
+/* Selection Counter */
+.selected-count-indicator {
+    font-size: var(--fs-body);
+    font-weight: var(--fw-medium);
+    color: var(--medium-text);
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--light-background);
+    border-radius: var(--btn-border-radius);
+    border: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+
+.selected-count-indicator span {
+    font-weight: var(--fw-semibold);
+    color: var(--primary-blue);
+}
+
+/* === Buttons Design & Interactions === */
+.btn {
+    font-family: var(--font-stack);
+    font-size: var(--fs-button);
+    font-weight: var(--fw-medium);
+    padding: var(--btn-padding);
+    border-radius: var(--btn-border-radius);
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    text-decoration: none;
+}
+
+/* Primary Buttons */
+.btn-primary {
+    background: var(--primary-blue);
+    color: var(--white);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+/* Success Buttons - Convert to Secondary Gray */
+.btn-success {
+    background: var(--light-background);
+    color: var(--medium-text);
+    border: 1px solid var(--border-color);
+}
+
+.btn-success:hover:not(:disabled) {
+    background: var(--border-color);
+    border-color: #cbd5e1;
+    color: #374151;
+    transform: translateY(-1px);
+}
+
+/* Secondary/Outline Buttons - Gray secondary styling */
+.btn-outline-primary,
+.btn-outline-secondary,
+.btn-secondary {
+    background: var(--light-background);
+    color: var(--medium-text);
+    border: 1px solid var(--border-color);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-secondary:hover,
+.btn-secondary:hover {
+    background: var(--border-color);
+    border-color: #cbd5e1;
+    color: #374151;
+    transform: translateY(-1px);
+}
+
+/* Small Buttons */
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+/* Disabled State */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Action Buttons (for data points) - Simplified Color Palette */
+.action-btn {
+    width: var(--action-btn-size);
+    height: var(--action-btn-size);
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--light-background);
+    border: 1px solid var(--border-color);
+    border-radius: var(--action-btn-border-radius);
+    color: var(--medium-text);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.action-btn:hover {
+    background: var(--border-color);
+    border-color: #cbd5e1;
+    color: #374151;
+    transform: translateY(-1px);
+}
+
+/* Primary Action Buttons (Configure, Assign Entity) - Bootstrap Classes Override */
+.btn.btn-outline-primary.configure-single,
+.btn.btn-outline-success.assign-single {
+    background: var(--primary-blue) !important;
+    color: var(--white) !important;
+    border-color: var(--primary-blue) !important;
+}
+
+.btn.btn-outline-primary.configure-single:hover,
+.btn.btn-outline-success.assign-single:hover {
+    background: #2563eb !important;
+    border-color: #2563eb !important;
+    color: var(--white) !important;
+}
+
+/* Legacy action-btn classes for backward compatibility */
+.action-btn.btn-primary,
+.action-btn.assign-entity,
+.action-btn.configure-single,
+.action-btn.assign-single {
+    background: var(--primary-blue);
+    color: var(--white);
+    border-color: var(--primary-blue);
+}
+
+.action-btn.btn-primary:hover,
+.action-btn.assign-entity:hover,
+.action-btn.configure-single:hover,
+.action-btn.assign-single:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: var(--white);
+}
+
+/* Secondary Action Buttons (Info) - Bootstrap Classes Override */
+.btn.btn-outline-info.field-info-single {
+    background: var(--light-background) !important;
+    color: var(--medium-text) !important;
+    border-color: var(--border-color) !important;
+}
+
+.btn.btn-outline-info.field-info-single:hover {
+    background: var(--border-color) !important;
+    border-color: #cbd5e1 !important;
+    color: #374151 !important;
+}
+
+/* Legacy action-btn classes for backward compatibility */
+.action-btn.info {
+    background: var(--light-background);
+    color: var(--medium-text);
+    border-color: var(--border-color);
+}
+
+.action-btn.info:hover {
+    background: var(--border-color);
+    border-color: #cbd5e1;
+    color: #374151;
+}
+
+/* Toggle State Buttons (Hide Inactive - when active) */
+.action-btn.toggle-active,
+.btn.toggle-active {
+    background: var(--white);
+    color: var(--primary-blue);
+    border: 1px solid var(--primary-blue);
+}
+
+.action-btn.toggle-active:hover,
+.btn.toggle-active:hover {
+    background: var(--primary-blue);
+    color: var(--white);
+    border-color: var(--primary-blue);
+}
+
+/* Destructive Action Buttons (Delete) - Keep red */
+.action-btn.delete,
+.action-btn.remove {
+    background: #ef4444;
+    color: var(--white);
+    border-color: #ef4444;
+}
+
+.action-btn.delete:hover,
+.action-btn.remove:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
+/* === Main Layout === */
+.main-layout {
+    display: grid;
+    grid-template-columns: 0.7fr 1fr;
+    gap: var(--space-sm);
+    padding: var(--space-xs) var(--space-sm);
+    flex: 1;
+    overflow: hidden;
+    align-items: stretch;
+    height: calc(100vh - 120px); /* More accurate height calculation */
+    grid-template-rows: 1fr; /* Ensure single row takes full height */
+    min-height: 600px; /* Ensure minimum height for both panels */
+}
+
+/* === Panel Styles === */
+.selection-panel,
+.selected-panel {
+    background: var(--white);
+    border-radius: var(--btn-border-radius);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+    min-height: 0;
+    /* Ensure both panels have exactly the same height */
+    align-self: stretch;
+    /* Force equal heights regardless of content */
+    grid-row: 1;
+}
+
+.panel-header {
+    padding: var(--space-xs) var(--space-sm);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--light-background);
+    flex-shrink: 0; /* Prevent header from shrinking */
+    min-height: 48px; /* Ensure consistent header height */
+}
+
+.panel-header h2 {
+    font-size: var(--fs-panel-header);
+    font-weight: var(--fw-semibold);
+    margin: 0;
+    color: var(--dark-text);
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+/* === Left Panel - Topic Hierarchy Enhancement === */
+.search-filter-bar {
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--white);
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+    flex-wrap: wrap;
+    flex-shrink: 0; /* Prevent search bar from shrinking */
+}
+
+.search-input-wrapper {
+    flex: 1;
+    position: relative;
+    min-width: 200px;
+}
+
+.search-input-wrapper input {
+    width: 100%;
+    padding: var(--space-xs) var(--space-xl) var(--space-xs) var(--space-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--action-btn-border-radius);
+    font-family: var(--font-stack);
+    font-size: var(--fs-body);
+    transition: all var(--transition-fast);
+}
+
+.search-input-wrapper input:focus {
+    outline: none;
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.search-icon {
+    position: absolute;
+    right: var(--space-md);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--medium-text);
+}
+
+/* Content Switcher/View Toggle */
+.content-switcher {
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--white);
+    flex-shrink: 0; /* Prevent toggle from shrinking */
+}
+
+.view-toggle-buttons {
+    display: flex;
+    gap: 4px;
+    background: var(--light-background);
+    padding: 4px;
+    border-radius: var(--action-btn-border-radius);
+}
+
+.view-toggle-btn {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 12px;
+    font-weight: var(--fw-medium);
+    border: none;
+    background: transparent;
+    color: var(--medium-text);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.view-toggle-btn.active,
+.view-toggle-btn:hover {
+    background: var(--white);
+    color: var(--primary-blue);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Topic Tree Styles */
+.topics-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-sm) 0;
+    /* Remove specific heights - let it be controlled by parent */
+    min-height: 0;
+    height: auto;
+}
+
+.topics-header {
+    padding: 0 var(--space-md) var(--space-sm);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: var(--fw-medium);
+    color: var(--medium-text);
+    font-size: 13px;
+}
+
+.topic-actions {
+    display: flex;
+    gap: var(--space-xs);
+    margin-left: auto;
+}
+
+.topic-tree {
+    padding: 0 var(--space-md);
+}
+
+/* Enhanced Topic Hierarchy with Collapsible Structure */
+.topic-node {
+    margin-bottom: var(--space-xs);
+}
+
+.topic-header {
+    display: flex;
+    align-items: center;
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--action-btn-border-radius);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+}
+
+.topic-header:hover {
+    background: var(--light-background);
+}
+
+.topic-toggle {
+    margin-right: var(--space-xs);
+    color: var(--medium-text);
+    transition: transform var(--transition-fast);
+}
+
+.topic-toggle.expanded {
+    transform: rotate(90deg);
+}
+
+.topic-info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.topic-name {
+    font-weight: var(--fw-medium);
+    color: var(--dark-text);
+    font-size: var(--fs-body);
+}
+
+.framework-badge {
+    background: var(--medium-text);
+    color: var(--white);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: var(--fs-badge);
+    font-weight: var(--fw-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.topic-actions {
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.topic-header:hover .topic-actions {
+    opacity: 1;
+}
+
+/* Topic "Add All" button styling */
+.topic-add-all-btn {
+    font-size: var(--fs-badge);
+    padding: var(--btn-padding-sm);
+    border: 1px solid var(--primary-blue);
+    background: var(--white);
+    color: var(--primary-blue);
+    transition: all var(--transition-fast);
+}
+
+.topic-add-all-btn:hover {
+    background: var(--primary-blue);
+    color: var(--white);
+    border-color: var(--primary-blue);
+}
+
+.topic-children {
+    margin-left: var(--space-xl);
+    padding-left: var(--space-md);
+    border-left: 2px solid var(--border-color);
+    display: none;
+}
+
+.topic-children.expanded {
+    display: block;
+}
+
+/* Topic Icons - Removed per user request */
+
+/* === All Fields View - Topic Hierarchy Style === */
+.flat-data-points-list.topic-tree-style {
+    padding: var(--space-xs);
+}
+
+.framework-node {
+    margin-bottom: var(--space-xs);
+}
+
+.framework-header {
+    display: flex;
+    align-items: center;
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--action-btn-border-radius);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+}
+
+.framework-header:hover {
+    background: var(--light-background);
+}
+
+.framework-name {
+    font-weight: var(--fw-medium);
+    color: var(--dark-text);
+    font-size: var(--fs-body);
+}
+
+.field-count {
+    margin-left: var(--space-xs);
+    color: var(--medium-text);
+    font-size: var(--fs-badge);
+}
+
+.framework-fields {
+    margin-left: var(--space-xl);
+    padding-left: var(--space-md);
+    border-left: 2px solid var(--border-color);
+    display: block;
+}
+
+.field-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: var(--space-sm) var(--space-sm);
+    margin-bottom: var(--space-xs);
+    border-radius: var(--action-btn-border-radius);
+    transition: background-color var(--transition-fast);
+    gap: var(--space-sm);
+}
+
+.field-item:hover {
+    background: var(--light-background);
+}
+
+.field-display {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: var(--fs-body);
+    line-height: 1.4;
+    flex: 1;
+    min-width: 0;
+}
+
+.field-first-line {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.field-second-line {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-sm);
+    font-size: 11px;
+    line-height: 1.3;
+    margin-left: 2px;
+}
+
+.field-code {
+    font-weight: var(--fw-semibold);
+    color: var(--primary-blue);
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.field-name {
+    font-weight: var(--fw-medium);
+    color: var(--dark-text);
+}
+
+.field-description {
+    color: var(--medium-text);
+    font-size: 11px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: help;
+    flex: 1;
+    font-weight: var(--fw-normal);
+}
+
+.field-actions {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding-top: 2px;
+    flex-shrink: 0;
+}
+
+.add-field-btn {
+    padding: 3px 8px;
+    font-size: 10px;
+    min-width: 28px;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid var(--primary-blue);
+    background: var(--white);
+    color: var(--primary-blue);
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.add-field-btn:hover {
+    background: var(--primary-blue);
+    color: var(--white);
+}
+
+.add-field-btn.selected {
+    background: var(--success-green);
+    border-color: var(--success-green);
+    color: var(--white);
+}
+
+.add-field-btn.selected:hover {
+    background: #059669;
+    border-color: #059669;
+}
+
+.add-all-framework {
+    font-size: var(--fs-badge);
+    padding: var(--btn-padding-sm);
+}
+
+/* === Right Panel - Data Points List Cleanup === */
+.selected-points-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-xs);
+    /* Remove specific heights - let it be controlled by parent */
+    min-height: 0;
+    height: auto;
+}
+
+.selected-point-item {
+    display: flex;
+    align-items: center; /* Changed from flex-start to center for better alignment */
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--btn-border-radius);
+    margin-bottom: var(--space-xs);
+    background: var(--white);
+    transition: all var(--transition-fast);
+}
+
+.selected-point-item:hover {
+    background: var(--light-background);
+}
+
+.selected-point-item.selected {
+    background: #f0f9ff;
+    border-color: var(--primary-blue);
+}
+
+.point-checkbox {
+    margin-top: 0; /* Removed top margin for better center alignment */
+    flex-shrink: 0; /* Prevent checkbox from shrinking */
+}
+
+.point-content {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.point-main-info {
+    flex: 1;
+}
+
+.point-name {
+    font-size: var(--fs-body);
+    font-weight: var(--fw-semibold);
+    margin: 0 0 4px 0;
+    color: var(--dark-text);
+    line-height: 1.3;
+}
+
+/* Removed metadata sections - clean single row layout */
+.point-meta,
+.point-details,
+.point-status-indicators {
+    display: none;
+}
+
+.point-actions {
+    display: flex;
+    gap: var(--space-xs);
+    margin-left: var(--space-md);
+}
+
+/* Bulk Selection Controls */
+.bulk-selection-controls {
+    display: flex;
+    gap: var(--space-xs);
+}
+
+/* === Framework Badge Standardization === */
+.badge {
+    background: var(--medium-text);
+    color: var(--white);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: var(--fs-badge);
+    font-weight: var(--fw-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: none; /* Hide all badges per user request */
+}
+
+/* === Empty States === */
+.empty-state {
+    text-align: center;
+    padding: var(--space-md);
+    color: var(--medium-text);
+}
+
+.empty-state i {
+    font-size: 32px;
+    margin-bottom: var(--space-md);
+    opacity: 0.5;
+}
+
+.empty-state p {
+    margin: var(--space-md) 0;
+    font-weight: var(--fw-medium);
+}
+
+.empty-state small {
+    opacity: 0.8;
+}
+
+/* === Interactive Features === */
+/* Data point hover states */
+.topic-data-point,
+.search-result-item,
+.available-point-item {
+    transition: all var(--transition-fast);
+}
+
+.topic-data-point:hover,
+.search-result-item:hover,
+.available-point-item:hover {
+    background: var(--light-background);
+    transform: translateY(-1px);
+}
+
+/* Form input focus states */
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    outline: none;
+}
+
+/* Loading states */
+.loading-state {
+    text-align: center;
+    padding: var(--space-md);
+    color: var(--medium-text);
+}
+
+.loading-state i {
+    font-size: 18px;
+    margin-bottom: var(--space-md);
+}
+
+/* === Responsive Design === */
+@media (max-width: 1024px) {
+    .main-layout {
+        grid-template-columns: 1fr;
+        gap: var(--space-md);
+    }
+
+    .toolbar {
+        padding: var(--space-md);
+    }
+
+    .toolbar-right {
+        flex-wrap: wrap;
+        gap: var(--space-xs);
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --space-lg: 16px;
+        --space-xl: 24px;
+    }
+
+    .search-filter-bar {
+        flex-direction: column;
+        gap: var(--space-sm);
+    }
+
+    .search-input-wrapper {
+        width: 100%;
+    }
+
+    .btn {
+        padding: 8px 12px;
+        font-size: 11px;
+    }
+
+    .panel-header {
+        padding: var(--space-xs);
+    }
+
+    .panel-header h2 {
+        font-size: 14px;
+    }
+}
+
+/* === Modal and Popup Improvements === */
+.modal-content {
+    border-radius: var(--btn-border-radius);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+}
+
+.modal-header {
+    background: var(--light-background);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-title {
+    font-family: var(--font-stack);
+    font-weight: var(--fw-semibold);
+}
+
+/* === Animation Classes === */
+.fade-in {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-down {
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* === Accessibility Improvements === */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Focus indicators */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: 2px solid var(--primary-blue);
+    outline-offset: 2px;
+}
+
+/* === Print Styles === */
+@media print {
+    .toolbar,
+    .action-btn,
+    .btn {
+        display: none;
+    }
+
+    .main-layout {
+        display: block;
+    }
+
+    .selection-panel,
+    .selected-panel {
+        box-shadow: none;
+        border: 1px solid #000;
+        page-break-inside: avoid;
+        margin-bottom: 20px;
+    }
+}
+
+/* === Additional Component Styles === */
+
+/* Table View Styles */
+.table-view-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.table-view-header {
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--light-background);
+}
+
+.table-wrapper {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.data-points-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-stack);
+}
+
+.data-points-table th,
+.data-points-table td {
+    padding: var(--space-sm) var(--space-md);
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.data-points-table th {
+    background: var(--light-background);
+    font-weight: var(--fw-semibold);
+    color: var(--dark-text);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.data-points-table tr:hover {
+    background: var(--light-background);
+}
+
+/* Flat List View */
+.available-points-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.available-points-header {
+    padding: var(--space-xs) var(--space-sm);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--light-background);
+    font-weight: var(--fw-medium);
+    color: var(--dark-text);
+}
+
+.available-points-header .header-actions {
+    display: flex;
+    gap: var(--space-xs);
+    align-items: center;
+}
+
+.available-points-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-xs);
+}
+
+/* Search Results */
+.search-results-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.search-results-header {
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--light-background);
+    font-weight: var(--fw-medium);
+    color: var(--dark-text);
+}
+
+.search-results-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-md);
+}
+
+/* Data Point Cards */
+.data-point-card {
+    padding: var(--space-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--action-btn-border-radius);
+    margin-bottom: var(--space-sm);
+    background: var(--white);
+    transition: all var(--transition-fast);
+    cursor: pointer;
+}
+
+.data-point-card:hover {
+    background: var(--light-background);
+    border-color: var(--primary-blue);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+.card-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.point-info {
+    flex: 1;
+}
+
+.point-name {
+    font-size: var(--fs-body);
+    font-weight: var(--fw-semibold);
+    margin: 0 0 4px 0;
+    color: var(--dark-text);
+}
+
+.card-actions {
+    margin-left: var(--space-md);
+}
+
+/* Filter Controls */
+.filter-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.filter-select {
+    min-width: 150px;
+    padding: var(--space-xs) var(--space-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--action-btn-border-radius);
+    font-family: var(--font-stack);
+    font-size: var(--fs-body);
+    background: var(--white);
+}
+
+/* Button Group Styles */
+.btn-group {
+    display: flex;
+    gap: 4px;
+}
+
+.btn-group .btn {
+    border-radius: 0;
+}
+
+.btn-group .btn:first-child {
+    border-top-left-radius: var(--btn-border-radius);
+    border-bottom-left-radius: var(--btn-border-radius);
+}
+
+.btn-group .btn:last-child {
+    border-top-right-radius: var(--btn-border-radius);
+    border-bottom-right-radius: var(--btn-border-radius);
+}
+
+/* Enhanced hover states for better interaction feedback */
+.topic-data-point,
+.search-result-item {
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--action-btn-border-radius);
+    margin-bottom: var(--space-xs);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all var(--transition-fast);
+}
+
+.field-info,
+.search-result-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.field-name,
+.search-field-name {
+    font-size: var(--fs-body);
+    font-weight: var(--fw-medium);
+    color: var(--dark-text);
+}
+
+.field-meta,
+.field-badges {
+    display: flex;
+    gap: var(--space-xs);
+}
+
+.field-actions,
+.search-result-actions {
+    margin-left: var(--space-md);
+}
+
+/* Computed field indicators */
+.badge-computed {
+    background: #8b5cf6;
+    color: var(--white);
+}
+
+/* Status indicators */
+.config-status,
+.entity-status {
+    font-size: 12px;
+    color: var(--medium-text);
+}
+
+/* Dependencies section (hidden by default in clean layout) */
+.dependencies-section {
+    display: none;
+}
+
+/* Breadcrumb styles for search results */
+.search-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: 12px;
+    color: var(--medium-text);
+}
+
+.breadcrumb-path {
+    font-style: italic;
+}
+
+/* Field description in search results */
+.field-description {
+    font-size: 12px;
+    color: var(--medium-text);
+    line-height: 1.4;
+}
+
+/* Remove button styling */
+.remove-point {
+    background: #ef4444;
+    color: var(--white);
+    border: none;
+    width: var(--action-btn-size);
+    height: var(--action-btn-size);
+    border-radius: var(--action-btn-border-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.remove-point:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+}
+
+/* Selected data points styling */
+.selected-data-point h6 {
+    font-size: var(--fs-data-point-title);
+    font-weight: var(--fw-medium);
+    color: var(--dark-text);
+    margin: 0;
+}
+
+/* All Fields view styling to match topic children */
+.data-point-header {
+    display: flex;
+    align-items: baseline;
+    margin-bottom: 4px;
+}
+
+.data-point-code {
+    font-size: 11px !important;
+    font-weight: var(--fw-semibold) !important;
+    color: #007bff !important; /* Blue color to match old implementation */
+    font-family: 'Courier New', monospace;
+    margin-bottom: 2px !important;
+}
+
+.data-point-name {
+    font-size: var(--fs-body) !important;
+    font-weight: var(--fw-medium) !important;
+    color: var(--dark-text) !important;
+    margin-bottom: 2px !important;
+}
+
+.data-point-topic {
+    font-size: 11px !important;
+    font-weight: var(--fw-normal) !important;
+    color: var(--medium-text) !important;
+}
+
+.data-point-description {
+    font-size: 11px !important;
+    font-weight: var(--fw-normal) !important;
+    color: var(--medium-text) !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/* Selected data points font size to match topic children */
+.selected-panel h6.point-title {
+    font-size: 12px !important;
+    font-weight: 500 !important;
+}
+
+/* === Inactive Assignment Styles === */
+.selected-point-item.inactive {
+    opacity: 0.5;
+    background-color: #f8f9fa;
+    border-color: #e9ecef;
+    position: relative;
+}
+
+.selected-point-item.inactive::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 3px,
+        rgba(108, 117, 125, 0.1) 3px,
+        rgba(108, 117, 125, 0.1) 6px
+    );
+    pointer-events: none;
+    border-radius: var(--btn-border-radius);
+}
+
+.selected-point-item.inactive .point-name {
+    color: #6c757d !important;
+    text-decoration: line-through;
+}
+
+.data-point-item.inactive .entity-badge,
+.data-point-item.inactive .frequency-badge {
+    opacity: 0.6;
+    background-color: #dee2e6;
+    color: #6c757d;
+}
+
+.data-point-item.inactive .data-point-actions .btn {
+    opacity: 0.7;
+}
+
+/* Inactive assignments badge */
+.inactive-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+    color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.1);
+    border: 1px solid rgba(220, 53, 69, 0.2);
+    border-radius: 12px;
+    padding: 2px 6px;
+    margin-left: auto;
+}
+
+/* ===============================================
+ * SIMPLIFIED COLOR PALETTE IMPLEMENTATION
+ * ===============================================
+ * Primary Actions (Blue): Configure, Assign Entity
+ * Secondary Actions (Gray): Info, Select All, Deselect All
+ * Toggle States (Outline): Hide Inactive
+ * Destructive Actions (Red): Delete, Remove
+ * Warning Actions (Orange): System warnings
+ * =============================================== */
+
+/* Toggle button styling - Outline style for toggle states */
+#toggleInactiveAssignments {
+    font-size: 11px;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    background: var(--white);
+    color: var(--medium-text);
+    border-radius: var(--btn-border-radius);
+    transition: all 0.2s ease;
+}
+
+#toggleInactiveAssignments:hover {
+    background: var(--light-background);
+    border-color: var(--medium-text);
+    color: var(--dark-text);
+    text-decoration: none;
+}
+
+#toggleInactiveAssignments.showing-inactive {
+    background: var(--light-background);
+    border-color: var(--medium-text);
+    color: var(--dark-text);
+}
+
+#toggleInactiveAssignments.showing-inactive .fas {
+    transform: none;
+}
+
+#toggleInactiveAssignments .fas {
+    font-size: 10px;
+}
+
+/* Destructive action buttons (Delete, Remove) - Red */
+.btn-danger {
+    background: #ef4444;
+    color: var(--white);
+    border: none;
+    border-radius: var(--btn-border-radius);
+    padding: var(--btn-padding);
+    font-size: var(--fs-button);
+    font-weight: var(--fw-medium);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+    color: var(--white);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+/* Warning/Alert button styles - Orange for system warnings */
+.btn-warning {
+    background: #f59e0b;
+    color: var(--white);
+    border: none;
+    border-radius: var(--btn-border-radius);
+    padding: var(--btn-padding);
+    font-size: var(--fs-button);
+    font-weight: var(--fw-medium);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.btn-warning:hover {
+    background: #d97706;
+    color: var(--white);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+/* === Individual Action Button Status States === */
+
+/* Configured State - Green */
+.action-btn.status-configured,
+.btn.configure-single.status-configured {
+    background: #10b981 !important;
+    color: var(--white) !important;
+    border-color: #10b981 !important;
+}
+
+.action-btn.status-configured:hover,
+.btn.configure-single.status-configured:hover {
+    background: #059669 !important;
+    border-color: #059669 !important;
+    color: var(--white) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+/* Entity Assigned State - Green */
+.action-btn.status-assigned,
+.btn.assign-single.status-assigned {
+    background: #10b981 !important;
+    color: var(--white) !important;
+    border-color: #10b981 !important;
+    position: relative;
+}
+
+.action-btn.status-assigned:hover,
+.btn.assign-single.status-assigned:hover {
+    background: #059669 !important;
+    border-color: #059669 !important;
+    color: var(--white) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+/* Entity Count Badge Overlay */
+.action-btn.status-assigned::after,
+.btn.assign-single.status-assigned::after {
+    content: attr(data-entity-count);
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    background: #dc2626;
+    color: var(--white);
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+    font-weight: var(--fw-semibold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--white);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Not Configured/Not Assigned State - Default Blue (already exists) */
+.action-btn.status-not-configured,
+.action-btn.status-not-assigned {
+    background: var(--primary-blue);
+    color: var(--white);
+    border-color: var(--primary-blue);
+}
+
+.action-btn.status-not-configured:hover,
+.action-btn.status-not-assigned:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: var(--white);
+}
+/* Topic Change Highlight Animation */
+.topic-change-highlight {
+    animation: topicChangeGlow 2s ease-in-out;
+    position: relative;
+}
+
+@keyframes topicChangeGlow {
+    0% {
+        background-color: transparent;
+        box-shadow: none;
+    }
+    10% {
+        background-color: rgba(34, 197, 94, 0.15);
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
+    }
+    50% {
+        background-color: rgba(34, 197, 94, 0.15);
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
+    }
+    100% {
+        background-color: transparent;
+        box-shadow: none;
+    }
+}
+
+/* Ensure the animation is visible on the data point item */
+.selected-point-item.topic-change-highlight {
+    transition: all 0.3s ease;
+}

@@ -15,7 +15,7 @@
     <form method="GET" class="search-filters mb-3">
         <div class="row">
             <div class="col-md-4">
-                <input type="text" name="search" class="form-control" placeholder="Search by email or username" value="{{ search }}">
+                <input type="text" name="search" class="form-control" placeholder="Search by email or name" value="{{ search }}">
             </div>
             <div class="col-md-2">
                 <select name="role" class="form-control">
@@ -52,7 +52,7 @@
             <thead>
                 <tr>
                     <th>Email</th>
-                    <th>Username</th>
+                    <th>Name</th>
                     <th>Role</th>
                     <th>Company</th>
                     <th>Status</th>
@@ -64,7 +64,7 @@
                 {% for user in users %}
                 <tr>
                     <td>{{ user.email }}</td>
-                    <td>{{ user.username or 'N/A' }}</td>
+                    <td>{{ user.name or 'N/A' }}</td>
                     <td>
                         <span class="role-badge role-{{ user.role.lower() }}">
                             {{ user.role }}

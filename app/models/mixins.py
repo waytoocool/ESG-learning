@@ -7,6 +7,7 @@ ensuring that data is properly filtered by company_id for tenant-scoped models.
 
 from flask import g
 from ..extensions import db
+from sqlalchemy import or_
 
 
 class TenantScopedQueryMixin:
@@ -54,7 +55,9 @@ class TenantScopedQueryMixin:
         if not hasattr(g, 'tenant') or g.tenant is None:
             raise Exception("Tenant not loaded in request context. Ensure tenant middleware is configured.")
         
-        return session.query(cls).filter_by(company_id=g.tenant.id)
+        return session.query(cls).filter(
+            or_(cls.company_id == g.tenant.id, cls.company_id == None)  # noqa: E711
+        )
     
     @classmethod
     def get_for_tenant(cls, session, id):

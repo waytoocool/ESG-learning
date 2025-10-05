@@ -87,6 +87,7 @@ export function initializeDashboard(PopupManager) {
 
             try {
                 const submitButton = this.querySelector('button[type="submit"]');
+                const originalText = submitButton.innerHTML;
                 submitButton.disabled = true;
                 submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
@@ -95,32 +96,37 @@ export function initializeDashboard(PopupManager) {
                     body: new FormData(this)
                 });
 
-                // Handle JSON response
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    // If the response is JSON, handle it accordingly
+                if (response.ok) {
                     const data = await response.json();
                     if (data.success) {
                         PopupManager.showSuccess('Success', data.message || 'Data saved successfully');
+                        
+                        // Trigger progress update after successful save
+                        if (window.dashboard) {
+                            window.dashboard.updateProgress();
+                        }
+                        
                         if (data.redirect) {
+                            setTimeout(() => {
                             window.location.href = data.redirect;
+                            }, 1000);
                         }
                     } else {
                         PopupManager.showError('Error', data.error || 'Failed to save data');
                     }
-                } else if (response.redirected) {
-                    // Handle redirect with success message
-                    PopupManager.showSuccess('Success', 'Data saved successfully');
-                    window.location.href = response.url;
                 } else {
-                    PopupManager.showError('Error', 'Unexpected response from server');
+                    const errorData = await response.json().catch(() => ({}));
+                    PopupManager.showError('Error', errorData.error || 'Server error occurred');
                 }
             } catch (error) {
                 console.error('Error:', error);
                 PopupManager.showError('Error', 'An error occurred while saving the data. Please try again.');
             } finally {
+                const submitButton = this.querySelector('button[type="submit"]');
+                if (submitButton) {
                 submitButton.disabled = false;
-                submitButton.innerHTML = 'Save Data';
+                    submitButton.innerHTML = '<i class="fas fa-save"></i> Save Data';
+                }
             }
         });
     }

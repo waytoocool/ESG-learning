@@ -198,6 +198,121 @@
     background-color: #d4edda;
     border-color: #c3e6cb;
 }
+
+/* Enhanced Framework Selector Styles */
+.framework-selector-enhanced {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    background: #fafafa;
+}
+
+.selector-controls {
+    background: white;
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+}
+
+.framework-list-container {
+    margin-top: 15px;
+}
+
+.framework-list {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: white;
+}
+
+.framework-item {
+    padding: 15px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.framework-item:last-child {
+    border-bottom: none;
+}
+
+.framework-item:hover {
+    background-color: #f8f9fa;
+    border-left: 4px solid #0066cc;
+}
+
+.framework-item.selected {
+    background-color: #e3f2fd;
+    border-left: 4px solid #0066cc;
+}
+
+.framework-item-header {
+    display: flex;
+    justify-content: between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.framework-name {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.framework-actions {
+    margin-left: auto;
+}
+
+.framework-description {
+    margin: 8px 0;
+    color: #666;
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+.framework-meta {
+    margin-top: 8px;
+}
+
+.promote-btn {
+    font-size: 0.8em;
+    padding: 4px 8px;
+}
+
+.promote-btn:hover {
+    background-color: #fff3cd;
+    border-color: #ffc107;
+}
+
+/* Search and filter styling */
+#framework-search {
+    border-radius: 6px;
+}
+
+#company-filter {
+    border-radius: 6px;
+}
+
+/* Badge adjustments */
+.framework-name .badge {
+    font-size: 0.7em;
+    padding: 0.25em 0.5em;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .framework-item-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .framework-actions {
+        margin-left: 0;
+        margin-top: 10px;
+    }
+}
 </style>
 {% endblock %}
 
@@ -218,25 +333,94 @@
     <!-- Framework Selection -->
     <div class="sync-card">
         <h3><i class="fas fa-clipboard-list"></i> Select Framework</h3>
-        <div class="framework-selector">
-            <div>
-                <label for="framework-select" class="form-label">Framework to Synchronize:</label>
-                <select id="framework-select" class="form-select">
-                    <option value="">Choose a framework...</option>
-                    {% for framework in frameworks %}
-                    <option value="{{ framework.framework_id }}" data-name="{{ framework.framework_name }}">
-                        {{ framework.framework_name }}
-                        {% if framework.description %}
-                            - {{ framework.description[:50] }}{% if framework.description|length > 50 %}...{% endif %}
-                        {% endif %}
-                    </option>
-                    {% endfor %}
-                </select>
+        
+        <!-- Enhanced Framework Selector -->
+        <div class="framework-selector-enhanced">
+            <!-- Search and Filters -->
+            <div class="selector-controls mb-3">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="framework-search" class="form-label">Search Frameworks:</label>
+                        <input type="text" id="framework-search" class="form-control" 
+                               placeholder="Search by name or description..." 
+                               onkeyup="filterFrameworks()">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="company-filter" class="form-label">Filter by Company:</label>
+                        <select id="company-filter" class="form-select" onchange="filterFrameworks()">
+                            <option value="">All Companies</option>
+                            <option value="global">Global Frameworks</option>
+                            {% for company in companies %}
+                            <option value="{{ company.id }}">{{ company.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div id="framework-info" style="display: none;">
-                <h4>Framework Details</h4>
+
+            <!-- Framework List -->
+            <div class="framework-list-container">
+                <label class="form-label">Available Frameworks:</label>
+                <div class="framework-list" id="framework-list">
+                    {% for framework in frameworks %}
+                    <div class="framework-item" 
+                         data-framework-id="{{ framework.framework_id }}"
+                         data-name="{{ framework.framework_name }}"
+                         data-description="{{ framework.description or '' }}"
+                         data-is-global="{{ 1 if framework.company_id == global_provider_id else 0 }}"
+                         data-company-id="{{ framework.company_id }}"
+                         data-company="{{ framework.company.name }}"
+                         onclick="selectFramework('{{ framework.framework_id }}')">
+                        
+                        <div class="framework-item-header">
+                            <div class="framework-name">
+                                <strong>{{ framework.framework_name }}</strong>
+                                {% if framework.company_id == global_provider_id %}
+                                <span class="badge bg-primary ms-2">Global</span>
+                                {% else %}
+                                <span class="badge bg-secondary ms-2">{{ framework.company.name }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="framework-actions">
+                                {% if framework.company_id != global_provider_id %}
+                                <button type="button" class="btn btn-sm btn-outline-warning promote-btn" 
+                                        onclick="event.stopPropagation(); promoteFramework('{{ framework.framework_id }}', '{{ framework.framework_name }}')">
+                                    <i class="fas fa-level-up-alt"></i> Promote
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        {% if framework.description %}
+                        <div class="framework-description">
+                            {{ framework.description[:100] }}{% if framework.description|length > 100 %}...{% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="framework-meta">
+                            <small class="text-muted">
+                                <i class="fas fa-building"></i> {{ framework.company.name }}
+                                <span class="ms-3"><i class="fas fa-calendar"></i> {{ framework.created_at.strftime('%Y-%m-%d') }}</span>
+                            </small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- No Results Message -->
+                <div id="no-frameworks-message" class="text-center text-muted py-4" style="display: none;">
+                    <i class="fas fa-search"></i>
+                    <p class="mb-0">No frameworks match your search criteria.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Selected Framework Info (Updated) -->
+        <div id="framework-info" class="mt-4" style="display: none;">
+            <div class="alert alert-info">
+                <h5><i class="fas fa-info-circle"></i> Selected Framework</h5>
                 <div id="framework-details">
-                    <!-- Framework info will be loaded here -->
+                    <!-- Selected framework details will be shown here -->
                 </div>
             </div>
         </div>
@@ -358,9 +542,131 @@
 </div>
 
 <script>
+// Replace the old framework selection logic
 let selectedFramework = null;
 let selectedCompanies = [];
 let conflictResolution = 'SKIP';
+
+// New framework selection function
+function selectFramework(frameworkId) {
+    // Remove selection from all items
+    document.querySelectorAll('.framework-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    
+    // Add selection to clicked item
+    const selectedItem = document.querySelector(`[data-framework-id="${frameworkId}"]`);
+    if (selectedItem) {
+        selectedItem.classList.add('selected');
+        selectedFramework = frameworkId;
+        
+        // Update framework details
+        updateFrameworkDetails(selectedItem);
+        
+        // Update UI state
+        updateUI();
+    }
+}
+
+// Enhanced framework filtering
+function filterFrameworks() {
+    const searchTerm = document.getElementById('framework-search').value.toLowerCase();
+    const companyFilter = document.getElementById('company-filter').value;
+    const frameworkItems = document.querySelectorAll('.framework-item');
+    const noResultsMsg = document.getElementById('no-frameworks-message');
+    
+    let visibleCount = 0;
+    
+    frameworkItems.forEach(item => {
+        const name = item.dataset.name.toLowerCase();
+        const description = item.dataset.description.toLowerCase();
+        const isGlobal = item.dataset.isGlobal === '1';
+        const companyId = item.dataset.companyId;
+        
+        // Search filter
+        const matchesSearch = !searchTerm || 
+            name.includes(searchTerm) || 
+            description.includes(searchTerm);
+        
+        // Company filter
+        let matchesCompany = true;
+        if (companyFilter === 'global') {
+            matchesCompany = isGlobal;
+        } else if (companyFilter && companyFilter !== '') {
+            matchesCompany = companyId === companyFilter;
+        }
+        
+        // Show/hide item
+        if (matchesSearch && matchesCompany) {
+            item.style.display = 'block';
+            visibleCount++;
+        } else {
+            item.style.display = 'none';
+        }
+    });
+    
+    // Show/hide no results message
+    noResultsMsg.style.display = visibleCount === 0 ? 'block' : 'none';
+}
+
+// Updated framework details function
+function updateFrameworkDetails(selectedItem) {
+    const infoDiv = document.getElementById('framework-info');
+    const detailsDiv = document.getElementById('framework-details');
+    
+    if (!selectedItem) {
+        infoDiv.style.display = 'none';
+        return;
+    }
+    
+    const name = selectedItem.dataset.name;
+    const isGlobal = selectedItem.dataset.isGlobal === '1';
+    const companyName = selectedItem.dataset.company;
+    const description = selectedItem.dataset.description;
+    
+    const typeHtml = isGlobal
+        ? '<span class="badge bg-primary">Global</span>'
+        : '<span class="badge bg-secondary">Company (' + companyName + ')</span>';
+    
+    let detailsHtml = `
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Type:</strong> ${typeHtml}</p>
+        <p><strong>Owner:</strong> ${companyName}</p>
+    `;
+    
+    if (description) {
+        detailsHtml += `<p><strong>Description:</strong> ${description}</p>`;
+    }
+    
+    detailsDiv.innerHTML = detailsHtml;
+    infoDiv.style.display = 'block';
+}
+
+// Remove old framework select event listeners and update UI function
+function updateUI() {
+    const companySelection = document.getElementById('company-selection');
+    const conflictResolutionDiv = document.getElementById('conflict-resolution');
+    const syncActions = document.getElementById('sync-actions');
+    const startSyncBtn = document.getElementById('start-sync-btn');
+    
+    // Show/hide sections based on selections
+    if (selectedFramework) {
+        companySelection.style.display = 'block';
+        
+        if (selectedCompanies.length > 0) {
+            conflictResolutionDiv.style.display = 'block';
+            syncActions.style.display = 'block';
+            startSyncBtn.disabled = false;
+        } else {
+            conflictResolutionDiv.style.display = 'none';
+            syncActions.style.display = 'none';
+        }
+    } else {
+        companySelection.style.display = 'none';
+        conflictResolutionDiv.style.display = 'none';
+        syncActions.style.display = 'none';
+    }
+}
 
 function toggleCompany(companyId) {
     const checkbox = document.getElementById(`company-${companyId}`);
@@ -420,33 +726,6 @@ function selectConflictResolution(resolution) {
     conflictResolution = resolution;
     
     updateUI();
-}
-
-function updateUI() {
-    const frameworkSelect = document.getElementById('framework-select');
-    const companySelection = document.getElementById('company-selection');
-    const conflictResolutionDiv = document.getElementById('conflict-resolution');
-    const syncActions = document.getElementById('sync-actions');
-    const startSyncBtn = document.getElementById('start-sync-btn');
-    
-    // Show/hide sections based on selections
-    if (frameworkSelect.value) {
-        selectedFramework = frameworkSelect.value;
-        companySelection.style.display = 'block';
-        
-        if (selectedCompanies.length > 0) {
-            conflictResolutionDiv.style.display = 'block';
-            syncActions.style.display = 'block';
-            startSyncBtn.disabled = false;
-        } else {
-            conflictResolutionDiv.style.display = 'none';
-            syncActions.style.display = 'none';
-        }
-    } else {
-        companySelection.style.display = 'none';
-        conflictResolutionDiv.style.display = 'none';
-        syncActions.style.display = 'none';
-    }
 }
 
 function showAlert(message, type = 'info') {
@@ -573,13 +852,23 @@ function resetForm() {
     selectedCompanies = [];
     conflictResolution = 'SKIP';
     
-    document.getElementById('framework-select').value = '';
+    // Clear framework selection
+    document.querySelectorAll('.framework-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    
+    // Clear search and filters
+    document.getElementById('framework-search').value = '';
+    document.getElementById('company-filter').value = '';
+    filterFrameworks();
+    
     selectNoCompanies();
     
     document.getElementById('company-selection').style.display = 'none';
     document.getElementById('conflict-resolution').style.display = 'none';
     document.getElementById('sync-actions').style.display = 'none';
     document.getElementById('sync-progress').style.display = 'none';
+    document.getElementById('framework-info').style.display = 'none';
     
     // Clear alerts
     document.getElementById('alert-container').innerHTML = '';
@@ -593,7 +882,38 @@ function resetForm() {
 }
 
 // Initialize
-document.getElementById('framework-select').addEventListener('change', updateUI);
 document.addEventListener('DOMContentLoaded', updateUI);
+
+// --- Promotion Logic ---
+function promoteFramework(frameworkId, frameworkName) {
+    if (!confirm(`Promote "${frameworkName}" to a global framework? This action cannot be undone.`)) {
+        return;
+    }
+
+    showAlert('Promoting framework to global...', 'info');
+
+    fetch(`/superadmin/api/frameworks/${frameworkId}/promote`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('✅ Framework promoted successfully!', 'success');
+            // Reload page or update option dataset
+            location.reload();
+        } else {
+            showAlert(`❌ Promotion failed: ${data.error}`, 'danger');
+        }
+    })
+    .catch(err => {
+        showAlert(`❌ Network error: ${err.message}`, 'danger');
+    });
+}
+
+// Trigger details update on page load if a value is pre-selected (e.g., after reload)
+document.addEventListener('DOMContentLoaded', updateFrameworkDetails);
 </script>
 {% endblock %} 

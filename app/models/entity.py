@@ -1,12 +1,16 @@
 from ..extensions import db
-from .data_point import entity_data_point
 from .mixins import TenantScopedQueryMixin, TenantScopedModelMixin
 
 class Entity(db.Model, TenantScopedQueryMixin, TenantScopedModelMixin):
     """Entity model for organizational hierarchy."""
     
+    __table_args__ = (
+        db.UniqueConstraint('company_id', 'name', name='uq_entity_company_name'),
+    )
+
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), unique=True, nullable=False)
+    # The name must be unique ONLY within the scope of a single company, not globally.
+    name = db.Column(db.String(50), nullable=False)
     entity_type = db.Column(db.String(20), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('entity.id'), nullable=True)
     # Add company_id for tenant isolation - temporarily nullable until T-3 seed data
@@ -17,9 +21,6 @@ class Entity(db.Model, TenantScopedQueryMixin, TenantScopedModelMixin):
                            backref=db.backref('children', lazy='dynamic'),
                            remote_side=[id])
     users = db.relationship('User', backref='entity')
-    data_points = db.relationship('DataPoint',
-                                secondary=entity_data_point,
-                                backref=db.backref('entities', lazy='dynamic'))
     esg_data = db.relationship('ESGData', 
                               back_populates='entity',
                               cascade='all, delete-orphan')

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}New Dashboard (Coming Soon) - ESG DataVault{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 50px;">
+    <div class="card">
+        <div class="card-body text-center" style="padding: 60px;">
+            <h1 class="mb-4">Welcome to the New Data Entry Interface!</h1>
+            <p class="lead">Hello, {{ user_name }}!</p>
+
+            <div class="alert alert-info" style="max-width: 600px; margin: 30px auto;">
+                <h4>Phase 0: Infrastructure Setup Complete</h4>
+                <p>You have successfully opted into the new modal-based data entry interface.</p>
+                <p>The full implementation is coming soon in Phase 1.</p>
+            </div>
+
+            <div style="margin-top: 30px;">
+                <p>For now, you can switch back to the original interface:</p>
+                <button id="switchBackBtn" class="btn btn-primary btn-lg">
+                    Switch Back to Original Interface
+                </button>
+            </div>
+
+            <div id="feedbackSection" style="margin-top: 50px; max-width: 500px; margin-left: auto; margin-right: auto;">
+                <h4>Share Your Feedback</h4>
+                <form id="feedbackForm">
+                    <div class="form-group">
+                        <label for="feedbackType">Type:</label>
+                        <select id="feedbackType" class="form-control" required>
+                            <option value="">Select type...</option>
+                            <option value="suggestion">Suggestion</option>
+                            <option value="bug">Bug Report</option>
+                            <option value="praise">Praise</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="feedbackMessage">Message:</label>
+                        <textarea id="feedbackMessage" class="form-control" rows="4"
+                                  placeholder="Share your thoughts about what you'd like to see in the new interface..."
+                                  required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success">Submit Feedback</button>
+                </form>
+                <div id="feedbackStatus" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Switch back to original interface
+document.getElementById('switchBackBtn').addEventListener('click', function() {
+    fetch('/user/v2/api/toggle-interface', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ useNewInterface: false })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = data.redirect;
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to switch interface');
+    });
+});
+
+// Handle feedback submission
+document.getElementById('feedbackForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const feedbackType = document.getElementById('feedbackType').value;
+    const feedbackMessage = document.getElementById('feedbackMessage').value;
+
+    fetch('/user/v2/api/feedback', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            interfaceVersion: 'modal',
+            feedbackType: feedbackType,
+            message: feedbackMessage
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        const statusDiv = document.getElementById('feedbackStatus');
+        if (data.success) {
+            statusDiv.innerHTML = '<div class="alert alert-success">Thank you for your feedback!</div>';
+            document.getElementById('feedbackForm').reset();
+        } else {
+            statusDiv.innerHTML = '<div class="alert alert-danger">Error: ' + (data.error || 'Unknown error') + '</div>';
+        }
+
+        // Clear status after 5 seconds
+        setTimeout(() => {
+            statusDiv.innerHTML = '';
+        }, 5000);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('feedbackStatus').innerHTML =
+            '<div class="alert alert-danger">Failed to submit feedback</div>';
+    });
+});
+</script>
+{% endblock %}

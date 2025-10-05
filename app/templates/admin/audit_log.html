@@ -41,7 +41,7 @@
                 {% for log in audit_logs %}
                 <tr>
                     <td>{{ log.change_date.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-                    <td>{{ log.user.username }}</td>
+                    <td>{{ log.user.name }}</td>
                     <td><span class="change-type {{ log.change_type.lower().replace(' ', '-').replace('-', '') }}">{{ log.change_type }}</span></td>
                     <td>{{ log.old_value if log.old_value is not none else '-' }}</td>
                     <td>{{ log.new_value if log.new_value is not none else '-' }}</td>

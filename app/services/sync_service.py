@@ -9,7 +9,6 @@ from flask import current_app
 from ..extensions import db
 from ..models.sync_operation import SyncOperation, FrameworkSyncJob, TenantTemplate, DataMigrationJob
 from ..models.framework import Framework, FrameworkDataField, FieldVariableMapping
-from ..models.data_point import DataPoint
 from ..models.company import Company
 from ..models.entity import Entity
 from ..models.esg_data import ESGData
@@ -254,7 +253,7 @@ class FrameworkSyncService:
                     framework_id=new_framework.framework_id,
                     field_name=source_field.field_name,
                     field_type=source_field.field_type,
-                    unit=source_field.unit,
+                    default_unit=source_field.default_unit,
                     is_computed=source_field.is_computed,
                     aggregation_formula=source_field.aggregation_formula,
                     field_order=source_field.field_order,
@@ -286,17 +285,16 @@ class FrameworkSyncService:
                     db.session.add(new_mapping)
             
             # Create data points for the target company
-            source_data_points = DataPoint.query.filter_by(
+            source_data_points = DataPointAssignment.query.filter_by(
                 framework_id=source_framework.framework_id
             ).all()
             
             for source_dp in source_data_points:
-                new_data_point = DataPoint(
+                new_data_point = DataPointAssignment(
                     name=source_dp.name,
                     value_type=source_dp.value_type,
                     framework_id=new_framework.framework_id,
-                    company_id=target_company_id,
-                    unit=source_dp.unit
+                    company_id=target_company_id
                 )
                 
                 db.session.add(new_data_point)
@@ -330,7 +328,7 @@ class FrameworkSyncService:
                 ).delete()
             
             # Delete data points
-            DataPoint.query.filter_by(framework_id=framework.framework_id).delete()
+            DataPointAssignment.query.filter_by(framework_id=framework.framework_id).delete()
             
             # Delete framework fields
             FrameworkDataField.query.filter_by(framework_id=framework.framework_id).delete()
@@ -420,11 +418,11 @@ class FrameworkSyncService:
                     })
                 
                 # Check for data point name conflicts
-                source_data_points = DataPoint.query.filter_by(
+                source_data_points = DataPointAssignment.query.filter_by(
                     framework_id=source_framework.framework_id
                 ).all()
                 
-                existing_data_points = DataPoint.query.filter_by(
+                existing_data_points = DataPointAssignment.query.filter_by(
                     company_id=company_id
                 ).all()
                 
@@ -540,7 +538,7 @@ class TenantTemplateService:
             }
             
             # Extract frameworks (only those with data points for this company)
-            data_points = DataPoint.query.filter_by(company_id=company_id).all()
+            data_points = DataPointAssignment.query.filter_by(company_id=company_id).all()
             framework_ids = list(set(dp.framework_id for dp in data_points))
             
             for framework_id in framework_ids:
@@ -561,7 +559,7 @@ class TenantTemplateService:
                         field_data = {
                             'field_name': field.field_name,
                             'field_type': field.field_type,
-                            'unit': field.unit,
+                            'unit': field.default_unit,
                             'is_computed': field.is_computed,
                             'aggregation_formula': field.aggregation_formula,
                             'field_order': field.field_order,
@@ -577,7 +575,7 @@ class TenantTemplateService:
                 dp_data = {
                     'name': dp.name,
                     'value_type': dp.value_type,
-                    'unit': dp.unit,
+                    'unit': dp.effective_unit,
                     'framework_name': dp.framework.framework_name if dp.framework else None
                 }
                 template_data['data_points'].append(dp_data)
@@ -598,9 +596,6 @@ class TenantTemplateService:
                 assignment_data = {
                     'data_point_name': assignment.data_point.name if assignment.data_point else None,
                     'entity_name': assignment.entity.name if assignment.entity else None,
-                    'fy_start_month': assignment.fy_start_month,
-                    'fy_start_year': assignment.fy_start_year,
-                    'fy_end_year': assignment.fy_end_year,
                     'frequency': assignment.frequency
                 }
                 template_data['assignments'].append(assignment_data)

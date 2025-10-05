@@ -16,7 +16,7 @@ from flask import current_app
 from sqlalchemy import func, and_, or_
 from ..models.company import Company
 from ..models.esg_data import ESGData
-from ..models.data_point import DataPoint
+from ..models.data_assignment import DataPointAssignment
 from ..models.framework import Framework, FrameworkDataField
 from ..models.entity import Entity
 from ..models.user import User
@@ -48,14 +48,14 @@ class CrossTenantAnalyticsService:
             # Basic system metrics
             total_companies = Company.query.filter_by(is_active=True).count()
             total_entities = Entity.query.count()
-            total_data_points = DataPoint.query.count()
+            total_data_points = DataPointAssignment.query.filter_by(series_status='active').count()
             total_esg_records = ESGData.query.count()
             total_frameworks = Framework.query.count()
             
             # Data completion metrics
             completed_data_points = ESGData.query.filter(
-                ESGData.value.isnot(None),
-                ESGData.value != ''
+                ESGData.raw_value.isnot(None),
+                ESGData.raw_value != ''
             ).count()
             
             completion_rate = (completed_data_points / total_data_points * 100) if total_data_points > 0 else 0
@@ -75,13 +75,15 @@ class CrossTenantAnalyticsService:
                 Company.industry.isnot(None)
             ).group_by(Company.industry).all()
             
-            # Framework usage
+            # Framework usage - need to join through FrameworkDataField
             framework_usage = db.session.query(
-                Framework.name,
-                func.count(DataPoint.id).label('usage_count')
+                Framework.framework_name,
+                func.count(DataPointAssignment.id).label('usage_count')
             ).join(
-                DataPoint, Framework.id == DataPoint.framework_id
-            ).group_by(Framework.id, Framework.name).all()
+                FrameworkDataField, Framework.framework_id == FrameworkDataField.framework_id
+            ).join(
+                DataPointAssignment, FrameworkDataField.field_id == DataPointAssignment.field_id
+            ).group_by(Framework.framework_id, Framework.framework_name).all()
             
             return {
                 'success': True,
@@ -137,11 +139,11 @@ class CrossTenantAnalyticsService:
                 Company.name,
                 Company.industry,
                 func.count(Entity.id).label('entity_count'),
-                func.count(DataPoint.id).label('data_point_count')
+                func.count(DataPointAssignment.id).label('data_point_count')
             ).outerjoin(
                 Entity, Company.id == Entity.company_id
             ).outerjoin(
-                DataPoint, Entity.id == DataPoint.entity_id
+                DataPointAssignment, DataPointAssignment.entity_id == Entity.id
             ).filter(
                 Company.is_active == True
             )
@@ -160,13 +162,11 @@ class CrossTenantAnalyticsService:
             for company_id, name, company_industry, entity_count, data_point_count in tenant_data:
                 # Get completion rate
                 completed_count = ESGData.query.join(
-                    DataPoint, ESGData.data_point_id == DataPoint.id
-                ).join(
-                    Entity, DataPoint.entity_id == Entity.id
+                    Entity, ESGData.entity_id == Entity.id
                 ).filter(
                     Entity.company_id == company_id,
-                    ESGData.value.isnot(None),
-                    ESGData.value != ''
+                    ESGData.raw_value.isnot(None),
+                    ESGData.raw_value != ''
                 ).count()
                 
                 completion_rate = (completed_count / data_point_count * 100) if data_point_count > 0 else 0
@@ -232,29 +232,27 @@ class CrossTenantAnalyticsService:
         try:
             # Build base query for ESG data
             query = db.session.query(
-                ESGData.value,
+                ESGData.raw_value,
                 Company.industry,
-                Framework.name.label('framework_name'),
-                FrameworkDataField.name.label('field_name')
+                Framework.framework_name.label('framework_name'),
+                FrameworkDataField.field_name.label('field_name')
             ).join(
-                DataPoint, ESGData.data_point_id == DataPoint.id
-            ).join(
-                Entity, DataPoint.entity_id == Entity.id
+                Entity, ESGData.entity_id == Entity.id
             ).join(
                 Company, Entity.company_id == Company.id
             ).join(
-                Framework, DataPoint.framework_id == Framework.id
+                FrameworkDataField, ESGData.field_id == FrameworkDataField.field_id
             ).join(
-                FrameworkDataField, DataPoint.framework_field_id == FrameworkDataField.id
+                Framework, FrameworkDataField.framework_id == Framework.framework_id
             ).filter(
                 Company.is_active == True,
-                ESGData.value.isnot(None),
-                ESGData.value != ''
+                ESGData.raw_value.isnot(None),
+                ESGData.raw_value != ''
             )
             
             # Apply filters
             if framework_id:
-                query = query.filter(Framework.id == framework_id)
+                query = query.filter(Framework.framework_id == framework_id)
             if industry:
                 query = query.filter(Company.industry == industry)
             
@@ -351,15 +349,17 @@ class CrossTenantAnalyticsService:
             
             # Framework adoption trends
             framework_trends = db.session.query(
-                Framework.name,
-                func.date(DataPoint.created_at).label('date'),
-                func.count(DataPoint.id).label('new_data_points')
+                Framework.framework_name,
+                func.date(DataPointAssignment.assigned_date).label('date'),
+                func.count(DataPointAssignment.id).label('new_data_points')
             ).join(
-                DataPoint, Framework.id == DataPoint.framework_id
+                FrameworkDataField, DataPointAssignment.field_id == FrameworkDataField.field_id
+            ).join(
+                Framework, FrameworkDataField.framework_id == Framework.framework_id
             ).filter(
-                DataPoint.created_at >= start_date
+                DataPointAssignment.assigned_date >= start_date
             ).group_by(
-                Framework.id, Framework.name, func.date(DataPoint.created_at)
+                Framework.framework_id, Framework.framework_name, func.date(DataPointAssignment.assigned_date)
             ).order_by('date').all()
             
             # Company onboarding trends

@@ -1,0 +1,242 @@
+
+/* --- Responsive Horizontal Scrolling --- */
+.frameworks-scroll-container {
+    width: 100%;
+}
+
+.scroll-navigation {
+    display: flex;
+    align-items: center; /* Vertically centers the buttons with the card deck */
+    gap: 1rem; /* Adds space between buttons and the deck */
+    width: 100%;
+}
+
+.frameworks-card-deck {
+    display: flex;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    gap: 1rem;
+    padding: 1rem 0;
+    flex-grow: 1;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;  /* IE and Edge */
+}
+
+.frameworks-card-deck::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, and Opera */
+}
+
+.scroll-btn {
+    background-color: var(--primary-green, #2F4728);
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.scroll-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+/* --- Responsive Card Sizing --- */
+.framework-card {
+    flex: 0 0 320px; /* Default width for desktops */
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- OR Badge Styling --- */
+.or-badge {
+    background-color: #fff;
+    border: 2px solid #28a745;
+    color: #28a745;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    white-space: nowrap;
+    display: inline-block;
+}
+
+/* Mobile OR badge styling */
+.or-badge-mobile {
+    margin: 10px 0;
+}
+
+/* --- Hero Section Collapse Functionality --- */
+.approach-hero {
+    transition: all 0.5s ease-in-out;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+}
+
+.approach-hero.hero-minified {
+    padding: 1rem 0;
+    margin-bottom: 1rem;
+}
+
+.approach-hero.hero-minified .approach-heading {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.approach-hero.hero-minified .approach-heading + p {
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.approach-hero.hero-minified .choice-card .card {
+    transform: scale(0.85);
+    transition: transform 0.5s ease-in-out;
+}
+
+.approach-hero.hero-minified .choice-card .card-body {
+    padding: 1.5rem !important;
+}
+
+.approach-hero.hero-minified .choice-card .card-title {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.approach-hero.hero-minified .choice-card .card-text {
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+}
+
+.approach-hero.hero-minified .choice-card .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+.approach-hero.hero-minified .or-badge {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+}
+
+/* Hero minified icon styling */
+.approach-hero.hero-minified .choice-icon i {
+    font-size: 2rem !important;
+}
+
+.approach-hero.hero-minified .choice-icon {
+    margin-bottom: 0.75rem !important;
+}
+
+/* Mobile responsiveness for hero-minified */
+@media (max-width: 768px) {
+    .approach-hero.hero-minified {
+        padding: 0.75rem 0;
+    }
+    
+    .approach-hero.hero-minified .choice-card .card {
+        transform: scale(0.9);
+    }
+    
+    .approach-hero.hero-minified .approach-heading {
+        font-size: 1.3rem;
+    }
+}
+
+@media (max-width: 992px) {
+    .framework-card {
+        flex: 0 0 280px; /* Smaller cards for tablets */
+        max-width: 280px;
+    }
+}
+
+@media (max-width: 576px) {
+    .framework-card {
+        flex: 0 0 80vw; /* One card mostly visible on mobile */
+        max-width: 80vw;
+    }
+}
+
+/* --- Visual Distinction for Framework Types --- */
+.framework-card.global-framework {
+    border-left: 4px solid #17a2b8;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.framework-card.company-framework {
+    border-left: 4px solid var(--primary-green, #2F4728);
+    background: linear-gradient(135deg, #f4f6f1 0%, #e8f5e8 100%);
+}
+
+.framework-card.global-framework:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(23, 162, 184, 0.15);
+}
+
+.framework-card.company-framework:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 20px rgba(47, 71, 40, 0.15);
+}
+
+.framework-type-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 12px;
+    text-transform: uppercase;
+}
+
+.framework-type-badge.global {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.framework-type-badge.company {
+    background-color: var(--primary-green, #2F4728);
+    color: white;
+}
+
+.framework-card.global-framework .card-title {
+    color: #17a2b8;
+}
+
+.framework-card.company-framework .card-title {
+    color: var(--primary-green, #2F4728);
+}
+
+.framework-card.global-framework .view-details-btn {
+    border-color: #17a2b8;
+    color: #17a2b8;
+}
+
+.framework-card.global-framework .view-details-btn:hover {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.framework-card.company-framework .view-details-btn {
+    border-color: var(--primary-green, #2F4728);
+    color: var(--primary-green, #2F4728);
+}
+
+.framework-card.company-framework .view-details-btn:hover {
+    background-color: var(--primary-green, #2F4728);
+    color: white;
+}
+
+.coverage-progress.bg-info {
+    background-color: #17a2b8 !important;
+}
+
+.coverage-progress.bg-success {
+    background-color: var(--primary-green, #2F4728) !important;
+}

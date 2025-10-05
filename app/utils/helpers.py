@@ -52,3 +52,73 @@ def init_caching(app):
             response.headers['Pragma'] = 'no-cache'
             response.headers['Expires'] = '-1'
         return response
+
+def _compute_cookie_domain(hostname: str) -> str | None:
+    """Compute a suitable ``SESSION_COOKIE_DOMAIN`` based on the request host.
+
+    The goal is to allow *cross-subdomain* sessions while still keeping
+    the domain as specific as possible.  It supports:
+
+    • localhost / bare IP addresses          → ``None`` (no sharing)
+    • nip.io development domains             → ``.127-0-0-1.nip.io``
+    • ngrok free domains (id.ngrok-free.app) → ``.<id>.ngrok-free.app``
+    • generic multi-level domains            → ``.<root-domain>`` (drops only
+                                               the most specific label)
+
+    Args:
+        hostname: Host portion of the request (without port).
+    Returns:
+        A domain string suitable for Flask's ``SESSION_COOKIE_DOMAIN`` (leading
+        dot for sub-domain sharing) or ``None`` to keep the default host-only
+        cookie behaviour.
+    """
+    import re
+
+    # 1. Plain localhost or raw IP → keep host-only cookies
+    if hostname in {"localhost", "127.0.0.1"} or re.match(r"^\d+\.\d+\.\d+\.\d+$", hostname):
+        return None
+
+    # 2. nip.io domains (e.g. tenant.127-0-0-1.nip.io or 127-0-0-1.nip.io)
+    if hostname.endswith(".nip.io"):
+        parts = hostname.split(".")
+        # Get last 3 labels: 127-0-0-1.nip.io
+        if len(parts) >= 3:
+            return "." + ".".join(parts[-3:])
+        return None
+
+    # 3. ngrok domains (e.g. <id>.ngrok-free.app or <id>.ngrok.app)
+    if ".ngrok" in hostname:
+        parts = hostname.split(".")
+        if len(parts) >= 3:
+            return "." + ".".join(parts[-3:])  # keep the <id>.ngrok-free.app part
+        return "." + hostname
+
+    # 4. Generic: drop the most specific label (tenant) and keep the rest
+    parts = hostname.split(".")
+    if len(parts) >= 3:
+        return "." + ".".join(parts[1:])
+
+    # Fallback – keep host-only
+    return None
+
+
+def init_dynamic_session_cookie_domain(app):
+    """Dynamically set ``SESSION_COOKIE_DOMAIN`` on each request.
+
+    If ``SESSION_COOKIE_DOMAIN`` is *already* set via config or environment
+    variable, this function leaves it untouched.  Otherwise, it derives a
+    domain from the current request host using :pyfunc:`_compute_cookie_domain`.
+    This lets you run the same codebase locally (localhost / nip.io), via
+    ngrok, and in production with a real domain without manual changes.
+    """
+
+    @app.before_request
+    def _set_cookie_domain():
+        # Respect explicit configuration (e.g. in production environment
+        # variables or config file).
+        if app.config.get("SESSION_COOKIE_DOMAIN") is not None:
+            return
+
+        host = request.host.split(":")[0]
+        derived_domain = _compute_cookie_domain(host)
+        app.config["SESSION_COOKIE_DOMAIN"] = derived_domain

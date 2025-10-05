@@ -1,6 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_file
 from flask_login import login_required, current_user
-from ..models.data_point import DataPoint
 from ..models.esg_data import ESGData, ESGDataAuditLog, ESGDataAttachment
 from ..models.data_assignment import DataPointAssignment
 from ..extensions import db
@@ -13,6 +12,8 @@ from ..models.entity import Entity
 from ..services.aggregation import aggregation_service
 from ..middleware.tenant import require_tenant
 from ..decorators.auth import tenant_required_for
+from ..utils.unit_conversions import get_unit_options_for_field
+import json
 
 user_bp = Blueprint('user', __name__, url_prefix='/user')
 
@@ -25,7 +26,12 @@ def allowed_file(filename):
 @tenant_required_for('USER')
 def dashboard():
     # Note: require_tenant() is now handled by @tenant_required_for decorator
-    
+
+    # Phase 0: Check if user has opted into new interface
+    if current_app.config.get('FEATURE_NEW_DATA_ENTRY_ENABLED', False) and current_user.use_new_data_entry:
+        current_app.logger.info(f'User {current_user.id} redirected to new v2 dashboard')
+        return redirect(url_for('user_v2.dashboard'))
+
     if not current_user.entity_id:
         flash('No entity assigned to user', 'error')
         return redirect(url_for('auth.login'))
@@ -42,7 +48,7 @@ def dashboard():
         else:
             # If no date provided, try to find a reasonable default
             # First, check if user has any ESG data entries
-            latest_entry = (ESGData.query_for_tenant(db.session)
+            latest_entry = (ESGData.query
                           .filter_by(entity_id=current_user.entity_id)
                           .order_by(ESGData.reporting_date.desc())
                           .first())
@@ -85,26 +91,27 @@ def dashboard():
         raw_fields[mapping.raw_field_id]['computed_fields'].add(mapping.computed_field_id)
         raw_fields[mapping.raw_field_id]['variable_names'][mapping.computed_field_id] = mapping.variable_name
 
-    # Get all data points with proper filtering
-    all_data_points = (DataPoint.query_for_tenant(db.session)
-        .join(DataPoint.framework)
-        .join(
-            FrameworkDataField,
-            FrameworkDataField.field_id == DataPoint.id
-        )
-        .join(
-            Entity,
-            DataPoint.entities
-        )
+    # ------------------------------------------------------------------
+    # Get all data points that have ACTIVE assignments for the user's
+    # entity (or its ancestors).  We join through DataPointAssignment
+    # instead of the entity_data_point association table because the
+    # admin ➜ "Assign Data Points" UI writes to DataPointAssignment.
+    # ------------------------------------------------------------------
+
+    # Now use DataPointAssignment as the primary data source
+    all_data_points = (DataPointAssignment.query_for_tenant(db.session)
         .filter(
-            Entity.id.in_([current_user.entity_id] + parent_entities)
+            DataPointAssignment.series_status == 'active',
+            DataPointAssignment.entity_id.in_([current_user.entity_id] + parent_entities)
         )
+        # Join with FrameworkDataField to get framework metadata
+        .join(FrameworkDataField, FrameworkDataField.field_id == DataPointAssignment.field_id)
+        .join(Entity, Entity.id == DataPointAssignment.entity_id)
         .add_columns(
+            FrameworkDataField.field_name,
             FrameworkDataField.description,
             FrameworkDataField.is_computed,
-            FrameworkDataField.formula_expression,
-            Entity.id.label('assigned_entity_id'),
-            Entity.name.label('assigned_entity_name')
+            FrameworkDataField.formula_expression
         )
         .distinct()
         .all())
@@ -116,34 +123,58 @@ def dashboard():
 
     current_app.logger.info(f'Processing {len(all_data_points)} data points for entity {current_user.entity_id}')
 
-    for dp, desc, is_computed, formula, assigned_entity_id, assigned_entity_name in all_data_points:
-        current_app.logger.info(f'Processing data point: {dp.name} (ID: {dp.id}, is_computed: {is_computed})')
+    for assignment, field_name, desc, is_computed, formula in all_data_points:
+        current_app.logger.info(f'Processing assignment: {field_name} (Assignment ID: {assignment.id}, Field ID: {assignment.field_id}, is_computed: {is_computed})')
+        
+        # NEW: Gather dimension metadata for this field
+        dimensions = []
+        for fd in assignment.field.field_dimensions:
+            dim = fd.dimension
+            if not dim:
+                continue
+            dimensions.append({
+                'dimension_id': dim.dimension_id,
+                'name': dim.name,
+                'is_required': fd.is_required,
+                'values': [
+                    {
+                        'value_id': dv.value_id,
+                        'value': dv.value,
+                        'display_name': dv.display_name,
+                        'effective_display_name': dv.effective_display_name
+                    } for dv in dim.get_ordered_values()
+                ]
+            })
         
         point_data = {
-            'id': dp.id,
-            'name': dp.name,
-            'value_type': dp.value_type,
-            'unit': dp.unit,
+            'id': assignment.field_id,  # Use field_id as the data point ID
+            'assignment_id': assignment.id,  # Keep assignment ID for reference
+            'name': field_name,
+            'value_type': 'numeric' if assignment.field.value_type == 'NUMBER' else assignment.field.value_type.lower(),
+            'unit_category': assignment.field.unit_category,
+            'default_unit': assignment.field.default_unit,
+            'unit_options': get_unit_options_for_field(assignment.field) if assignment.field.unit_category else [],
+            'unit': assignment.effective_unit,
             'description': desc,
             'is_computed': is_computed,
             'formula': formula,
-            'status': get_data_point_status(dp.id, current_user.entity_id, selected_date),
-            'assigned_entity': assigned_entity_name,
-            'dependencies': []
+            'status': get_data_point_status(assignment.field_id, current_user.entity_id, selected_date),
+            'dependencies': [],
+            'dimensions': dimensions  # <--- include dimensions metadata
         }
 
-        if dp.id in raw_fields:  # This is a raw dependency
-            current_app.logger.info(f'  -> Added as raw dependency: {dp.name}')
-            raw_dependencies[dp.id] = {
+        if assignment.field_id in raw_fields:  # This is a raw dependency
+            current_app.logger.info(f'  -> Added as raw dependency: {field_name}')
+            raw_dependencies[assignment.field_id] = {
                 'data': point_data,
-                'computed_fields': raw_fields[dp.id]['computed_fields'],
-                'variable_names': raw_fields[dp.id]['variable_names']
+                'computed_fields': raw_fields[assignment.field_id]['computed_fields'],
+                'variable_names': raw_fields[assignment.field_id]['variable_names']
             }
         elif is_computed:  # This is a computed field - use is_computed flag directly
-            current_app.logger.info(f'  -> Added as computed field: {dp.name}')
-            # Get dependencies for this computed field
+            current_app.logger.info(f'  -> Added as computed field: {field_name}')
+            # Use the field_id directly for dependencies
             deps = (FieldVariableMapping.query
-                   .filter_by(computed_field_id=dp.id)
+                   .filter_by(computed_field_id=assignment.field_id)
                    .all())
             
             point_data['dependencies'] = [
@@ -156,14 +187,14 @@ def dashboard():
             ]
             computed_points.append(point_data)
         else:  # This is a regular raw input field
-            current_app.logger.info(f'  -> Added as raw input: {dp.name}')
+            current_app.logger.info(f'  -> Added as raw input: {field_name}')
             raw_input_points.append(point_data)
 
     current_app.logger.info(f'Final counts: {len(raw_input_points)} raw, {len(computed_points)} computed, {len(raw_dependencies)} dependencies')
 
     # Get ESG data entries - LOAD ALL DATES, not just selected date
     # This ensures frontend has data for all dates when switching
-    all_esg_data_entries = ESGData.query_for_tenant(db.session).filter_by(
+    all_esg_data_entries = ESGData.query.filter_by(
         entity_id=current_user.entity_id
     ).all()
 
@@ -179,7 +210,7 @@ def dashboard():
         if date_key not in esg_data_by_date:
             esg_data_by_date[date_key] = {}
         
-        esg_data_by_date[date_key][entry.data_point_id] = {
+        esg_data_by_date[date_key][entry.field_id] = {
             'raw_value': entry.raw_value,
             'calculated_value': entry.calculated_value,
             'entity_id': entry.entity_id,
@@ -203,18 +234,24 @@ def dashboard():
             'variable_names': dep_data['variable_names']
         }
 
+    # Return user context for the frontend
+    user_context = {
+        'username': current_user.name,
+    }
+
     return render_template('user/dashboard.html',
                          raw_input_points=raw_input_points,
                          computed_points=computed_points,
                          raw_dependencies=serializable_raw_dependencies,
                          entity_data_entries=entity_data_entries,
                          esg_data_by_date=esg_data_by_date,
-                         selected_date=selected_date)
+                         selected_date=selected_date,
+                         user_context=user_context)
 
-def get_data_point_status(data_point_id, entity_id, reporting_date):
-    """Determine the status of a data point."""
-    entry = ESGData.query_for_tenant(db.session).filter_by(
-        data_point_id=data_point_id,
+def get_data_point_status(field_id, entity_id, reporting_date):
+    """Determine the status of a data point (field)."""
+    entry = ESGData.query.filter_by(
+        field_id=field_id,
         entity_id=entity_id,
         reporting_date=reporting_date
     ).first()
@@ -242,34 +279,36 @@ def submit_data():
         
         reporting_date = datetime.strptime(reporting_date, '%Y-%m-%d').date()
         
-        # Get all data point IDs being submitted for validation
-        data_point_ids = []
+        # Get all field IDs being submitted for validation
+        field_ids = []
         for key, value in request.form.items():
-            if key.startswith('data_point_') and value and value.strip():
-                field_id = key.replace('data_point_', '')
-                data_point_ids.append(field_id)
+            if key.startswith('field_') and value and value.strip():
+                field_id = key.replace('field_', '')
+                field_ids.append(field_id)
         
         # Validate reporting date against assignment configurations
         invalid_assignments = []
-        for data_point_id in data_point_ids:
-            assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
-                data_point_id=data_point_id,
+        for field_id in field_ids:
+            assignment = DataPointAssignment.query.filter_by(
+                field_id=field_id,
                 entity_id=current_user.entity_id,
                 is_active=True
             ).first()
             
             if assignment and not assignment.is_valid_reporting_date(reporting_date):
-                data_point = DataPoint.get_for_tenant(db.session, data_point_id)
+                framework_field = FrameworkDataField.query.get(field_id)
                 invalid_assignments.append({
-                    'field_name': data_point.name if data_point else data_point_id,
-                    'valid_dates': [d.strftime('%Y-%m-%d') for d in assignment.get_valid_reporting_dates()]
+                    'name': framework_field.field_name if framework_field else 'Unknown',
+                    'frequency': assignment.frequency,
+                    'fy_display': assignment.get_fy_display()
                 })
         
         if invalid_assignments:
+            error_msg = f"Selected date {reporting_date.strftime('%Y-%m-%d')} is not valid for the following data points: "
+            error_msg += ", ".join([f"{ia['name']} ({ia['frequency']} - {ia['fy_display']})" for ia in invalid_assignments])
             return jsonify({
                 'success': False,
-                'error': 'Invalid reporting date for some data points',
-                'invalid_assignments': invalid_assignments
+                'error': error_msg
             }), 400
         
         form_data = request.form
@@ -278,38 +317,70 @@ def submit_data():
         
         # First, create/update all ESG data entries
         for key, value in form_data.items():
-            if key.startswith('data_point_'):
-                field_id = key.replace('data_point_', '')
+            if key.startswith('field_'):
+                field_id = key.replace('field_', '')
                 
                 # Skip empty values
                 if not value or not value.strip():
                     continue
                 
-                # Get the data point and its framework field
-                data_point = DataPoint.get_for_tenant(db.session, field_id)
-                framework_field = FrameworkDataField.query.filter_by(field_id=field_id).first()
+                # Get assignment to validate permissions and get field info
+                assignment = DataPointAssignment.query.filter_by(
+                    field_id=field_id,
+                    entity_id=current_user.entity_id,
+                    is_active=True
+                ).first()
                 
-                if not data_point or not framework_field:
+                if not assignment:
+                    continue
+
+                # Get the framework field
+                framework_field = FrameworkDataField.query.get(field_id)
+                if not framework_field:
                     continue
 
                 # Skip if this is a computed field
                 if framework_field.is_computed:
                     continue
 
-                # Check if this data point is assigned to the user's entity
-                if current_user.entity_id not in [entity.id for entity in data_point.entities]:
-                    continue
-
+                # Get unit information from form
+                unit_key = f'unit_{field_id}'
+                selected_unit = form_data.get(unit_key, '').strip()
+                
+                # NEW: Get dimension information from form
+                dimension_key = f'field_{field_id}_dimensions'
+                dimension_data_json = form_data.get(dimension_key, '').strip()
+                dimension_values = {}
+                
+                if dimension_data_json:
+                    try:
+                        dimension_values = json.loads(dimension_data_json)
+                        current_app.logger.info(f'Form Submit - Parsed dimensions for field {field_id}: {dimension_values}')
+                    except (json.JSONDecodeError, TypeError) as e:
+                        current_app.logger.warning(f'Form Submit - Invalid dimension JSON for field {field_id}: {e}')
+                        dimension_values = {}
+                
+                # Validate required dimensions
+                field_dimensions = framework_field.field_dimensions
+                for fd in field_dimensions:
+                    if fd.is_required:
+                        dim_name = fd.dimension.name.lower()
+                        if dim_name not in dimension_values or not dimension_values[dim_name]:
+                            return jsonify({
+                                'success': False,
+                                'error': f'Required dimension "{fd.dimension.name}" is missing for field "{framework_field.field_name}"'
+                            }), 400
+                
                 # Find or create ESGData entry
-                esg_data = ESGData.query_for_tenant(db.session).filter_by(
-                    data_point_id=field_id,
+                esg_data = ESGData.query.filter_by(
+                    field_id=field_id,
                     entity_id=current_user.entity_id,
                     reporting_date=reporting_date
                 ).first()
                 
                 try:
-                    # Convert value based on data point type
-                    if data_point.value_type == 'numeric':
+                    # Convert value based on field value type
+                    if framework_field.value_type == 'NUMBER':
                         processed_value = float(value)
                     else:
                         processed_value = str(value)
@@ -320,20 +391,27 @@ def submit_data():
                 if esg_data:
                     old_value = esg_data.raw_value
                     esg_data.raw_value = processed_value
-                    current_app.logger.info(f'CSV Upload - Updated existing ESGData {esg_data.data_id}: {old_value} -> {processed_value}')
+                    # Store unit information if provided (Phase 4.1)
+                    if selected_unit:
+                        esg_data.unit = selected_unit
+                    # NEW: Store dimension values
+                    if dimension_values:
+                        esg_data.dimension_values = dimension_values
+                    current_app.logger.info(f'Form Submit - Updated existing ESGData {esg_data.data_id}: {old_value} -> {processed_value} (unit: {selected_unit})')
                 else:
                     esg_data = ESGData(
                         entity_id=current_user.entity_id,
                         field_id=field_id,
-                        data_point_id=field_id,
                         raw_value=processed_value,
-                        reporting_date=reporting_date
+                        reporting_date=reporting_date,
+                        unit=selected_unit if selected_unit else None,
+                        dimension_values=dimension_values if dimension_values else None
                     )
                     db.session.add(esg_data)
-                    current_app.logger.info(f'CSV Upload - Created new ESGData for data_point {field_id}: {processed_value}')
+                    current_app.logger.info(f'Form Submit - Created new ESGData for field {field_id}: {processed_value} (unit: {selected_unit})')
                 
                 db.session.commit()
-                current_app.logger.info(f'CSV Upload - Database commit successful for data_point {field_id}')
+                current_app.logger.info(f'Form Submit - Database commit successful for field {field_id}')
                 
                 # Create audit log entry
                 if old_value != processed_value:
@@ -346,7 +424,7 @@ def submit_data():
                     )
                     db.session.add(audit_log)
                     db.session.commit()
-                    current_app.logger.info(f'CSV Upload - Audit log created for data_point {field_id}')
+                    current_app.logger.info(f'Form Submit - Audit log created for field {field_id}')
                 
                 # Find computed fields that depend on this raw field
                 dependent_computed_fields = (FieldVariableMapping.query
@@ -356,67 +434,67 @@ def submit_data():
                 for dep in dependent_computed_fields:
                     affected_computed_fields.add(dep.computed_field_id)
         
-        # Now process all affected computed fields using smart computation
+        # Now process all affected computed fields using aggregation service
         if affected_computed_fields:
-            # Prepare bulk computation data
-            field_entity_date_tuples = [
-                (field_id, current_user.entity_id, reporting_date) 
-                for field_id in affected_computed_fields
-            ]
-            
-            # Use smart computation that checks data availability
             successful_computations = 0
             skipped_computations = 0
             computation_messages = []
             
-            for field_id in affected_computed_fields:
-                computed_value, status_message = aggregation_service.compute_field_value_if_ready(
-                    field_id,
-                    current_user.entity_id,
-                    reporting_date
-                )
-                
-                if computed_value is not None:
-                    # Save the computed value
-                    computed_data = ESGData.query_for_tenant(db.session).filter_by(
-                        data_point_id=field_id,
-                        entity_id=current_user.entity_id,
-                        reporting_date=reporting_date
-                    ).first()
+            for computed_field_id in affected_computed_fields:
+                try:
+                    # Use aggregation service to compute the value
+                    computed_value, status_message = aggregation_service.compute_field_value_if_ready(
+                        computed_field_id,
+                        current_user.entity_id,
+                        reporting_date,
+                        force_compute=False,
+                        minimum_data_threshold=0.8  # Allow computation with 80% of expected data
+                    )
                     
-                    old_computed_value = computed_data.calculated_value if computed_data else None
-                    
-                    if not computed_data:
-                        computed_data = ESGData(
+                    if computed_value is not None:
+                        # Save the computed value
+                        computed_data = ESGData.query.filter_by(
+                            field_id=computed_field_id,
                             entity_id=current_user.entity_id,
-                            field_id=field_id,
-                            data_point_id=field_id,
-                            raw_value=None,
-                            calculated_value=computed_value,
                             reporting_date=reporting_date
-                        )
-                        db.session.add(computed_data)
+                        ).first()
+                        
+                        if not computed_data:
+                            computed_data = ESGData(
+                                entity_id=current_user.entity_id,
+                                field_id=computed_field_id,
+                                raw_value=None,
+                                calculated_value=computed_value,
+                                reporting_date=reporting_date
+                            )
+                            db.session.add(computed_data)
+                        else:
+                            computed_data.calculated_value = computed_value
+                        
+                        successful_computations += 1
+                        
+                        # Get field name for logging
+                        framework_field = FrameworkDataField.query.get(computed_field_id)
+                        field_name = framework_field.field_name if framework_field else computed_field_id
+                        current_app.logger.info(f'  ✅ Computed {field_name}: {computed_value}')
                     else:
-                        computed_data.calculated_value = computed_value
-                    
-                    db.session.commit()
-                    
-                    # Only create audit log if value changed
-                    if old_computed_value != computed_value:
-                        audit_log = ESGDataAuditLog(
-                            data_id=computed_data.data_id,
-                            change_type='Smart Computation',
-                            changed_by=current_user.id,
-                            old_value=old_computed_value,
-                            new_value=computed_value
-                        )
-                        db.session.add(audit_log)
-                        db.session.commit()
-                    
-                    successful_computations += 1
-                else:
+                        skipped_computations += 1
+                        # Get field name for logging
+                        framework_field = FrameworkDataField.query.get(computed_field_id)
+                        field_name = framework_field.field_name if framework_field else computed_field_id
+                        computation_messages.append(f"Skipped {field_name}: {status_message}")
+                        current_app.logger.info(f'  ⚠️ Skipped {field_name}: {status_message}')
+                        
+                except Exception as e:
                     skipped_computations += 1
-                    computation_messages.append(status_message)
+                    # Get field name for logging
+                    framework_field = FrameworkDataField.query.get(computed_field_id)
+                    field_name = framework_field.field_name if framework_field else computed_field_id
+                    computation_messages.append(f"Error computing {field_name}: {str(e)}")
+                    current_app.logger.error(f'Error computing {field_name}: {e}')
+            
+            # Commit all computed field changes
+            db.session.commit()
             
             # Prepare response message
             response_message = f'Data successfully saved for {reporting_date.strftime("%B %Y")}.'
@@ -426,11 +504,14 @@ def submit_data():
             
             if skipped_computations > 0:
                 response_message += f' {skipped_computations} computed field(s) skipped (insufficient data).'
+        else:
+            # No computed fields affected, just basic success message
+            response_message = f'Data successfully saved for {reporting_date.strftime("%B %Y")}.'
         
         return jsonify({
             'success': True,
             'message': response_message,
-            'redirect': url_for('user.dashboard', date=reporting_date.strftime('%Y-%m'))
+            'redirect': url_for('user.dashboard', date=reporting_date.strftime('%Y-%m-%d'))
         })
         
     except Exception as e:
@@ -477,18 +558,23 @@ def compute_multiple_fields_bulk(field_entity_date_tuples):
 def get_historical_data():
     # Note: require_tenant() is now handled by @tenant_required_for decorator
     
-    data_point_id = request.args.get('data_point_id')
-    if not data_point_id:
-        return jsonify({'error': 'Data point ID is required'}), 400
+    field_id = request.args.get('field_id')
+    if not field_id:
+        return jsonify({'error': 'Field ID is required'}), 400
     
-    # Verify data point belongs to current tenant
-    data_point = DataPoint.get_for_tenant(db.session, data_point_id)
-    if not data_point:
-        return jsonify({'error': 'Data point not found or not accessible'}), 404
+    # Verify field exists and assignment exists for user's entity
+    assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
+        field_id=field_id,
+        entity_id=current_user.entity_id,
+        is_active=True
+    ).first()
     
-    # Get historical entries for this data point and entity
+    if not assignment:
+        return jsonify({'error': 'Field not found or not accessible'}), 404
+    
+    # Get historical entries for this field and entity
     historical_entries = ESGData.query_for_tenant(db.session).filter(
-        ESGData.data_point_id == data_point_id,
+        ESGData.field_id == field_id,
         ESGData.entity_id == current_user.entity_id,
         ESGData.raw_value.isnot(None)
     ).order_by(ESGData.reporting_date.desc()).all()
@@ -502,9 +588,14 @@ def get_historical_data():
         
         # Use calculated_value if available (for computed fields), otherwise raw_value
         value = entry.calculated_value if entry.calculated_value is not None else entry.raw_value
+        
+        # Get field name from framework data field
+        field = FrameworkDataField.query.get(entry.field_id)
+        field_name = field.field_name if field else 'Unknown'
+        
         data_by_date[date_key][entry.field_id] = {
             'value': value,
-            'data_point_name': entry.data_point.name if entry.data_point else 'Unknown'
+            'field_name': field_name
         }
     
     return jsonify({
@@ -607,19 +698,15 @@ def get_attachments(data_id):
         } for att in attachments]
     })
 
-@user_bp.route('/api/valid-dates/<data_point_id>')
+@user_bp.route('/api/valid-dates/<field_id>')
 @login_required
 @tenant_required_for('USER')
-def get_valid_dates_for_user(data_point_id):
+def get_valid_dates_for_user(field_id):
     # Note: require_tenant() is now handled by @tenant_required_for decorator
     
-    # Verify data point belongs to current tenant
-    data_point = DataPoint.get_for_tenant(db.session, data_point_id)
-    if not data_point:
-        return jsonify({'error': 'Data point not found or not accessible'}), 404
-    
+    # Get assignment for this field and entity
     assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
-        data_point_id=data_point_id,
+        field_id=field_id,
         entity_id=current_user.entity_id,
         is_active=True
     ).first()
@@ -650,10 +737,10 @@ def validate_reporting_date():
     # Note: require_tenant() is now handled by @tenant_required_for decorator
     
     data = request.get_json()
-    data_point_id = data.get('data_point_id')
+    field_id = data.get('field_id')
     reporting_date_str = data.get('reporting_date')
     
-    if not data_point_id or not reporting_date_str:
+    if not field_id or not reporting_date_str:
         return jsonify({'valid': False, 'error': 'Missing required parameters'}), 400
     
     try:
@@ -661,13 +748,9 @@ def validate_reporting_date():
     except ValueError:
         return jsonify({'valid': False, 'error': 'Invalid date format'}), 400
     
-    # Verify data point belongs to current tenant
-    data_point = DataPoint.get_for_tenant(db.session, data_point_id)
-    if not data_point:
-        return jsonify({'valid': False, 'error': 'Data point not found or not accessible'}), 404
-    
+    # Get assignment for this field and entity
     assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
-        data_point_id=data_point_id,
+        field_id=field_id,
         entity_id=current_user.entity_id,
         is_active=True
     ).first()
@@ -703,7 +786,7 @@ def get_user_assignment_configurations():
     # Get active assignments for user's entity
     assignments = DataPointAssignment.query_for_tenant(db.session).filter(
         DataPointAssignment.entity_id == current_user.entity_id,
-        DataPointAssignment.is_active == True
+        DataPointAssignment.series_status == 'active'
     ).all()
     
     if not assignments:
@@ -719,12 +802,12 @@ def get_user_assignment_configurations():
     date_to_data_points = {}
     
     for assignment in assignments:
-        data_point = assignment.data_point
+        field = assignment.field  # Use the field relationship instead of data_point
         valid_dates = assignment.get_valid_reporting_dates()
         
-        configurations[str(assignment.data_point_id)] = {
-            'data_point_id': assignment.data_point_id,
-            'data_point_name': data_point.name,
+        configurations[str(assignment.field_id)] = {
+            'field_id': assignment.field_id,
+            'data_point_name': field.field_name,  # Use field_name instead of name
             'frequency': assignment.frequency,
             'fy_display': assignment.get_fy_display(),
             'fy_start_month': assignment.fy_start_month,
@@ -742,8 +825,8 @@ def get_user_assignment_configurations():
                 date_to_data_points[date_str] = []
             
             date_to_data_points[date_str].append({
-                'id': assignment.data_point_id,
-                'name': data_point.name,
+                'id': assignment.field_id,
+                'name': field.field_name,  # Use field_name instead of name
                 'frequency': assignment.frequency,
                 'fy_display': assignment.get_fy_display()
             })
@@ -862,35 +945,17 @@ def upload_csv():
             entity_ids.append(current_entity.parent_id)
             current_entity = Entity.get_for_tenant(db.session, current_entity.parent_id)
         
-        # Get all data points assigned to these entities
-        all_data_points = (DataPoint.query_for_tenant(db.session)
-                         .join(DataPoint.entities)
-                         .filter(Entity.id.in_(entity_ids))
+        # Get all assignments for these entities 
+        all_assignments = (DataPointAssignment.query_for_tenant(db.session)
+                         .filter(DataPointAssignment.entity_id.in_(entity_ids))
+                         .filter(DataPointAssignment.series_status == 'active')
                          .all())
         
-        # Build a mapping of data point names to data points (with frequency validation if provided)
-        valid_data_points = {}
-        for dp in all_data_points:
-            # Check if there's an assignment for this data point
-            assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
-                data_point_id=dp.id,
-                entity_id=current_user.entity_id,
-                is_active=True
-            ).first()
-            
-            # If no direct assignment, check parent entities
-            if not assignment:
-                for parent_entity_id in entity_ids[1:]:  # Skip current entity, already checked
-                    assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
-                        data_point_id=dp.id,
-                        entity_id=parent_entity_id,
-                        is_active=True
-                    ).first()
-                    if assignment:
-                        break
-            
-            # If we have an assignment and it's valid for this date, add to valid list
-            if assignment and assignment.is_valid_reporting_date(row_reporting_date):
+        # Build a mapping of field names to assignments (with frequency validation if provided)
+        valid_assignments = {}
+        for assignment in all_assignments:
+            # Check if assignment is valid for this date
+            if assignment.is_valid_reporting_date(row_reporting_date):
                 # If frequency is provided in CSV, validate it matches (case-insensitive)
                 if has_frequency_column and frequency:
                     assignment_frequency = assignment.frequency.lower().strip()
@@ -899,18 +964,23 @@ def upload_csv():
                     if assignment_frequency != csv_frequency:
                         warnings.append(f'Row {row_num}: Frequency mismatch for "{data_point_name}" - Expected: {assignment.frequency}, Found: {frequency}. Processing anyway.')
                 
-                # Use multiple variations of the name for matching
-                name_variations = [
-                    dp.name.lower().strip(),
-                    dp.name.strip(),  # Original case
-                    dp.name.replace(' ', '').lower(),  # No spaces
-                    dp.name.replace('_', ' ').lower().strip(),  # Underscores to spaces
-                    dp.name.replace('-', ' ').lower().strip(),  # Hyphens to spaces
-                ]
-                for name_var in name_variations:
-                    valid_data_points[name_var] = dp
+                # Get field name from FrameworkDataField
+                framework_field = FrameworkDataField.query.get(assignment.field_id)
+                if framework_field:
+                    field_name = framework_field.field_name
+                    
+                    # Use multiple variations of the name for matching
+                    name_variations = [
+                        field_name.lower().strip(),
+                        field_name.strip(),  # Original case
+                        field_name.replace(' ', '').lower(),  # No spaces
+                        field_name.replace('_', ' ').lower().strip(),  # Underscores to spaces
+                        field_name.replace('-', ' ').lower().strip(),  # Hyphens to spaces
+                    ]
+                    for name_var in name_variations:
+                        valid_assignments[name_var] = assignment
         
-        # Find matching data point (try multiple variations)
+        # Find matching assignment (try multiple variations)
         search_variations = [
             data_point_name.lower().strip(),
             data_point_name.strip(),  # Original case
@@ -919,32 +989,37 @@ def upload_csv():
             data_point_name.replace('-', ' ').lower().strip(),  # Hyphens to spaces
         ]
         
-        data_point = None
+        assignment = None
         for search_var in search_variations:
-            data_point = valid_data_points.get(search_var)
-            if data_point:
+            assignment = valid_assignments.get(search_var)
+            if assignment:
                 break
         
-        if not data_point:
+        if not assignment:
             # Provide more detailed error message
-            available_names = list(set([dp.name for dp in valid_data_points.values()]))
-            errors.append(f'Row {row_num}: Data point "{data_point_name}" not found. Available data points for {reporting_date_str}: {", ".join(available_names[:5])}{"..." if len(available_names) > 5 else ""}')
-            current_app.logger.warning(f'CSV Upload - Data point not found: "{data_point_name}" for user {current_user.id}')
+            available_names = []
+            for assign in valid_assignments.values():
+                framework_field = FrameworkDataField.query.get(assign.field_id)
+                if framework_field:
+                    available_names.append(framework_field.field_name)
+            available_names = list(set(available_names))
+            errors.append(f'Row {row_num}: Field "{data_point_name}" not found. Available fields for {reporting_date_str}: {", ".join(available_names[:5])}{"..." if len(available_names) > 5 else ""}')
+            current_app.logger.warning(f'CSV Upload - Field not found: "{data_point_name}" for user {current_user.id}')
             continue
         
         # Add debug log for successful match
-        current_app.logger.info(f'CSV Upload - Found data point: "{data_point_name}" -> {data_point.id} for date {row_reporting_date}')
+        current_app.logger.info(f'CSV Upload - Found field: "{data_point_name}" -> {assignment.field_id} for date {row_reporting_date}')
         
         try:
-            # Convert value based on data point type
-            if data_point.value_type == 'numeric':
+            # Convert value based on assignment value type
+            if assignment.value_type == 'numeric':
                 processed_value = float(value)
             else:
                 processed_value = str(value)
             
             # Find or create ESGData entry
             esg_data = ESGData.query_for_tenant(db.session).filter_by(
-                data_point_id=data_point.id,
+                field_id=assignment.field_id,
                 entity_id=current_user.entity_id,
                 reporting_date=row_reporting_date
             ).first()
@@ -957,16 +1032,15 @@ def upload_csv():
             else:
                 esg_data = ESGData(
                     entity_id=current_user.entity_id,
-                    field_id=data_point.id,
-                    data_point_id=data_point.id,
+                    field_id=assignment.field_id,
                     raw_value=processed_value,
                     reporting_date=row_reporting_date
                 )
                 db.session.add(esg_data)
-                current_app.logger.info(f'CSV Upload - Created new ESGData for data_point {data_point.id}: {processed_value}')
+                current_app.logger.info(f'CSV Upload - Created new ESGData for field {assignment.field_id}: {processed_value}')
             
             db.session.commit()
-            current_app.logger.info(f'CSV Upload - Database commit successful for data_point {data_point.id}')
+            current_app.logger.info(f'CSV Upload - Database commit successful for field {assignment.field_id}')
             
             # Create audit log entry
             if old_value != processed_value:
@@ -979,12 +1053,12 @@ def upload_csv():
                 )
                 db.session.add(audit_log)
                 db.session.commit()
-                current_app.logger.info(f'CSV Upload - Audit log created for data_point {data_point.id}')
+                current_app.logger.info(f'CSV Upload - Audit log created for field {assignment.field_id}')
             
             processed_count += 1
             
         except ValueError as e:
-            errors.append(f'Row {row_num}: Invalid value "{value}" for {data_point_name} ({data_point.value_type})')
+            errors.append(f'Row {row_num}: Invalid value "{value}" for {data_point_name} ({assignment.value_type})')
         except Exception as e:
             errors.append(f'Row {row_num}: Error processing {data_point_name}: {str(e)}')
     
@@ -1002,7 +1076,7 @@ def upload_csv():
         
         for esg_data in updated_data_points:
             dependent_computed_fields = (FieldVariableMapping.query
-                .filter_by(raw_field_id=esg_data.data_point_id)
+                .filter_by(raw_field_id=esg_data.field_id)
                 .all())
             
             for dep in dependent_computed_fields:
@@ -1020,7 +1094,7 @@ def upload_csv():
         for (computed_field_id, entity_id, processed_date), computed_value in computed_results.items():
             if computed_value is not None:
                 computed_data = ESGData.query_for_tenant(db.session).filter_by(
-                    data_point_id=computed_field_id,
+                    field_id=computed_field_id,
                     entity_id=current_user.entity_id,
                     reporting_date=processed_date
                 ).first()
@@ -1029,7 +1103,6 @@ def upload_csv():
                     computed_data = ESGData(
                         entity_id=current_user.entity_id,
                         field_id=computed_field_id,
-                        data_point_id=computed_field_id,
                         raw_value=None,
                         calculated_value=computed_value,
                         reporting_date=processed_date
@@ -1070,10 +1143,14 @@ def debug_esg_data():
     
     entries_data = []
     for entry in all_entries:
+        # Get field name from FrameworkDataField
+        field = FrameworkDataField.query.get(entry.field_id)
+        field_name = field.field_name if field else 'Unknown'
+        
         entries_data.append({
             'data_id': entry.data_id,
-            'data_point_id': entry.data_point_id,
-            'data_point_name': entry.data_point.name if entry.data_point else 'Unknown',
+            'field_id': entry.field_id,
+            'field_name': field_name,
             'raw_value': entry.raw_value,
             'calculated_value': entry.calculated_value,
             'reporting_date': entry.reporting_date.strftime('%Y-%m-%d'),
@@ -1087,20 +1164,25 @@ def debug_esg_data():
         'entries': entries_data
     })
 
-@user_bp.route('/api/data-point-attachments/<data_point_id>')
+@user_bp.route('/api/field-attachments/<field_id>')
 @login_required
 @tenant_required_for('USER')
-def get_data_point_attachments(data_point_id):
+def get_field_attachments(field_id):
     # Note: require_tenant() is now handled by @tenant_required_for decorator
     
-    # Verify data point belongs to current tenant
-    data_point = DataPoint.get_for_tenant(db.session, data_point_id)
-    if not data_point:
-        return jsonify({'error': 'Data point not found or not accessible'}), 404
+    # Verify field assignment exists for current user's entity
+    assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
+        field_id=field_id,
+        entity_id=current_user.entity_id,
+        is_active=True
+    ).first()
     
-    # Get ESG data for this data point and entity
+    if not assignment:
+        return jsonify({'error': 'Field not found or not accessible'}), 404
+    
+    # Get ESG data for this field and entity
     esg_data = ESGData.query_for_tenant(db.session).filter_by(
-        data_point_id=data_point_id,
+        field_id=field_id,
         entity_id=current_user.entity_id
     ).first()
     
@@ -1178,9 +1260,14 @@ def delete_attachment(attachment_id):
 def get_field_aggregation_details(computed_field_id):
     # Note: require_tenant() is now handled by @tenant_required_for decorator
     
-    # Verify computed field belongs to current tenant
-    computed_field = DataPoint.get_for_tenant(db.session, computed_field_id)
-    if not computed_field:
+    # Verify computed field assignment exists for current user's entity
+    assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
+        field_id=computed_field_id,
+        entity_id=current_user.entity_id,
+        is_active=True
+    ).first()
+    
+    if not assignment:
         return jsonify({'error': 'Computed field not found or not accessible'}), 404
     
     reporting_date_str = request.args.get('reporting_date')
@@ -1194,7 +1281,7 @@ def get_field_aggregation_details(computed_field_id):
 
     # Get computed data for this field, entity, and date
     computed_data = ESGData.query_for_tenant(db.session).filter_by(
-        data_point_id=computed_field_id,
+        field_id=computed_field_id,
         entity_id=current_user.entity_id,
         reporting_date=reporting_date
     ).first()
@@ -1242,14 +1329,19 @@ def compute_field_on_demand():
     
     reporting_date = datetime.strptime(reporting_date_str, '%Y-%m-%d').date()
     
-    # Verify computed field belongs to current tenant
-    computed_field = DataPoint.get_for_tenant(db.session, computed_field_id)
-    if not computed_field:
+    # Verify computed field assignment exists for current user's entity
+    assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
+        field_id=computed_field_id,
+        entity_id=current_user.entity_id,
+        is_active=True
+    ).first()
+    
+    if not assignment:
         return jsonify({'success': False, 'error': 'Computed field not found or not accessible'}), 404
 
     # Check if value already exists
     existing_data = ESGData.query_for_tenant(db.session).filter_by(
-        data_point_id=computed_field_id,
+        field_id=computed_field_id,
         entity_id=current_user.entity_id,
         reporting_date=reporting_date
     ).first()
@@ -1279,7 +1371,6 @@ def compute_field_on_demand():
             existing_data = ESGData(
                 entity_id=current_user.entity_id,
                 field_id=computed_field_id,
-                data_point_id=computed_field_id,
                 raw_value=None,
                 calculated_value=computed_value,
                 reporting_date=reporting_date
@@ -1332,9 +1423,14 @@ def check_computation_eligibility():
     
     reporting_date = datetime.strptime(reporting_date_str, '%Y-%m-%d').date()
     
-    # Verify computed field belongs to current tenant
-    computed_field = DataPoint.get_for_tenant(db.session, computed_field_id)
-    if not computed_field:
+    # Verify computed field assignment exists for current user's entity
+    assignment = DataPointAssignment.query_for_tenant(db.session).filter_by(
+        field_id=computed_field_id,
+        entity_id=current_user.entity_id,
+        is_active=True
+    ).first()
+    
+    if not assignment:
         return jsonify({'eligible': False, 'reason': 'Computed field not found or not accessible'})
 
     should_compute, reason = aggregation_service.should_compute_field(
@@ -1365,31 +1461,28 @@ def debug_dashboard_data():
         FrameworkDataField,
         FrameworkDataField.description,
         FrameworkDataField.is_computed,
-        FrameworkDataField.formula_expression,
-        Entity.id.label('assigned_entity_id'),
-        Entity.name.label('assigned_entity_name')
+        FrameworkDataField.formula_expression
     )
-    .join(DataPointAssignment, FrameworkDataField.field_id == DataPointAssignment.data_point_id)
+    .join(DataPointAssignment, FrameworkDataField.field_id == DataPointAssignment.field_id)
     .join(Entity, DataPointAssignment.entity_id == Entity.id)
     .filter(
         DataPointAssignment.entity_id == current_user.entity_id,
-        DataPointAssignment.is_active == True,
+        DataPointAssignment.series_status == 'active',
         FrameworkDataField.is_computed == True
     )
     .distinct()
     .all())
     
     computed_points = []
-    for dp, desc, is_computed, formula, assigned_entity_id, assigned_entity_name in computed_fields_query:
+    for dp, desc, is_computed, formula in computed_fields_query:
         point_data = {
             'id': dp.field_id,
             'name': dp.field_name,
             'value_type': dp.value_type,
-            'unit': dp.unit,
+            'unit': dp.default_unit,
             'description': desc,
             'is_computed': is_computed,
             'formula': formula,
-            'assigned_entity': assigned_entity_name,
             'dependencies': []
         }
         
@@ -1416,7 +1509,7 @@ def debug_dashboard_data():
     
     entity_data_entries = {}
     for entry in esg_data:
-        entity_data_entries[entry.data_point_id] = {
+        entity_data_entries[entry.field_id] = {
             'raw_value': entry.raw_value,
             'calculated_value': entry.calculated_value,
             'entity_id': entry.entity_id,
@@ -1425,7 +1518,7 @@ def debug_dashboard_data():
     
     debug_info = {
         'user_id': current_user.id,
-        'username': current_user.username,
+        'username': current_user.name,
         'entity_id': current_user.entity_id,
         'selected_date': selected_date.strftime('%Y-%m-%d'),
         'computed_points': computed_points,

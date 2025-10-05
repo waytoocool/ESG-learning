@@ -1,0 +1,882 @@
+/**
+ * HistoryModule.js
+ *
+ * Assignment History and Version Comparison Module
+ *
+ * This module handles all history-related operations including:
+ * - Timeline view of assignment changes
+ * - Version comparison and diff visualization
+ * - Historical filtering and search
+ * - Assignment history details
+ * - Change tracking and audit trail
+ *
+ * Dependencies: ServicesModule, VersioningModule, AppEvents
+ *
+ * @version 1.0.0
+ * @date 2025-01-30
+ */
+
+(function() {
+    'use strict';
+
+    // Module-level state
+    const state = {
+        historyData: [],
+        activeFilters: {},
+        selectedVersions: [],
+        currentPage: 1,
+        totalPages: 1,
+        isLoading: false,
+        initialized: false
+    };
+
+    // Configuration
+    const CONFIG = {
+        itemsPerPage: 20,
+        maxSelectedVersions: 2,  // For comparison
+        autoRefreshInterval: 60000  // Auto-refresh every minute
+    };
+
+    /**
+     * Initialize the HistoryModule
+     */
+    function init() {
+        if (state.initialized) {
+            console.warn('[HistoryModule] Already initialized');
+            return;
+        }
+
+        console.log('[HistoryModule] Initializing...');
+
+        // Set up event listeners
+        setupEventListeners();
+
+        // Bind UI elements (if on history page)
+        if (isHistoryPageActive()) {
+            bindUIElements();
+            loadAssignmentHistory();
+        }
+
+        state.initialized = true;
+        console.log('[HistoryModule] Initialization complete');
+    }
+
+    /**
+     * Check if history page is active
+     */
+    function isHistoryPageActive() {
+        return document.getElementById('historyTimeline') !== null ||
+               document.getElementById('timelineContainer') !== null;
+    }
+
+    /**
+     * Set up event listeners
+     */
+    function setupEventListeners() {
+        if (!window.AppEvents) {
+            console.error('[HistoryModule] AppEvents not available');
+            return;
+        }
+
+        // Listen for version-related events
+        window.AppEvents.on('version-created', handleVersionCreated);
+        window.AppEvents.on('version-superseded', handleVersionSuperseded);
+        window.AppEvents.on('assignment-deleted', handleAssignmentDeleted);
+
+        console.log('[HistoryModule] Event listeners registered');
+    }
+
+    /**
+     * Bind UI elements
+     */
+    function bindUIElements() {
+        // Filter controls
+        const fieldFilter = document.getElementById('fieldFilter');
+        const entityFilter = document.getElementById('entityFilter');
+        const dateFromFilter = document.getElementById('dateFromFilter');
+        const dateToFilter = document.getElementById('dateToFilter');
+        const searchFilter = document.getElementById('searchFilter');
+
+        if (fieldFilter) {
+            fieldFilter.addEventListener('change', () => handleFilterChange());
+        }
+        if (entityFilter) {
+            entityFilter.addEventListener('change', () => handleFilterChange());
+        }
+        if (dateFromFilter) {
+            dateFromFilter.addEventListener('change', () => handleFilterChange());
+        }
+        if (dateToFilter) {
+            dateToFilter.addEventListener('change', () => handleFilterChange());
+        }
+
+        // Search with debounce
+        if (searchFilter) {
+            let searchTimeout;
+            searchFilter.addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => handleFilterChange(), 500);
+            });
+        }
+
+        // Clear filters button
+        const clearFiltersBtn = document.getElementById('clearFilters');
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', () => clearFilters());
+        }
+
+        // Compare versions button
+        const compareBtn = document.getElementById('compareVersions');
+        if (compareBtn) {
+            compareBtn.addEventListener('click', () => compareSelectedVersions());
+        }
+
+        console.log('[HistoryModule] UI elements bound');
+    }
+
+    /**
+     * Load assignment history
+     */
+    async function loadAssignmentHistory(filters = {}) {
+        if (state.isLoading) {
+            console.log('[HistoryModule] Already loading history');
+            return;
+        }
+
+        console.log('[HistoryModule] Loading assignment history with filters:', filters);
+
+        state.isLoading = true;
+        showLoadingState();
+
+        try {
+            // Build query parameters
+            const params = buildQueryParams(filters);
+
+            // Call API
+            const response = await window.ServicesModule.apiCall(
+                `/api/assignments/history?${params}`
+            );
+
+            state.historyData = response.history || [];
+            state.totalPages = Math.ceil(state.historyData.length / CONFIG.itemsPerPage);
+
+            // Render timeline
+            renderHistoryTimeline(state.historyData);
+
+            // Emit event
+            if (window.AppEvents) {
+                window.AppEvents.emit('history-loaded', {
+                    count: state.historyData.length,
+                    filters: filters
+                });
+            }
+
+            console.log('[HistoryModule] History loaded:', state.historyData.length, 'items');
+
+        } catch (error) {
+            console.error('[HistoryModule] Error loading history:', error);
+            showErrorState('Failed to load history. Please try again.');
+        } finally {
+            state.isLoading = false;
+            hideLoadingState();
+        }
+    }
+
+    /**
+     * Build query parameters from filters
+     */
+    function buildQueryParams(filters) {
+        const params = new URLSearchParams();
+
+        if (filters.field_id) {
+            params.append('field_id', filters.field_id);
+        }
+        if (filters.entity_id) {
+            params.append('entity_id', filters.entity_id);
+        }
+        if (filters.date_from) {
+            params.append('date_from', filters.date_from);
+        }
+        if (filters.date_to) {
+            params.append('date_to', filters.date_to);
+        }
+        if (filters.search) {
+            params.append('search', filters.search);
+        }
+        if (state.currentPage) {
+            params.append('page', state.currentPage);
+        }
+        params.append('per_page', CONFIG.itemsPerPage);
+
+        return params.toString();
+    }
+
+    /**
+     * Render history timeline
+     */
+    function renderHistoryTimeline(historyData) {
+        console.log('[HistoryModule] Rendering timeline with', historyData.length, 'items');
+
+        const timelineContainer = document.getElementById('historyTimeline') ||
+                                 document.getElementById('timelineContainer');
+
+        if (!timelineContainer) {
+            console.warn('[HistoryModule] Timeline container not found');
+            return;
+        }
+
+        if (historyData.length === 0) {
+            showEmptyState();
+            return;
+        }
+
+        // Group by date
+        const groupedHistory = groupHistoryByDate(historyData);
+
+        // Generate HTML
+        const html = Object.keys(groupedHistory).map(date => {
+            const items = groupedHistory[date];
+            return `
+                <div class="timeline-date-group">
+                    <div class="timeline-date-header">
+                        <h4>${formatDateHeader(date)}</h4>
+                        <span class="item-count">${items.length} changes</span>
+                    </div>
+                    ${items.map(item => createTimelineItem(item)).join('')}
+                </div>
+            `;
+        }).join('');
+
+        timelineContainer.innerHTML = html;
+
+        // Bind item click events
+        bindTimelineItemEvents();
+
+        // Update pagination
+        updatePagination();
+    }
+
+    /**
+     * Group history items by date
+     */
+    function groupHistoryByDate(historyData) {
+        const grouped = {};
+
+        historyData.forEach(item => {
+            const date = item.created_at ? item.created_at.split('T')[0] : 'Unknown';
+
+            if (!grouped[date]) {
+                grouped[date] = [];
+            }
+
+            grouped[date].push(item);
+        });
+
+        return grouped;
+    }
+
+    /**
+     * Format date header
+     */
+    function formatDateHeader(dateString) {
+        const date = new Date(dateString);
+
+        if (isNaN(date)) {
+            return dateString;
+        }
+
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        const dateStr = date.toDateString();
+        const todayStr = today.toDateString();
+        const yesterdayStr = yesterday.toDateString();
+
+        if (dateStr === todayStr) {
+            return 'Today';
+        } else if (dateStr === yesterdayStr) {
+            return 'Yesterday';
+        } else {
+            return date.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+    }
+
+    /**
+     * Create timeline item HTML
+     */
+    function createTimelineItem(item) {
+        const statusClass = getStatusClass(item.series_status);
+        const statusIcon = getStatusIcon(item.series_status);
+        const changeType = getChangeType(item);
+
+        return `
+            <div class="timeline-item" data-assignment-id="${item.id}" data-version="${item.series_version}">
+                <div class="timeline-marker ${statusClass}">
+                    <i class="fas ${statusIcon}"></i>
+                </div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <h5 class="timeline-title">
+                            ${item.field_name || item.field_id}
+                            <span class="version-badge">v${item.series_version}</span>
+                        </h5>
+                        <span class="timeline-time">${formatTime(item.created_at)}</span>
+                    </div>
+                    <div class="timeline-body">
+                        <div class="timeline-meta">
+                            <span class="meta-item">
+                                <i class="fas fa-building"></i>
+                                ${item.entity_name || 'Entity ' + item.entity_id}
+                            </span>
+                            <span class="meta-item">
+                                <i class="fas fa-user"></i>
+                                ${item.created_by_name || 'Unknown'}
+                            </span>
+                            <span class="meta-item">
+                                <i class="fas fa-tag"></i>
+                                ${item.frequency}
+                            </span>
+                        </div>
+                        <div class="timeline-description">
+                            ${changeType}
+                        </div>
+                    </div>
+                    <div class="timeline-actions">
+                        <button class="btn-view-details" data-assignment-id="${item.id}">
+                            <i class="fas fa-info-circle"></i> Details
+                        </button>
+                        <button class="btn-select-version" data-assignment-id="${item.id}">
+                            <i class="fas fa-check-square"></i> Compare
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Get status CSS class
+     */
+    function getStatusClass(status) {
+        const statusMap = {
+            'active': 'status-active',
+            'superseded': 'status-superseded',
+            'draft': 'status-draft',
+            'inactive': 'status-inactive'
+        };
+
+        return statusMap[status] || 'status-unknown';
+    }
+
+    /**
+     * Get status icon
+     */
+    function getStatusIcon(status) {
+        const iconMap = {
+            'active': 'fa-check-circle',
+            'superseded': 'fa-archive',
+            'draft': 'fa-edit',
+            'inactive': 'fa-times-circle'
+        };
+
+        return iconMap[status] || 'fa-question-circle';
+    }
+
+    /**
+     * Get change type description
+     */
+    function getChangeType(item) {
+        if (item.series_version === 1) {
+            return '📝 Initial assignment created';
+        } else if (item.series_status === 'superseded') {
+            return `🔄 Updated to version ${item.series_version + 1}`;
+        } else if (item.series_status === 'active') {
+            return `✨ Version ${item.series_version} activated`;
+        } else {
+            return '📋 Assignment modified';
+        }
+    }
+
+    /**
+     * Format timestamp
+     */
+    function formatTime(timestamp) {
+        if (!timestamp) return '';
+
+        const date = new Date(timestamp);
+
+        if (isNaN(date)) return timestamp;
+
+        return date.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    /**
+     * Bind timeline item events
+     */
+    function bindTimelineItemEvents() {
+        // View details buttons
+        document.querySelectorAll('.btn-view-details').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const assignmentId = e.currentTarget.dataset.assignmentId;
+                showHistoryDetails(assignmentId);
+            });
+        });
+
+        // Select for comparison buttons
+        document.querySelectorAll('.btn-select-version').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const assignmentId = e.currentTarget.dataset.assignmentId;
+                toggleVersionSelection(assignmentId);
+            });
+        });
+    }
+
+    /**
+     * Show history details modal
+     */
+    async function showHistoryDetails(assignmentId) {
+        console.log('[HistoryModule] Showing details for assignment:', assignmentId);
+
+        try {
+            const versionData = await window.ServicesModule.callAPI(
+                `/api/assignments/version/${assignmentId}`,
+                'GET'
+            );
+
+            // Display in modal or panel
+            displayVersionDetails(versionData.assignment);
+
+            // Emit event
+            if (window.AppEvents) {
+                window.AppEvents.emit('version-selected', {
+                    assignmentId: assignmentId,
+                    version: versionData.assignment
+                });
+            }
+
+        } catch (error) {
+            console.error('[HistoryModule] Error loading version details:', error);
+            if (window.ServicesModule) {
+                window.ServicesModule.showMessage('Failed to load version details', 'error');
+            }
+        }
+    }
+
+    /**
+     * Display version details
+     */
+    function displayVersionDetails(version) {
+        // Implementation depends on UI design
+        // For now, show in alert (should be modal in production)
+        const details = `
+Version ${version.series_version} Details:
+- Status: ${version.series_status}
+- Field: ${version.field_name || version.field_id}
+- Entity: ${version.entity_name || 'Entity ' + version.entity_id}
+- Frequency: ${version.frequency}
+- Created: ${new Date(version.created_at).toLocaleString()}
+- Created By: ${version.created_by_name || 'Unknown'}
+        `;
+
+        alert(details); // Replace with proper modal
+    }
+
+    /**
+     * Toggle version selection for comparison
+     */
+    function toggleVersionSelection(assignmentId) {
+        const index = state.selectedVersions.indexOf(assignmentId);
+
+        if (index === -1) {
+            // Add to selection
+            if (state.selectedVersions.length >= CONFIG.maxSelectedVersions) {
+                if (window.ServicesModule) {
+                    window.ServicesModule.showMessage(
+                        `You can only select ${CONFIG.maxSelectedVersions} versions for comparison`,
+                        'warning'
+                    );
+                }
+                return;
+            }
+
+            state.selectedVersions.push(assignmentId);
+        } else {
+            // Remove from selection
+            state.selectedVersions.splice(index, 1);
+        }
+
+        // Update UI
+        updateSelectionUI();
+
+        console.log('[HistoryModule] Selected versions:', state.selectedVersions);
+    }
+
+    /**
+     * Update selection UI
+     */
+    function updateSelectionUI() {
+        // Update button states
+        document.querySelectorAll('.btn-select-version').forEach(btn => {
+            const assignmentId = btn.dataset.assignmentId;
+            if (state.selectedVersions.includes(assignmentId)) {
+                btn.classList.add('selected');
+                btn.innerHTML = '<i class="fas fa-check-square"></i> Selected';
+            } else {
+                btn.classList.remove('selected');
+                btn.innerHTML = '<i class="fas fa-check-square"></i> Compare';
+            }
+        });
+
+        // Enable/disable compare button
+        const compareBtn = document.getElementById('compareVersions');
+        if (compareBtn) {
+            compareBtn.disabled = state.selectedVersions.length !== CONFIG.maxSelectedVersions;
+        }
+    }
+
+    /**
+     * Compare selected versions
+     */
+    async function compareSelectedVersions() {
+        if (state.selectedVersions.length !== CONFIG.maxSelectedVersions) {
+            console.warn('[HistoryModule] Need exactly 2 versions to compare');
+            return;
+        }
+
+        console.log('[HistoryModule] Comparing versions:', state.selectedVersions);
+
+        try {
+            const [version1Id, version2Id] = state.selectedVersions;
+
+            const response = await window.ServicesModule.callAPI(
+                `/api/assignments/compare/${version1Id}/${version2Id}`,
+                'GET'
+            );
+
+            const diff = calculateDiff(response.version1, response.version2);
+
+            displayVersionDiff(diff, response.version1, response.version2);
+
+            // Emit event
+            if (window.AppEvents) {
+                window.AppEvents.emit('comparison-requested', {
+                    version1Id,
+                    version2Id,
+                    diff
+                });
+            }
+
+        } catch (error) {
+            console.error('[HistoryModule] Error comparing versions:', error);
+            if (window.ServicesModule) {
+                window.ServicesModule.showMessage('Failed to compare versions', 'error');
+            }
+        }
+    }
+
+    /**
+     * Calculate diff between two versions
+     */
+    function calculateDiff(version1, version2) {
+        const diff = {
+            added: [],
+            removed: [],
+            changed: []
+        };
+
+        // Get all keys from both versions
+        const allKeys = new Set([
+            ...Object.keys(version1),
+            ...Object.keys(version2)
+        ]);
+
+        // Fields to compare
+        const compareFields = ['frequency', 'unit', 'required', 'start_date', 'end_date', 'notes'];
+
+        allKeys.forEach(key => {
+            if (!compareFields.includes(key)) return;
+
+            const val1 = version1[key];
+            const val2 = version2[key];
+
+            if (val1 === undefined && val2 !== undefined) {
+                diff.added.push({ field: key, value: val2 });
+            } else if (val1 !== undefined && val2 === undefined) {
+                diff.removed.push({ field: key, value: val1 });
+            } else if (val1 !== val2) {
+                diff.changed.push({ field: key, oldValue: val1, newValue: val2 });
+            }
+        });
+
+        return diff;
+    }
+
+    /**
+     * Display version diff
+     */
+    function displayVersionDiff(diff, version1, version2) {
+        console.log('[HistoryModule] Displaying version diff');
+
+        // Create diff summary
+        let summary = `Comparing Version ${version1.series_version} with Version ${version2.series_version}\n\n`;
+
+        if (diff.added.length > 0) {
+            summary += 'Added:\n';
+            diff.added.forEach(item => {
+                summary += `  + ${item.field}: ${item.value}\n`;
+            });
+            summary += '\n';
+        }
+
+        if (diff.removed.length > 0) {
+            summary += 'Removed:\n';
+            diff.removed.forEach(item => {
+                summary += `  - ${item.field}: ${item.value}\n`;
+            });
+            summary += '\n';
+        }
+
+        if (diff.changed.length > 0) {
+            summary += 'Changed:\n';
+            diff.changed.forEach(item => {
+                summary += `  ${item.field}: ${item.oldValue} → ${item.newValue}\n`;
+            });
+            summary += '\n';
+        }
+
+        if (diff.added.length === 0 && diff.removed.length === 0 && diff.changed.length === 0) {
+            summary += 'No differences found.\n';
+        }
+
+        alert(summary); // Replace with proper diff modal
+    }
+
+    /**
+     * Filter history by date range
+     */
+    function filterHistoryByDate(startDate, endDate) {
+        console.log('[HistoryModule] Filtering by date range:', startDate, endDate);
+
+        state.activeFilters.date_from = startDate;
+        state.activeFilters.date_to = endDate;
+
+        loadAssignmentHistory(state.activeFilters);
+
+        // Emit event
+        if (window.AppEvents) {
+            window.AppEvents.emit('history-filter-changed', state.activeFilters);
+        }
+    }
+
+    /**
+     * Handle filter change
+     */
+    function handleFilterChange() {
+        console.log('[HistoryModule] Filters changed');
+
+        // Collect filter values
+        const fieldFilter = document.getElementById('fieldFilter');
+        const entityFilter = document.getElementById('entityFilter');
+        const dateFromFilter = document.getElementById('dateFromFilter');
+        const dateToFilter = document.getElementById('dateToFilter');
+        const searchFilter = document.getElementById('searchFilter');
+
+        state.activeFilters = {
+            field_id: fieldFilter?.value || null,
+            entity_id: entityFilter?.value || null,
+            date_from: dateFromFilter?.value || null,
+            date_to: dateToFilter?.value || null,
+            search: searchFilter?.value || null
+        };
+
+        // Remove null values
+        Object.keys(state.activeFilters).forEach(key => {
+            if (!state.activeFilters[key]) {
+                delete state.activeFilters[key];
+            }
+        });
+
+        // Reset to first page
+        state.currentPage = 1;
+
+        // Reload history with filters
+        loadAssignmentHistory(state.activeFilters);
+    }
+
+    /**
+     * Clear all filters
+     */
+    function clearFilters() {
+        console.log('[HistoryModule] Clearing filters');
+
+        // Reset filter controls
+        document.querySelectorAll('#fieldFilter, #entityFilter, #dateFromFilter, #dateToFilter, #searchFilter').forEach(element => {
+            if (element) {
+                element.value = '';
+            }
+        });
+
+        // Clear state
+        state.activeFilters = {};
+        state.currentPage = 1;
+
+        // Reload history
+        loadAssignmentHistory();
+    }
+
+    /**
+     * Update pagination
+     */
+    function updatePagination() {
+        const paginationContainer = document.getElementById('paginationContainer');
+
+        if (!paginationContainer || state.totalPages <= 1) {
+            if (paginationContainer) {
+                paginationContainer.innerHTML = '';
+            }
+            return;
+        }
+
+        // Generate pagination HTML (simplified)
+        let html = '<div class="pagination">';
+
+        for (let i = 1; i <= state.totalPages; i++) {
+            const active = i === state.currentPage ? 'active' : '';
+            html += `<button class="page-btn ${active}" data-page="${i}">${i}</button>`;
+        }
+
+        html += '</div>';
+
+        paginationContainer.innerHTML = html;
+
+        // Bind page buttons
+        paginationContainer.querySelectorAll('.page-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                state.currentPage = parseInt(e.target.dataset.page);
+                loadAssignmentHistory(state.activeFilters);
+            });
+        });
+    }
+
+    // ===========================
+    // UI State Management
+    // ===========================
+
+    function showLoadingState() {
+        const loadingState = document.getElementById('loadingState');
+        if (loadingState) {
+            loadingState.style.display = 'block';
+        }
+    }
+
+    function hideLoadingState() {
+        const loadingState = document.getElementById('loadingState');
+        if (loadingState) {
+            loadingState.style.display = 'none';
+        }
+    }
+
+    function showEmptyState() {
+        const emptyState = document.getElementById('emptyState');
+        const timelineContainer = document.getElementById('historyTimeline') ||
+                                 document.getElementById('timelineContainer');
+
+        if (emptyState) {
+            emptyState.style.display = 'block';
+        }
+
+        if (timelineContainer) {
+            timelineContainer.innerHTML = '';
+        }
+    }
+
+    function showErrorState(message) {
+        const timelineContainer = document.getElementById('historyTimeline') ||
+                                 document.getElementById('timelineContainer');
+
+        if (timelineContainer) {
+            timelineContainer.innerHTML = `
+                <div class="error-state">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+    }
+
+    // ===========================
+    // Event Handlers
+    // ===========================
+
+    function handleVersionCreated(data) {
+        console.log('[HistoryModule] Version created event:', data);
+
+        // Refresh history if we're on the history page
+        if (isHistoryPageActive() && !state.isLoading) {
+            setTimeout(() => {
+                loadAssignmentHistory(state.activeFilters);
+            }, 1000); // Small delay to ensure backend is updated
+        }
+    }
+
+    function handleVersionSuperseded(data) {
+        console.log('[HistoryModule] Version superseded event:', data);
+
+        if (isHistoryPageActive() && !state.isLoading) {
+            setTimeout(() => {
+                loadAssignmentHistory(state.activeFilters);
+            }, 1000);
+        }
+    }
+
+    function handleAssignmentDeleted(data) {
+        console.log('[HistoryModule] Assignment deleted event:', data);
+
+        if (isHistoryPageActive() && !state.isLoading) {
+            setTimeout(() => {
+                loadAssignmentHistory(state.activeFilters);
+            }, 1000);
+        }
+    }
+
+    // ===========================
+    // Public API
+    // ===========================
+
+    window.HistoryModule = {
+        // Initialization
+        init,
+
+        // Timeline
+        loadAssignmentHistory,
+        renderHistoryTimeline,
+
+        // Filtering
+        filterHistoryByDate,
+        clearFilters,
+
+        // Comparison
+        compareSelectedVersions,
+        calculateDiff,
+        displayVersionDiff,
+
+        // Details
+        showHistoryDetails,
+
+        // For testing/debugging
+        _state: state,
+        _config: CONFIG
+    };
+
+    console.log('[HistoryModule] Module loaded');
+
+})();

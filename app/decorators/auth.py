@@ -192,3 +192,33 @@ def admin_or_super_admin_required(f):
             abort(403)
     
     return wrapped 
+
+# Convenience alias for backward compatibility and cleaner code
+require_admin = admin_or_super_admin_required 
+
+# A simplified decorator that only ensures a tenant context exists. This avoids
+# the unintended side-effect of denying access to every role when no roles are
+# passed to `tenant_required_for()`.
+
+def tenant_required(f):
+    """Ensure the request is being made within a tenant context."""
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        if g.tenant is None:
+            current_app.logger.warning(
+                f"Access denied: Tenant context required for {f.__name__}"
+            )
+            abort(404)
+        return f(*args, **kwargs)
+    return wrapped
+
+# Backward-compatibility: expose the name expected by existing imports.
+# (Some modules do `from ..decorators.auth import tenant_required`.)
+
+__all__ = [
+    "tenant_required_for",
+    "role_required",
+    "admin_or_super_admin_required",
+    "require_admin",
+    "tenant_required",
+] 

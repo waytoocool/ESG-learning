@@ -4,6 +4,7 @@
     {{ super() }}
     <!-- Dashboard specific CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/user/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user/unit_widgets_override.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -97,7 +98,6 @@
                                 <thead class="table-header-enhanced">
                                     <tr>
                                         <th class="fw-bold text-white">DATA POINT</th>
-                                        <th class="fw-bold text-white">ENTITY</th>
                                         <th class="fw-bold text-white">TYPE</th>
                                         <th class="fw-bold text-white">FREQUENCY</th>
                                         <th class="fw-bold text-white">VALUE</th>
@@ -244,6 +244,9 @@
     
     <!-- Load PopupManager first -->
     <script src="{{ url_for('static', filename='js/common/popup.js') }}"></script>
+    
+    <!-- Load dimension picker functionality -->
+    <script src="{{ url_for('static', filename='js/user/dimension_picker.js') }}"></script>
     
     <!-- Load other scripts -->
     <script src="{{ url_for('static', filename='js/user/user_dashboard_dates.js') }}"></script>

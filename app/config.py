@@ -50,6 +50,17 @@ class Config:
     # Ensure upload directory exists
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+    # Phase 0: Feature Flags for User Dashboard Enhancements
+    # Global kill switch - can disable new interface entirely
+    FEATURE_NEW_DATA_ENTRY_ENABLED = os.environ.get('FEATURE_NEW_DATA_ENTRY_ENABLED', 'True').lower() == 'true'
+    # Default preference for new users
+    FEATURE_NEW_DATA_ENTRY_DEFAULT = os.environ.get('FEATURE_NEW_DATA_ENTRY_DEFAULT', 'False').lower() == 'true'
+    # Percentage-based gradual rollout (0-100)
+    FEATURE_NEW_DATA_ENTRY_PERCENTAGE = int(os.environ.get('FEATURE_NEW_DATA_ENTRY_PERCENTAGE', '10'))
+    # A/B testing configuration
+    AB_TEST_ENABLED = os.environ.get('AB_TEST_ENABLED', 'False').lower() == 'true'
+    AB_TEST_SAMPLE_SIZE = int(os.environ.get('AB_TEST_SAMPLE_SIZE', '100'))
+
     # Add MIME types configuration
     MIMETYPES = {
         '.js': 'application/javascript',

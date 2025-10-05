@@ -28,11 +28,20 @@
 
         <div class="admin-card">
             <div class="card-icon">
+                <i class="fas fa-tags"></i>
+            </div>
+            <h3>Topics</h3>
+            <p>Organize your data fields with custom topics and categories for better organization.</p>
+            <a href="{{ url_for('admin.topics_management') }}" class="card-button">Manage Topics</a>
+        </div>
+
+        <div class="admin-card">
+            <div class="card-icon">
                 <i class="fas fa-link"></i>
             </div>
             <h3>Assign Data Points</h3>
             <p>Assign data points to entities for data collection.</p>
-            <a href="{{ url_for('admin.assign_data_points') }}" class="card-button">Assign Data Points</a>
+            <a href="{{ url_for('admin_assign_data_points.assign_data_points') }}" class="card-button">Assign Data Points</a>
         </div>
 
         <div class="admin-card featured">

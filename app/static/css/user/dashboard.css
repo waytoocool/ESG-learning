@@ -111,6 +111,7 @@
 
 .data-table-container {
     width: 100% !important;
+    max-width: 100%;
     margin-bottom: 20px;
     padding: 0;
     background: white;
@@ -118,6 +119,15 @@
     box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     overflow: visible;
     margin: 0;
+}
+
+/* Ensure table fits within viewport */
+.table-responsive {
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    overflow-x: auto;
+    overflow-y: visible;
 }
 
 .dashboard-content {
@@ -128,10 +138,12 @@
 
 .data-table {
     width: 100% !important;
+    max-width: 100%;
     margin: 0 !important;
     border-collapse: collapse;
     margin-bottom: 0;
     font-size: 0.95rem;
+    table-layout: fixed; /* Fixed layout helps prevent horizontal scrolling */
 }
 
 .dashboard-header {
@@ -173,16 +185,44 @@
 .table-header-enhanced th {
     border: none !important;
     font-weight: 700 !important;
-    font-size: 0.9rem !important;
-    padding: 1.5rem 1.5rem !important;
+    font-size: 0.85rem !important;
+    padding: 1rem 1rem !important;
     text-transform: uppercase !important;
-    letter-spacing: 1px !important;
+    letter-spacing: 0.5px !important;
     color: white !important;
     background: transparent !important;
     text-shadow: 0 1px 2px rgba(0,0,0,0.3);
     position: relative;
     text-align: left !important;
     vertical-align: middle !important;
+    overflow: visible;
+    white-space: nowrap;
+}
+
+/* Production-optimized column widths */
+.table-header-enhanced th:nth-child(1) { /* DATA POINT */
+    width: 35%;
+    min-width: 280px;
+}
+
+.table-header-enhanced th:nth-child(2) { /* TYPE */
+    width: 12%;
+    min-width: 100px;
+}
+
+.table-header-enhanced th:nth-child(3) { /* FREQUENCY */
+    width: 14%;
+    min-width: 100px;
+}
+
+.table-header-enhanced th:nth-child(4) { /* VALUE */
+    width: 29%;
+    min-width: 200px;
+}
+
+.table-header-enhanced th:nth-child(5) { /* ATTACHMENTS */
+    width: 12%;
+    min-width: 120px;
 }
 
 .table-header-enhanced th::after {
@@ -197,7 +237,39 @@
 
 .data-table th,
 .data-table td {
-    padding: 1.5rem 1.5rem;
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+}
+
+/* Compact mode for production (activated when 8+ data points) */
+.data-table.compact th,
+.data-table.compact td {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+}
+
+.data-table.compact .data-point-name {
+    font-size: 0.9rem;
+    line-height: 1.3;
+}
+
+.data-table.compact .badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.data-table.compact .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.data-table.compact .frequency-badge {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.4rem;
+}
+
+.data-table th,
+.data-table td {
     text-align: left;
     border-bottom: 1px solid #e0e0e0;
     vertical-align: middle;
@@ -215,6 +287,9 @@
 /* Fix hover to only apply to tbody rows, not header rows */
 .data-table tbody tr:hover {
     background-color: #f8f9fa;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
 }
 
 .data-table tbody tr:nth-child(even) {
@@ -709,11 +784,11 @@
     background-color: #f0f0f0;
 }
 
-/* Adjust column widths for the new FREQUENCY column */
+/* Optimized column widths for 5-column layout (removed ENTITY column) */
 .data-table th:nth-child(1),
 .data-table td:nth-child(1) {
-    width: 25%;
-    min-width: 180px;
+    width: 35%;
+    min-width: 280px;
 }
 
 .data-table th:nth-child(2),
@@ -724,25 +799,19 @@
 
 .data-table th:nth-child(3),
 .data-table td:nth-child(3) {
-    width: 12%;
-    min-width: 80px;
+    width: 14%;
+    min-width: 100px;
 }
 
 .data-table th:nth-child(4),
 .data-table td:nth-child(4) {
-    width: 12%;
-    min-width: 90px;
+    width: 29%;
+    min-width: 200px;
 }
 
 .data-table th:nth-child(5),
 .data-table td:nth-child(5) {
-    width: 25%;
-    min-width: 180px;
-}
-
-.data-table th:nth-child(6),
-.data-table td:nth-child(6) {
-    width: 14%;
+    width: 12%;
     min-width: 120px;
 }
 
@@ -1120,1009 +1189,6 @@
 }
 
 /* Computed field styling */
-.computed-field-row {
-    background-color: #f8f9fa;
-}
-
-.computed-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    background: #6c757d;
-    color: white;
-    border-radius: 4px;
-    font-size: 12px;
-}
-
-.computed-value-display {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.computed-value-display .unit {
-    color: #6c757d;
-    font-size: 12px;
-}
-
-.dependency-info {
-    font-size: 13px;
-}
-
-.dependency-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.dependency-item {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-bottom: 4px;
-}
-
-.dependency-item .coefficient {
-    color: #6c757d;
-    font-size: 12px;
-}
-
-.formula-display {
-    margin-top: 8px;
-    padding: 4px 8px;
-    background: #f1f3f5;
-    border-radius: 4px;
-}
-
-/* Input validation styling */
-.data-input.invalid {
-    border-color: #dc3545;
-    background-color: #fff8f8;
-}
-
-.data-input.invalid:focus {
-    box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25);
-}
-
-.validation-message {
-    color: #dc3545;
-    font-size: 12px;
-    margin-top: 4px;
-}
-
-/* Accessibility improvements */
-@media (prefers-reduced-motion: reduce) {
-    * {
-        animation: none !important;
-        transition: none !important;
-    }
-}
-
-@media (forced-colors: active) {
-    .field-type i {
-        forced-color-adjust: none;
-    }
-    
-    .computed-badge {
-        border: 1px solid currentColor;
-    }
-}
-
-/* High contrast mode support */
-@media (forced-colors: active) {
-    .data-table th {
-        border: 1px solid currentColor;
-    }
-    
-    .data-input {
-        border: 1px solid currentColor;
-    }
-}
-
-.shared-dependency-details {
-    font-size: 0.9rem;
-}
-
-.depends-on-computed {
-    color: #6c757d;  /* Grey color for the text */
-    font-size: 0.9rem;
-}
-
-/* Update existing styles */
-.text-muted {
-    color: #6c757d !important;
-}
-
-/* Frequency badge styling */
-.frequency-badge {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    border-radius: 12px;
-    letter-spacing: 0.5px;
-    text-align: center;
-    min-width: 70px;
-}
-
-.frequency-badge.frequency-annual {
-    background: #fff5f5;
-    color: #dc3545;
-    border: 1px solid #dc3545;
-}
-
-.frequency-badge.frequency-quarterly {
-    background: #fff8e1;
-    color: #f57c00;
-    border: 1px solid #f57c00;
-}
-
-.frequency-badge.frequency-monthly {
-    background: #e8f5e8;
-    color: #28a745;
-    border: 1px solid #28a745;
-}
-
-.frequency-badge.frequency-weekly {
-    background: #e3f2fd;
-    color: #1976d2;
-    border: 1px solid #1976d2;
-}
-
-.frequency-badge.frequency-daily {
-    background-color: #e74c3c;
-    color: white;
-}
-
-/* High contrast mode support */
-@media (forced-colors: active) {
-    .field-type i {
-        forced-color-adjust: none;
-    }
-    
-    .computed-badge {
-        border: 2px solid;
-    }
-}
-
-/* Computation Status Styles */
-.computation-status {
-    padding: 12px;
-    border-radius: 8px;
-    text-align: center;
-    min-height: 60px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.computation-status.loading {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border: 2px solid #dee2e6;
-}
-
-.computation-status.loading i {
-    color: #6c757d;
-    font-size: 1.2em;
-}
-
-.computation-status.success {
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-    border: 2px solid #28a745;
-}
-
-.computation-status.success .computed-value {
-    font-size: 1.3em;
-    font-weight: 700;
-    color: #155724;
-}
-
-.computation-status.insufficient {
-    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-    border: 2px solid #ffc107;
-}
-
-.computation-status.insufficient i {
-    color: #856404;
-    font-size: 1.2em;
-}
-
-.computation-status.insufficient .status-text {
-    font-weight: 600;
-    color: #856404;
-}
-
-.computation-status.error {
-    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-    border: 2px solid #dc3545;
-}
-
-.computation-status.error i {
-    color: #721c24;
-    font-size: 1.2em;
-}
-
-.computation-status.error .status-text {
-    font-weight: 600;
-    color: #721c24;
-}
-
-.computation-status.not-calculated {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border: 2px dashed #6c757d;
-}
-
-.computation-status.not-calculated i {
-    color: #6c757d;
-    font-size: 1.2em;
-}
-
-.computation-status.not-calculated .status-text {
-    font-weight: 600;
-    color: #6c757d;
-}
-
-/* On-demand computation buttons */
-.compute-on-demand-btn {
-    font-size: 0.8rem;
-    padding: 0.375rem 0.75rem;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-    font-weight: 500;
-}
-
-.compute-on-demand-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.25);
-}
-
-.compute-on-demand-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.compute-on-demand-btn i {
-    margin-right: 4px;
-}
-
-/* Status text improvements */
-.computation-status small {
-    font-size: 0.75rem;
-    line-height: 1.2;
-    margin-top: 4px;
-}
-
-/* Animation for loading spinner */
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.fa-spinner.fa-spin {
-    animation: spin 1s linear infinite;
-}
-
-/* Enhanced computed field row styling */
-.computed-field-row {
-    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-    border-left: 4px solid #6c757d;
-}
-
-.computed-field-row:hover {
-    background: linear-gradient(135deg, #e9ecef 0%, #f8f9fa 100%);
-}
-
-/* Data completeness indicator */
-.data-completeness-indicator {
-    display: inline-block;
-    width: 100px;
-    height: 8px;
-    background: #e9ecef;
-    border-radius: 4px;
-    overflow: hidden;
-    margin: 4px 0;
-}
-
-.data-completeness-bar {
-    height: 100%;
-    background: linear-gradient(90deg, #dc3545 0%, #ffc107 50%, #28a745 100%);
-    transition: width 0.3s ease;
-}
-
-/* Dependency status indicators */
-.dependency-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.75rem;
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin: 2px;
-}
-
-.dependency-status.available {
-    background: #d4edda;
-    color: #155724;
-}
-
-.dependency-status.missing {
-    background: #f8d7da;
-    color: #721c24;
-}
-
-.dependency-status.partial {
-    background: #fff3cd;
-    color: #856404;
-}
-
-/* Responsive improvements for computation status */
-@media (max-width: 768px) {
-    .computation-status {
-        min-height: 80px;
-        padding: 8px;
-    }
-    
-    .compute-on-demand-btn {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-    }
-    
-    .computation-status.success .computed-value {
-        font-size: 1.1em;
-    }
-}
-
-/* Accessibility improvements */
-@media (prefers-reduced-motion: reduce) {
-    .fa-spinner.fa-spin {
-        animation: none;
-    }
-    
-    .compute-on-demand-btn:hover {
-        transform: none;
-    }
-}
-
-/* High contrast mode support for new elements */
-@media (forced-colors: active) {
-    .computation-status {
-        border: 2px solid currentColor;
-    }
-    
-    .compute-on-demand-btn {
-        border: 1px solid currentColor;
-    }
-}
-
-.shared-dependency-details {
-    font-size: 0.9rem;
-}
-
-.depends-on-computed {
-    color: #6c757d;  /* Grey color for the text */
-    font-size: 0.9rem;
-}
-
-/* Update existing styles */
-.text-muted {
-    color: #6c757d !important;
-}
-
-/* Frequency badge styling */
-.frequency-badge {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    border-radius: 12px;
-    letter-spacing: 0.5px;
-    text-align: center;
-    min-width: 70px;
-}
-
-.frequency-badge.frequency-annual {
-    background: #fff5f5;
-    color: #dc3545;
-    border: 1px solid #dc3545;
-}
-
-.frequency-badge.frequency-quarterly {
-    background: #fff8e1;
-    color: #f57c00;
-    border: 1px solid #f57c00;
-}
-
-.frequency-badge.frequency-monthly {
-    background: #e8f5e8;
-    color: #28a745;
-    border: 1px solid #28a745;
-}
-
-.frequency-badge.frequency-weekly {
-    background: #e3f2fd;
-    color: #1976d2;
-    border: 1px solid #1976d2;
-}
-
-.frequency-badge.frequency-daily {
-    background-color: #e74c3c;
-    color: white;
-}
-
-/* High contrast mode support */
-@media (forced-colors: active) {
-    .field-type i {
-        forced-color-adjust: none;
-    }
-    
-    .computed-badge {
-        border: 2px solid;
-    }
-}
-
-/* Computation Status Styles */
-.computation-status {
-    padding: 12px;
-    border-radius: 8px;
-    text-align: center;
-    min-height: 60px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.computation-status.loading {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border: 2px solid #dee2e6;
-}
-
-.computation-status.loading i {
-    color: #6c757d;
-    font-size: 1.2em;
-}
-
-.computation-status.success {
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-    border: 2px solid #28a745;
-}
-
-.computation-status.success .computed-value {
-    font-size: 1.3em;
-    font-weight: 700;
-    color: #155724;
-}
-
-.computation-status.insufficient {
-    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-    border: 2px solid #ffc107;
-}
-
-.computation-status.insufficient i {
-    color: #856404;
-    font-size: 1.2em;
-}
-
-.computation-status.insufficient .status-text {
-    font-weight: 600;
-    color: #856404;
-}
-
-.computation-status.error {
-    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-    border: 2px solid #dc3545;
-}
-
-.computation-status.error i {
-    color: #721c24;
-    font-size: 1.2em;
-}
-
-.computation-status.error .status-text {
-    font-weight: 600;
-    color: #721c24;
-}
-
-.computation-status.not-calculated {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border: 2px dashed #6c757d;
-}
-
-.computation-status.not-calculated i {
-    color: #6c757d;
-    font-size: 1.2em;
-}
-
-.computation-status.not-calculated .status-text {
-    font-weight: 600;
-    color: #6c757d;
-}
-
-/* On-demand computation buttons */
-.compute-on-demand-btn {
-    font-size: 0.8rem;
-    padding: 0.375rem 0.75rem;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-    font-weight: 500;
-}
-
-.compute-on-demand-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.25);
-}
-
-.compute-on-demand-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.compute-on-demand-btn i {
-    margin-right: 4px;
-}
-
-/* Status text improvements */
-.computation-status small {
-    font-size: 0.75rem;
-    line-height: 1.2;
-    margin-top: 4px;
-}
-
-/* Animation for loading spinner */
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.fa-spinner.fa-spin {
-    animation: spin 1s linear infinite;
-}
-
-/* Enhanced computed field row styling */
-.computed-field-row {
-    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-    border-left: 4px solid #6c757d;
-}
-
-.computed-field-row:hover {
-    background: linear-gradient(135deg, #e9ecef 0%, #f8f9fa 100%);
-}
-
-/* Data completeness indicator */
-.data-completeness-indicator {
-    display: inline-block;
-    width: 100px;
-    height: 8px;
-    background: #e9ecef;
-    border-radius: 4px;
-    overflow: hidden;
-    margin: 4px 0;
-}
-
-.data-completeness-bar {
-    height: 100%;
-    background: linear-gradient(90deg, #dc3545 0%, #ffc107 50%, #28a745 100%);
-    transition: width 0.3s ease;
-}
-
-/* Dependency status indicators */
-.dependency-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.75rem;
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin: 2px;
-}
-
-.dependency-status.available {
-    background: #d4edda;
-    color: #155724;
-}
-
-.dependency-status.missing {
-    background: #f8d7da;
-    color: #721c24;
-}
-
-.dependency-status.partial {
-    background: #fff3cd;
-    color: #856404;
-}
-
-/* Responsive improvements for computation status */
-@media (max-width: 768px) {
-    .computation-status {
-        min-height: 80px;
-        padding: 8px;
-    }
-    
-    .compute-on-demand-btn {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-    }
-    
-    .computation-status.success .computed-value {
-        font-size: 1.1em;
-    }
-}
-
-/* Accessibility improvements */
-@media (prefers-reduced-motion: reduce) {
-    .fa-spinner.fa-spin {
-        animation: none;
-    }
-    
-    .compute-on-demand-btn:hover {
-        transform: none;
-    }
-}
-
-/* High contrast mode support for new elements */
-@media (forced-colors: active) {
-    .computation-status {
-        border: 2px solid currentColor;
-    }
-    
-    .compute-on-demand-btn {
-        border: 1px solid currentColor;
-    }
-}
-
-.shared-dependency-details {
-    font-size: 0.9rem;
-}
-
-.depends-on-computed {
-    color: #6c757d;  /* Grey color for the text */
-    font-size: 0.9rem;
-}
-
-/* Update existing styles */
-.text-muted {
-    color: #6c757d !important;
-}
-
-/* Frequency badge styling */
-.frequency-badge {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    border-radius: 12px;
-    letter-spacing: 0.5px;
-    text-align: center;
-    min-width: 70px;
-}
-
-.frequency-badge.frequency-annual {
-    background: #fff5f5;
-    color: #dc3545;
-    border: 1px solid #dc3545;
-}
-
-.frequency-badge.frequency-quarterly {
-    background: #fff8e1;
-    color: #f57c00;
-    border: 1px solid #f57c00;
-}
-
-.frequency-badge.frequency-monthly {
-    background: #e8f5e8;
-    color: #28a745;
-    border: 1px solid #28a745;
-}
-
-.frequency-badge.frequency-weekly {
-    background: #e3f2fd;
-    color: #1976d2;
-    border: 1px solid #1976d2;
-}
-
-.frequency-badge.frequency-daily {
-    background-color: #e74c3c;
-    color: white;
-}
-
-/* High contrast mode support */
-@media (forced-colors: active) {
-    .field-type i {
-        forced-color-adjust: none;
-    }
-    
-    .computed-badge {
-        border: 2px solid;
-    }
-}
-
-/* Computation Status Styles */
-.computation-status {
-    padding: 12px;
-    border-radius: 8px;
-    text-align: center;
-    min-height: 60px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.computation-status.loading {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border: 2px solid #dee2e6;
-}
-
-.computation-status.loading i {
-    color: #6c757d;
-    font-size: 1.2em;
-}
-
-.computation-status.success {
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-    border: 2px solid #28a745;
-}
-
-.computation-status.success .computed-value {
-    font-size: 1.3em;
-    font-weight: 700;
-    color: #155724;
-}
-
-.computation-status.insufficient {
-    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-    border: 2px solid #ffc107;
-}
-
-.computation-status.insufficient i {
-    color: #856404;
-    font-size: 1.2em;
-}
-
-.computation-status.insufficient .status-text {
-    font-weight: 600;
-    color: #856404;
-}
-
-.computation-status.error {
-    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-    border: 2px solid #dc3545;
-}
-
-.computation-status.error i {
-    color: #721c24;
-    font-size: 1.2em;
-}
-
-.computation-status.error .status-text {
-    font-weight: 600;
-    color: #721c24;
-}
-
-.computation-status.not-calculated {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border: 2px dashed #6c757d;
-}
-
-.computation-status.not-calculated i {
-    color: #6c757d;
-    font-size: 1.2em;
-}
-
-.computation-status.not-calculated .status-text {
-    font-weight: 600;
-    color: #6c757d;
-}
-
-/* On-demand computation buttons */
-.compute-on-demand-btn {
-    font-size: 0.8rem;
-    padding: 0.375rem 0.75rem;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-    font-weight: 500;
-}
-
-.compute-on-demand-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.25);
-}
-
-.compute-on-demand-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.compute-on-demand-btn i {
-    margin-right: 4px;
-}
-
-/* Status text improvements */
-.computation-status small {
-    font-size: 0.75rem;
-    line-height: 1.2;
-    margin-top: 4px;
-}
-
-/* Animation for loading spinner */
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.fa-spinner.fa-spin {
-    animation: spin 1s linear infinite;
-}
-
-/* Enhanced computed field row styling */
-.computed-field-row {
-    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-    border-left: 4px solid #6c757d;
-}
-
-.computed-field-row:hover {
-    background: linear-gradient(135deg, #e9ecef 0%, #f8f9fa 100%);
-}
-
-/* Data completeness indicator */
-.data-completeness-indicator {
-    display: inline-block;
-    width: 100px;
-    height: 8px;
-    background: #e9ecef;
-    border-radius: 4px;
-    overflow: hidden;
-    margin: 4px 0;
-}
-
-.data-completeness-bar {
-    height: 100%;
-    background: linear-gradient(90deg, #dc3545 0%, #ffc107 50%, #28a745 100%);
-    transition: width 0.3s ease;
-}
-
-/* Dependency status indicators */
-.dependency-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.75rem;
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin: 2px;
-}
-
-.dependency-status.available {
-    background: #d4edda;
-    color: #155724;
-}
-
-.dependency-status.missing {
-    background: #f8d7da;
-    color: #721c24;
-}
-
-.dependency-status.partial {
-    background: #fff3cd;
-    color: #856404;
-}
-
-/* Responsive improvements for computation status */
-@media (max-width: 768px) {
-    .computation-status {
-        min-height: 80px;
-        padding: 8px;
-    }
-    
-    .compute-on-demand-btn {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-    }
-    
-    .computation-status.success .computed-value {
-        font-size: 1.1em;
-    }
-}
-
-/* Accessibility improvements */
-@media (prefers-reduced-motion: reduce) {
-    .fa-spinner.fa-spin {
-        animation: none;
-    }
-    
-    .compute-on-demand-btn:hover {
-        transform: none;
-    }
-}
-
-/* High contrast mode support for new elements */
-@media (forced-colors: active) {
-    .computation-status {
-        border: 2px solid currentColor;
-    }
-    
-    .compute-on-demand-btn {
-        border: 1px solid currentColor;
-    }
-}
-
-.shared-dependency-details {
-    font-size: 0.9rem;
-}
-
-.depends-on-computed {
-    color: #6c757d;  /* Grey color for the text */
-    font-size: 0.9rem;
-}
-
-/* Update existing styles */
-.text-muted {
-    color: #6c757d !important;
-}
-
-/* Frequency badge styling */
-.frequency-badge {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    border-radius: 12px;
-    letter-spacing: 0.5px;
-    text-align: center;
-    min-width: 70px;
-}
-
-.frequency-badge.frequency-annual {
-    background: #fff5f5;
-    color: #dc3545;
-    border: 1px solid #dc3545;
-}
-
-.frequency-badge.frequency-quarterly {
-    background: #fff8e1;
-    color: #f57c00;
-    border: 1px solid #f57c00;
-}
-
-.frequency-badge.frequency-monthly {
-    background: #e8f5e8;
-    color: #28a745;
-    border: 1px solid #28a745;
-}
-
-.frequency-badge.frequency-weekly {
-    background: #e3f2fd;
-    color: #1976d2;
-    border: 1px solid #1976d2;
-}
-
-.frequency-badge.frequency-daily {
-    background-color: #e74c3c;
-    color: white;
-}
-
-/* High contrast mode support */
-@media (forced-colors: active) {
-    .field-type i {
-        forced-color-adjust: none;
-    }
-    
-    .computed-badge {
-        border: 2px solid;
-    }
-}
-
-/* Computed Fields Styling */
 .computed-field-container {
     width: 100%;
 }
@@ -2152,16 +1218,95 @@
     cursor: help;
     color: #6c757d;
     transition: color 0.2s ease;
-}
-
+    }
+    
 .computed-info-trigger:hover {
     color: #495057;
-}
-
+    }
+    
 .computed-info-trigger i {
     font-size: 0.9rem;
 }
 
+/* Computed field row styling */
+.computed-field-row {
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border-left: 4px solid #6c757d;
+}
+
+.computed-field-row:hover {
+    background: linear-gradient(135deg, #e9ecef 0%, #f8f9fa 100%);
+}
+
+.computed-field-row .data-point-name {
+    font-weight: 600;
+}
+
+/* Computed badge styling */
+    .computed-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    background: #6c757d;
+    color: white;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+/* Enhanced computed field display */
+.computed-value-display {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.computed-value-display .unit {
+    color: #6c757d;
+    font-size: 12px;
+}
+
+/* Frequency badge styling */
+.frequency-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    border-radius: 12px;
+    letter-spacing: 0.5px;
+    text-align: center;
+    min-width: 70px;
+}
+
+.frequency-badge.frequency-annual {
+    background: #fff5f5;
+    color: #dc3545;
+    border: 1px solid #dc3545;
+}
+
+.frequency-badge.frequency-quarterly {
+    background: #fff8e1;
+    color: #f57c00;
+    border: 1px solid #f57c00;
+}
+
+.frequency-badge.frequency-monthly {
+    background: #e8f5e8;
+    color: #28a745;
+    border: 1px solid #28a745;
+}
+
+.frequency-badge.frequency-weekly {
+    background: #e3f2fd;
+    color: #1976d2;
+    border: 1px solid #1976d2;
+}
+
+.frequency-badge.frequency-daily {
+    background-color: #e74c3c;
+    color: white;
+}
+
+/* Professional Info Tooltip */
 .computed-tooltip {
     position: absolute;
     top: 100%;
@@ -2689,5 +1834,199 @@
     .computed-tooltip-portal {
         min-width: 280px;
         max-width: calc(100vw - 40px);
+    }
+}
+
+/* Phase 4.1: Unit-aware input widgets styling */
+.unit-aware-input-container {
+    min-width: 200px;
+}
+
+.unit-aware-input-container .input-group {
+    flex-wrap: nowrap;
+}
+
+.unit-aware-input-container .unit-select {
+    min-width: 80px;
+    max-width: 120px;
+    flex: 0 0 auto;
+    font-size: 0.85rem;
+}
+
+.unit-converter-btn {
+    border-left: 0;
+    border-radius: 0 0.375rem 0.375rem 0;
+    padding: 0.375rem 0.5rem;
+}
+
+.unit-info {
+    font-size: 0.75rem;
+    margin-top: 2px;
+    display: block;
+    color: #6c757d;
+}
+
+.unit-change-notification {
+    margin-bottom: 0;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 0.25rem;
+}
+
+.unit-change-notification .btn-link {
+    font-size: 0.75rem;
+    text-decoration: underline;
+    padding: 0;
+}
+
+/* Unit converter modal enhancements */
+#unitConverterModal .modal-body {
+    padding: 1.5rem;
+}
+
+#unitConverterModal .input-group {
+    margin-bottom: 1rem;
+}
+
+#unitConverterModal .fa-arrow-right {
+    color: #007bff;
+    font-size: 1.2rem;
+}
+
+#conversionResult {
+    min-height: 60px;
+}
+
+/* Data input enhancements */
+.data-input.unit-aware-input {
+    border-right: 0;
+    border-radius: 0.375rem 0 0 0.375rem;
+}
+
+/* Unit-aware inputs responsive design */
+@media (max-width: 768px) {
+    .unit-aware-input-container .input-group {
+        flex-direction: column;
+    }
+    
+    .unit-aware-input-container .data-input {
+        border-radius: 0.375rem;
+        border-right: 1px solid #ced4da;
+        margin-bottom: 0.25rem;
+    }
+    
+    .unit-aware-input-container .unit-select {
+        max-width: 100%;
+        margin-bottom: 0.25rem;
+        border-radius: 0.375rem;
+    }
+    
+    .unit-converter-btn {
+        border-radius: 0.375rem;
+        width: 100%;
+        border: 1px solid #ced4da;
+    }
+}
+
+/* Ensure long data-point names wrap instead of forcing horizontal scroll */
+.data-point-name {
+    display: block;
+    max-width: 100%;
+    white-space: normal;
+    word-break: break-word;
+}
+
+/* Make value input + unit select fit nicely within VALUE column */
+.unit-aware-input-container {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+}
+
+.unit-aware-input-container .data-input {
+    flex: 0 1 80px; /* shrink if needed */
+    max-width: 80px;
+}
+
+.unit-aware-input-container .unit-select {
+    flex: 0 0 auto;
+    max-width: 90px;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
+}
+
+/* Adjust attachment column button to prevent overflow */
+.attachment-container .btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+}
+
+/* Prevent overflow in VALUE column (unit info) */
+.unit-info {
+    display: block;
+    white-space: normal;
+    line-height: 1.2;
+    margin-top: 2px;
+}
+
+/* Constrain attachment column */
+.attachment-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 120px;
+}
+
+.attachment-container .attachment-list {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.attachment-container .attachment-list small {
+    font-size: 0.75rem;
+}
+
+/* Force table wrapper to handle overflow safely */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure table cells don't grow beyond their set widths */
+.data-table td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Hide verbose default-unit info on narrow screens */
+.unit-info {
+    display: none;
+}
+@media (min-width: 992px) { /* show only on large screens */
+    .unit-info {
+        display: block;
+        font-size: 0.75rem;
+        color: #555;
+    }
+}
+
+/* ---------- ATTACHMENTS CELL ---------- */
+.attachment-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+.attachment-container .attachment-list {
+    font-size: 0.75rem;
+    line-height: 1.1;
+    white-space: normal; /* allow wrap */
+}
+@media (max-width: 768px) {
+    .attachment-container .attachment-list {
+        display: none; /* hide 'No attachments' text on small screens */
     }
 } 

@@ -12,7 +12,7 @@ def send_registration_email(email, token):
         token (str): Registration token for verification
     """
     try:
-        registration_link = url_for('auth.register', token=token, _external=True)
+        registration_link = url_for('auth.register_user', token=token, _external=True)
         
         msg = Message(
             "Complete Your Registration",

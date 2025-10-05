@@ -12,14 +12,15 @@ Key Features:
 - Comprehensive audit logging
 """
 
-from flask import Blueprint, render_template, jsonify, request, current_app, flash, redirect, url_for, session
+from flask import Blueprint, render_template, jsonify, request, current_app, flash, redirect, url_for, session, abort
 from flask_login import login_required, current_user, login_user
 from ..decorators.auth import role_required
 from ..models.user import User
 from ..models.company import Company
 from ..models.entity import Entity
 from ..models.esg_data import ESGData
-from ..models.data_point import DataPoint
+from ..models.data_assignment import DataPointAssignment
+
 from ..models.audit_log import AuditLog
 from ..models.framework import Framework
 from ..models.sync_operation import SyncOperation, FrameworkSyncJob, TenantTemplate, DataMigrationJob
@@ -34,21 +35,61 @@ from sqlalchemy import or_
 import json
 import time
 from urllib.parse import urlunparse
+import re
 
 superadmin_bp = Blueprint('superadmin', __name__, url_prefix='/superadmin')
 
 
 @superadmin_bp.before_request
 @login_required
-@role_required('SUPER_ADMIN')
 def restrict_superadmin():
-    """
-    Blueprint-level security check.
+    """Ensure routes in this blueprint are only accessible to SUPER_ADMIN users.
+
+    Exception: Allow the special `exit_impersonation` route when a user is
+    currently impersonating. This enables an ADMIN / USER (impersonated)
+    to call the endpoint that ends impersonation and restores the original
+    SUPER_ADMIN session.
     
-    Ensures all routes in this blueprint are only accessible to SUPER_ADMIN users.
-    This provides a single point of security control for the entire blueprint.
+    Also ensures superadmin routes can only be accessed from root domain
+    (not from tenant subdomains).
     """
-    pass
+    # Check if we're on a tenant subdomain (except for exit impersonation)
+    if request.endpoint != 'superadmin.exit_impersonation':
+        host = request.host.split(':')[0]
+        subdomain = host.split('.')[0]
+        
+        # Detect if we're on a tenant subdomain
+        is_tenant_subdomain = False
+        
+        # Handle nip.io development URLs
+        if host.endswith('.nip.io'):
+            parts = host.split('.')
+            if len(parts) >= 4:  # tenant.127-0-0-1.nip.io format
+                is_tenant_subdomain = True
+        elif subdomain not in ("localhost", "127", "127-0-0-1") and not re.fullmatch(r"\d+-\d+-\d+-\d+", subdomain):
+            # Production or other environments with regular subdomains
+            is_tenant_subdomain = True
+        
+        if is_tenant_subdomain:
+            current_app.logger.warning(
+                f"Access denied: Superadmin route {request.endpoint} accessed from tenant subdomain {host}"
+            )
+            abort(404)  # Return 404 to not reveal that superadmin exists on this domain
+
+    # Allow the exit impersonation endpoint for impersonating users
+    if session.get('impersonating') and request.endpoint == 'superadmin.exit_impersonation':
+        # Let the request through so the impersonation can be cleared
+        return None
+
+    # For all other requests, enforce SUPER_ADMIN role
+    if current_user.role != 'SUPER_ADMIN':
+        current_app.logger.warning(
+            f"Access denied: User {current_user.id} (role: {current_user.role}) attempted to access {request.endpoint}"
+        )
+        abort(403)
+    
+    # SUPER_ADMIN – allow request
+    return None
 
 
 def check_impersonation_status():
@@ -111,7 +152,7 @@ def dashboard():
     active_companies = Company.query.filter_by(is_active=True).count()
     total_users = User.query.count()
     total_entities = Entity.query.count()
-    total_data_points = DataPoint.query.count()
+    total_data_points = DataPointAssignment.query.count()
     total_esg_records = ESGData.query.count()
     
     # Get user distribution by role
@@ -156,12 +197,14 @@ def list_companies():
     company_data = []
     for company in companies:
         user_count = User.query.filter_by(company_id=company.id).count()
+        active_user_count = User.query.filter_by(company_id=company.id, is_active=True).count()
         entity_count = Entity.query.filter_by(company_id=company.id).count()
         esg_data_count = ESGData.query.filter_by(company_id=company.id).count()
         
         company_data.append({
             'company': company,
             'user_count': user_count,
+            'active_user_count': active_user_count,
             'entity_count': entity_count,
             'esg_data_count': esg_data_count
         })
@@ -195,7 +238,6 @@ def create_company():
             return render_template('superadmin/create_company.html')
         
         # Validate slug format (alphanumeric and hyphens only)
-        import re
         if not re.match(r'^[a-z0-9-]+$', slug):
             error_msg = 'Slug must contain only lowercase letters, numbers, and hyphens.'
             if request.is_json:
@@ -219,14 +261,18 @@ def create_company():
         company = Company(name=name, slug=slug)
         db.session.add(company)
         db.session.flush()  # Get the company ID
-        
-        # Log audit action
+
+        # Log audit action for company creation
         log_audit_action(
             action='CREATE_COMPANY',
             entity_type='Company',
             entity_id=company.id,
             payload={'name': name, 'slug': slug}
         )
+        
+        # NOTE: No entity is created at this stage. The top-level entity will
+        # be created (if necessary) when the first ADMIN user is provisioned
+        # for the company.
         
         db.session.commit()
         
@@ -318,7 +364,6 @@ def update_company(company_id):
         if 'slug' in data:
             new_slug = data['slug'].strip().lower()
             # Validate slug format
-            import re
             if not re.match(r'^[a-z0-9-]+$', new_slug):
                 return jsonify({
                     'success': False,
@@ -366,19 +411,26 @@ def delete_company(company_id):
     """
     Delete a company (RESTful DELETE endpoint).
     
-    Performs soft delete by deactivating the company.
+    Performs soft delete by deactivating the company and all its users.
     """
     try:
         company = Company.query.get_or_404(company_id)
         
-        # Check if company has active users
-        active_users = User.query.filter_by(company_id=company_id, is_active=True).count()
-        
-        if active_users > 0:
-            return jsonify({
-                'success': False,
-                'error': f'Cannot delete company with {active_users} active users. Deactivate users first.'
-            }), 400
+        # Automatically deactivate any remaining users
+        users = User.query.filter_by(company_id=company_id, is_active=True).all()
+        for u in users:
+            u.is_active = False
+            log_audit_action(
+                action='AUTO_DEACTIVATE_USER',
+                entity_type='User',
+                entity_id=u.id,
+                payload={
+                    'reason': 'Company deletion',
+                    'user_email': u.email,
+                    'company_name': company.name
+                }
+            )
+        db.session.flush()  # now no active users remain
         
         # Log audit action before deletion
         log_audit_action(
@@ -394,7 +446,7 @@ def delete_company(company_id):
         
         return jsonify({
             'success': True,
-            'message': f'Company "{company.name}" has been deactivated.'
+            'message': f'Company "{company.name}" and all its users have been deactivated.'
         })
         
     except Exception as e:
@@ -439,7 +491,7 @@ def list_users():
         query = query.filter(
             or_(
                 User.email.ilike(f'%{search}%'),
-                User.username.ilike(f'%{search}%')
+                User.name.ilike(f'%{search}%')
             )
         )
     
@@ -471,7 +523,8 @@ def list_users():
             'users': [{
                 'id': user.id,
                 'email': user.email,
-                'username': user.username,
+                'username': user.name,
+                'name': user.name,
                 'role': user.role,
                 'company_id': user.company_id,
                 'company_name': user.company.name if user.company else None,
@@ -550,10 +603,10 @@ def create_admin_user(company_id):
         if request.is_json:
             data = request.get_json()
             email = data.get('email', '').strip().lower()
-            username = data.get('username', '').strip()
+            name = data.get('username', '').strip()
         else:
             email = request.form.get('email', '').strip().lower()
-            username = request.form.get('username', '').strip()
+            name = request.form.get('username', '').strip()
         
         if not email:
             return jsonify({
@@ -572,13 +625,40 @@ def create_admin_user(company_id):
         # Generate a temporary password
         temp_password = generate_temporary_password()
         
-        # Create admin user
+        # ---------------------------------------------------------
+        # Ensure a top-level entity for this company exists.
+        # Name it exactly as the company name (as requested).
+        # ---------------------------------------------------------
+        top_level_entity = Entity.query.filter_by(company_id=company.id, parent_id=None).first()
+
+        if not top_level_entity:
+            top_level_entity = Entity(
+                name=company.name,
+                entity_type='Company',
+                parent_id=None,
+                company_id=company.id
+            )
+            db.session.add(top_level_entity)
+            db.session.flush()  # Get the ID for foreign-key assignment
+
+            # Audit the auto-creation of the top-level entity
+            log_audit_action(
+                action='AUTO_CREATE_TOP_LEVEL_ENTITY',
+                entity_type='Entity',
+                entity_id=top_level_entity.id,
+                payload={'company_id': company.id, 'entity_name': top_level_entity.name}
+            )
+
+        # ---------------------------------------------------------
+        # Create the admin user and link them to the top-level entity
+        # ---------------------------------------------------------
         admin_user = User(
             email=email,
-            username=username,
+            name=name,
             password=temp_password,
             role='ADMIN',
             company_id=company.id,
+            entity_id=top_level_entity.id,
             is_active=True,
             is_email_verified=False
         )
@@ -593,7 +673,7 @@ def create_admin_user(company_id):
             entity_id=admin_user.id,
             payload={
                 'email': email,
-                'username': username,
+                'name': name,
                 'company_id': company.id,
                 'company_name': company.name
             }
@@ -724,7 +804,7 @@ def get_system_stats():
             },
             'data': {
                 'entities': Entity.query.count(),
-                'data_points': DataPoint.query.count(),
+                'data_points': DataPointAssignment.query.count(),
                 'esg_records': ESGData.query.count()
             },
             'audit': {
@@ -997,10 +1077,14 @@ def framework_sync_interface():
                        .order_by(SyncOperation.created_at.desc())
                        .limit(5).all())
     
+    # Identify global provider (for template logic)
+    global_provider_id = Company.get_global_provider_id()
+    
     return render_template('superadmin/framework_sync.html',
                          frameworks=frameworks,
                          companies=companies,
-                         recent_sync_jobs=recent_sync_jobs)
+                         recent_sync_jobs=recent_sync_jobs,
+                         global_provider_id=global_provider_id)
 
 
 # Tenant Template APIs
@@ -1139,7 +1223,6 @@ def provision_tenant_from_template(template_id):
             }), 400
         
         # Validate slug format
-        import re
         if not re.match(r'^[a-z0-9-]+$', company_slug):
             return jsonify({
                 'success': False,
@@ -1356,8 +1439,12 @@ def impersonate_user(user_id):
 
             # For local development, use nip.io
             if hostname in ("localhost", "127.0.0.1") or hostname.count('.') == 0:
-                # Use nip.io for local development
+                # Direct localhost access - construct nip.io domain with embedded IP 127.0.0.1
                 tenant_host = f"{target_user.company.slug}.127-0-0-1.nip.io"
+            # Host is already an IP-based nip.io domain like 127-0-0-1.nip.io
+            elif re.match(r"^\d+-\d+-\d+-\d+\.nip\.io$", hostname):
+                # Prepend tenant slug to maintain IP mapping
+                tenant_host = f"{target_user.company.slug}.{hostname}"
             else:
                 # Production environment: use normal subdomain logic
                 if hostname.startswith(f"{target_user.company.slug}."):
@@ -1447,10 +1534,51 @@ def exit_impersonation():
         # Login back as original user
         login_user(original_user)
         
+        # Build redirect URL to root domain (without company slug)
+        def _build_root_domain_url(path: str) -> str:
+            """Helper to construct absolute URL on the root domain (without tenant slug)."""
+            from urllib.parse import urlunparse
+            from flask import request
+
+            # Current host (may include port)
+            host_parts = request.host.split(':')
+            hostname = host_parts[0]
+            port = host_parts[1] if len(host_parts) > 1 else None
+
+            # Remove tenant slug from hostname to get root domain
+            if hostname in ("localhost", "127.0.0.1") or hostname.count('.') == 0:
+                # Direct localhost/IP access - keep as is
+                root_host = hostname
+            elif re.match(r"^\d+-\d+-\d+-\d+\.nip\.io$", hostname):
+                # Already root nip.io domain like 127-0-0-1.nip.io
+                root_host = hostname
+            elif hostname.endswith('.nip.io'):
+                # Remove tenant slug from nip.io domain (e.g., tenant.127-0-0-1.nip.io → 127-0-0-1.nip.io)
+                parts = hostname.split('.')
+                if len(parts) >= 4:  # tenant.127-0-0-1.nip.io
+                    root_host = '.'.join(parts[1:])  # Remove first part (tenant slug)
+                else:
+                    root_host = hostname  # Already root domain
+            else:
+                # Production environment: remove subdomain
+                parts = hostname.split('.', 1)
+                if len(parts) > 1 and not hostname.startswith('www.'):
+                    root_host = parts[1]  # Remove subdomain
+                else:
+                    root_host = hostname  # Already root domain
+
+            if port:
+                root_host += f":{port}"
+
+            scheme = request.scheme
+            return urlunparse((scheme, root_host, path, '', '', ''))
+        
+        redirect_url = _build_root_domain_url(url_for('superadmin.dashboard'))
+        
         return jsonify({
             'success': True,
             'message': f'Exited impersonation, back to {original_user.email}',
-            'redirect': url_for('superadmin.dashboard')
+            'redirect': redirect_url
         })
         
     except Exception as e:
@@ -2051,7 +2179,7 @@ def system_health():
         'active_companies': Company.query.filter_by(is_active=True).count(),
         'total_users': User.query.count(),
         'total_entities': Entity.query.count(),
-        'total_data_points': DataPoint.query.count(),
+        'total_data_points': DataPointAssignment.query.count(),
         'total_esg_records': ESGData.query.count(),
         'total_audit_logs': AuditLog.query.count()
     }
@@ -2129,4 +2257,145 @@ def get_system_health_metrics():
         return jsonify({
             'success': False,
             'error': 'Failed to retrieve system health metrics'
+        }), 500
+
+
+# =============================
+# HARD DELETE (irreversible)
+# =============================
+@superadmin_bp.route('/companies/<int:company_id>/hard-delete', methods=['POST'])
+def hard_delete_company(company_id):
+    """Permanently delete a company *and* all tenant-scoped data.
+
+    This action is IRREVERSIBLE and should be exposed only to super-admins.
+    It cascades through tenant-scoped tables then deletes the company row.
+    """
+    try:
+        company = Company.query.get_or_404(company_id)
+
+        # Safety: refuse if company is still active
+        if company.is_active:
+            return jsonify({
+                'success': False,
+                'error': 'Company must be deactivated (soft-deleted) before it can be hard-deleted.'
+            }), 400
+
+        # ---------------------------
+        # Delete tenant-scoped tables in dependency order
+        # ---------------------------
+        
+        # Import all necessary models
+        from ..models.framework import FrameworkDataField, Topic, FieldVariableMapping
+        from ..models.dimension import Dimension, DimensionValue, FieldDimension
+        from ..models.sync_operation import SyncOperation, TenantTemplate, DataMigrationJob, FrameworkSyncJob
+        
+        # Delete in reverse dependency order to avoid foreign key constraints
+        
+        # 1. Delete ESG data and related records first (highest level dependencies)
+        ESGData.query.filter_by(company_id=company_id).delete(synchronize_session=False)
+        
+        # 2. Delete field dimension assignments
+        FieldDimension.query.filter_by(company_id=company_id).delete(synchronize_session=False)
+        
+        # 3. Delete dimension values
+        DimensionValue.query.filter_by(company_id=company_id).delete(synchronize_session=False)
+        
+        # 4. Delete dimensions
+        Dimension.query.filter_by(company_id=company_id).delete(synchronize_session=False)
+        
+        # 5. Delete data point assignments
+        DataPointAssignment.query.filter_by(company_id=company_id).delete(synchronize_session=False)
+        
+        # 6. Delete field variable mappings for framework fields belonging to this company
+        framework_field_ids = db.session.query(FrameworkDataField.field_id).filter_by(company_id=company_id).subquery()
+        FieldVariableMapping.query.filter(
+            or_(
+                FieldVariableMapping.computed_field_id.in_(framework_field_ids),
+                FieldVariableMapping.raw_field_id.in_(framework_field_ids)
+            )
+        ).delete(synchronize_session=False)
+        
+        # 7. Delete framework data fields
+        FrameworkDataField.query.filter_by(company_id=company_id).delete(synchronize_session=False)
+        
+        # 8. Delete topics (both framework-specific and company-specific)
+        Topic.query.filter_by(company_id=company_id).delete(synchronize_session=False)
+        
+        # 9. Delete frameworks
+        from ..models.framework import Framework
+        Framework.query.filter_by(company_id=company_id).delete(synchronize_session=False)
+        
+        # 10. Delete sync operations related to this company
+        # Delete framework sync jobs where this company is the source
+        FrameworkSyncJob.query.filter_by(source_company_id=company_id).delete(synchronize_session=False)
+        
+        # Delete tenant templates created from this company
+        TenantTemplate.query.filter_by(source_company_id=company_id).delete(synchronize_session=False)
+        
+        # Delete data migration jobs targeting this company
+        DataMigrationJob.query.filter_by(target_company_id=company_id).delete(synchronize_session=False)
+        
+        # 11. Delete entities (will cascade to any remaining ESGData)
+        Entity.query.filter_by(company_id=company_id).delete(synchronize_session=False)
+        
+        # 12. Delete users
+        User.query.filter_by(company_id=company_id).delete(synchronize_session=False)
+
+        # Log audit action for hard delete
+        log_audit_action(
+            action='HARD_DELETE_COMPANY',
+            entity_type='Company',
+            entity_id=company.id,
+            payload={'name': company.name, 'slug': company.slug}
+        )
+
+        # Finally remove the company record itself
+        db.session.delete(company)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Company "{company.name}" and all tenant data have been permanently deleted.'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error hard-deleting company: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': 'Failed to hard delete company'
+        }), 500 
+
+# --- Framework Promotion API ---
+@superadmin_bp.route('/api/frameworks/<framework_id>/promote', methods=['POST'])
+def promote_framework(framework_id):
+    """Promote a company-specific framework to the global provider.
+
+    Expects no payload; simply moves the framework (and its field definitions)
+    to the global provider tenant. Returns JSON indicating success/failure.
+    """
+    from ..services import frameworks_service
+
+    try:
+        result = frameworks_service.promote_framework_to_global(
+            framework_id=framework_id,
+            initiated_by_user_id=current_user.id
+        )
+        return jsonify({
+            'success': True,
+            'data': result
+        })
+
+    except ValueError as ve:
+        # Expected validation errors
+        return jsonify({
+            'success': False,
+            'error': str(ve)
+        }), 400
+
+    except Exception as e:
+        current_app.logger.error(f'Error promoting framework {framework_id}: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': 'Failed to promote framework. Please check server logs.'
         }), 500 

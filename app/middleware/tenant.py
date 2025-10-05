@@ -19,6 +19,7 @@ Usage:
     - Aborts with 404 for unknown subdomains
 """
 
+import re
 from flask import g, request, abort
 from app.models.company import Company
 
@@ -47,17 +48,26 @@ def load_tenant():
     Raises:
         404: When subdomain doesn't match any Company slug
     """
-    # Extract hostname and strip port for local development
-    # Handles cases like "localhost:5000" → "localhost"
     host = request.host.split(':')[0]
-    
-    # Extract subdomain (first part before first dot)
-    # Examples: "acme.localhost" → "acme", "localhost" → "localhost"
-    subdomain = host.split('.')[0]
-    
-    # Handle root domain and localhost access
+
+    # Special handling for ngrok tunnels (both free and paid domains)
+    if host.endswith('.ngrok-free.app') or host.endswith('.ngrok.app'):
+        parts = host.split('.')
+        # pattern: <id>.ngrok-free.app  → no tenant
+        if len(parts) == 3:
+            g.tenant = None
+            return
+        # pattern: <tenant>.<id>.ngrok-free.app  → tenant is first label
+        elif len(parts) >= 4:
+            subdomain = parts[0]
+        # proceed with normal flow below using updated subdomain
+    else:
+        # Extract subdomain (first part before first dot)
+        subdomain = host.split('.')[0]
+
+    # Handle root domain, localhost access, and nip.io development URLs
     # Allow non-tenant access for marketing pages, admin panels, etc.
-    if subdomain in ("localhost", "127"):
+    if subdomain in ("localhost", "127", "127-0-0-1") or re.fullmatch(r"\d+-\d+-\d+-\d+", subdomain):
         g.tenant = None
         return
     

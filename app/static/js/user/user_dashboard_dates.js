@@ -334,7 +334,8 @@ class EnhancedDateValidator {
         const indicators = [];
         
         editableDataPoints.forEach(dp => {
-            const input = document.querySelector(`input[name="data_point_${dp.id}"]`);
+            // Fix: Use the correct field naming convention after DataPoint model refactoring
+            const input = document.querySelector(`input[name="field_${dp.id}"]`);
             const isCompleted = input && input.value && input.value.trim() !== '';
             
             if (isCompleted) {
@@ -548,7 +549,6 @@ class EnhancedDateValidator {
                     <span class="data-point-name" data-field-id="${dp.id}">${dp.name}</span>
                     ${dp.type === 'computed' ? '<small class="text-muted d-block">Auto-calculated</small>' : ''}
                 </td>
-                <td>${dp.assigned_entity}</td>
                 <td>
                     ${dp.type === 'computed' ? 
                         '<span class="badge bg-secondary">Computed</span>' : 
@@ -560,13 +560,18 @@ class EnhancedDateValidator {
                 </td>
                 <td>
                     ${dp.type === 'computed' ? 
-                        `<div class="computed-value">${dp.current_value !== 'Not calculated' ? dp.current_value : '<span class="text-muted">Not Calculated</span>'}</div>` :
-                        `<input type="${dp.value_type === 'numeric' ? 'number' : 'text'}"
-                                class="data-input"
-                                name="data_point_${dp.id}"
-                                value="${dp.current_value}"
-                                ${dp.value_type === 'numeric' ? 'step="any"' : ''}
-                                placeholder="Enter ${dp.value_type} value">`
+                        `<div class="computed-field-container">
+                            <div class="computation-status not-calculated">
+                                <i class="fas fa-calculator"></i>
+                                <small class="status-text">Not calculated</small>
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-primary compute-on-demand-btn mt-1"
+                                        data-field-id="${dp.id}">
+                                    <i class="fas fa-play"></i> Compute
+                                </button>
+                            </div>
+                        </div>` :
+                        this.createUnitAwareInput(dp)
                     }
                 </td>
                 <td>
@@ -591,6 +596,12 @@ class EnhancedDateValidator {
         dataPoints.forEach(dp => {
             this.loadAttachmentsForDataPoint(dp.id);
         });
+        
+        // Load unit options for unit-aware inputs
+        this.loadUnitOptionsForInputs(dataPoints);
+        
+        // Setup unit conversion event handlers
+        this.setupUnitConversionHandlers();
         
         // Apply compact mode if there are many data points
         this.applyCompactModeIfNeeded(dataPoints.length);
@@ -633,8 +644,8 @@ class EnhancedDateValidator {
         const table = document.getElementById('dataPointsTable');
         if (!table) return;
         
-        // Apply compact mode if there are more than 8 data points
-        if (dataPointCount > 8) {
+        // Apply compact mode if there are more than 6 data points for better production experience
+        if (dataPointCount > 6) {
             table.classList.add('compact');
             console.log(`📊 Applied compact mode for ${dataPointCount} data points`);
         } else {
@@ -1155,6 +1166,313 @@ class EnhancedDateValidator {
 
     async refreshAttachmentsForDataPoint(dataPointId) {
         await this.loadAttachmentsForDataPoint(dataPointId);
+    }
+
+    createUnitAwareInput(dataPoint) {
+        const hasUnitCategory = dataPoint.unit_category && dataPoint.unit_category !== '';
+        const hasDimensions = dataPoint.dimensions && dataPoint.dimensions.length > 0;
+
+        // If the data point has dimensions, delegate to DimensionPickerManager for enhanced input
+        if (hasDimensions && window.dimensionPickerManager && window.dimensionPickerManager.createEnhancedInput) {
+            return window.dimensionPickerManager.createEnhancedInput(dataPoint);
+        }
+
+        if (!hasUnitCategory) {
+            // Regular input for fields without unit categories or dimensions
+            return `<input type="${dataPoint.value_type === 'numeric' ? 'number' : 'text'}"
+                           class="data-input form-control"
+                           name="field_${dataPoint.id}"
+                           value="${dataPoint.current_value || ''}"
+                           ${dataPoint.value_type === 'numeric' ? 'step="any"' : ''}
+                           placeholder="Enter ${dataPoint.value_type} value">`;
+        }
+        
+        // Unit-aware (but no dimensions) input for fields with unit categories
+        const unitSelectId = `unit_${dataPoint.id}`;
+        const inputId = `field_${dataPoint.id}`;
+        
+        const optionsMarkup = (dataPoint.unit_options && dataPoint.unit_options.length)
+            ? dataPoint.unit_options.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('')
+            : '<option value="">Loading...</option>';
+        
+        return `
+            <div class="unit-aware-input-container" data-field-id="${dataPoint.id}">
+                <div class="input-group">
+                    <input type="${dataPoint.value_type === 'numeric' ? 'number' : 'text'}"
+                           class="data-input form-control unit-aware-input"
+                           name="field_${dataPoint.id}"
+                           id="${inputId}"
+                           value="${dataPoint.current_value || ''}"
+                           ${dataPoint.value_type === 'numeric' ? 'step="any"' : ''}
+                           placeholder="Enter ${dataPoint.value_type} value"
+                           data-field-id="${dataPoint.id}"
+                           data-unit-category="${dataPoint.unit_category}"
+                           data-default-unit="${dataPoint.default_unit || ''}">
+                    <select class="form-select unit-select" 
+                            id="${unitSelectId}"
+                            name="unit_${dataPoint.id}"
+                            data-field-id="${dataPoint.id}"
+                            style="max-width: 120px;">
+                        ${optionsMarkup}
+                    </select>
+                    <button type="button" 
+                            class="btn btn-outline-secondary btn-sm unit-converter-btn"
+                            data-field-id="${dataPoint.id}"
+                            data-unit-category="${dataPoint.unit_category}"
+                            title="Convert units">
+                        <i class="fas fa-exchange-alt"></i>
+                    </button>
+                </div>
+                <small class="text-muted unit-info">
+                    Default: ${dataPoint.default_unit || 'None'} | Category: ${dataPoint.unit_category}
+                </small>
+            </div>`;
+    }
+
+    async loadUnitOptionsForInputs(dataPoints) {
+        const fieldsWithUnits = dataPoints.filter(dp => dp.unit_category && dp.unit_category !== '');
+        
+        for (const dp of fieldsWithUnits) {
+            const unitSelect = document.getElementById(`unit_${dp.id}`);
+            if (unitSelect && unitSelect.options.length > 1) continue;
+            
+            try {
+                const response = await fetch(`/admin/fields/${dp.id}/unit_options`);
+                const data = await response.json();
+                
+                if (data.unit_options) {
+                    this.populateUnitSelect(dp.id, data.unit_options, data.default_unit);
+                }
+            } catch (error) {
+                console.error(`Error loading unit options for field ${dp.id}:`, error);
+                this.setUnitSelectError(dp.id);
+            }
+        }
+    }
+
+    populateUnitSelect(fieldId, unitOptions, defaultUnit) {
+        const unitSelect = document.getElementById(`unit_${fieldId}`);
+        if (!unitSelect) return;
+
+        unitSelect.innerHTML = '';
+        
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = `Auto (${defaultUnit || 'default'})`;
+        unitSelect.appendChild(defaultOption);
+        
+        unitOptions.forEach(option => {
+            const optionElement = document.createElement('option');
+            optionElement.value = option.value;
+            optionElement.textContent = option.label;
+            unitSelect.appendChild(optionElement);
+        });
+        
+        if (defaultUnit) {
+            unitSelect.value = defaultUnit;
+        }
+    }
+
+    setUnitSelectError(fieldId) {
+        const unitSelect = document.getElementById(`unit_${fieldId}`);
+        if (!unitSelect) return;
+        
+        unitSelect.innerHTML = '<option value="">Units unavailable</option>';
+        unitSelect.disabled = true;
+    }
+
+    setupUnitConversionHandlers() {
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.unit-converter-btn')) {
+                const btn = e.target.closest('.unit-converter-btn');
+                const fieldId = btn.dataset.fieldId;
+                const unitCategory = btn.dataset.unitCategory;
+                this.openUnitConverter(fieldId, unitCategory);
+            }
+        });
+
+        document.addEventListener('change', (e) => {
+            if (e.target.classList.contains('unit-select')) {
+                const fieldId = e.target.dataset.fieldId;
+                const selectedUnit = e.target.value;
+                this.handleUnitChange(fieldId, selectedUnit);
+            }
+        });
+    }
+
+    handleUnitChange(fieldId, selectedUnit) {
+        const input = document.getElementById(`field_${fieldId}`);
+        if (!input || !input.value) return;
+
+        const currentValue = parseFloat(input.value);
+        if (isNaN(currentValue)) return;
+
+        if (!input.dataset.originalValue) {
+            input.dataset.originalValue = currentValue;
+            input.dataset.originalUnit = input.dataset.defaultUnit;
+        }
+
+        this.showUnitChangeNotification(fieldId, selectedUnit);
+    }
+
+    showUnitChangeNotification(fieldId, selectedUnit) {
+        const container = document.querySelector(`[data-field-id="${fieldId}"] .unit-aware-input-container`);
+        if (!container) return;
+
+        const existingNotification = container.querySelector('.unit-change-notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+
+        if (selectedUnit) {
+            const notification = document.createElement('div');
+            notification.className = 'unit-change-notification alert alert-info alert-sm mt-1';
+            notification.innerHTML = `
+                <small>
+                    <i class="fas fa-info-circle"></i>
+                    Value will be stored in ${selectedUnit}
+                </small>
+            `;
+            container.appendChild(notification);
+        }
+    }
+
+    async openUnitConverter(fieldId, unitCategory) {
+        try {
+            const response = await fetch('/admin/unit_categories');
+            const categories = await response.json();
+            
+            if (categories[unitCategory]) {
+                this.showUnitConverterModal(fieldId, categories[unitCategory]);
+            }
+        } catch (error) {
+            console.error('Error opening unit converter:', error);
+        }
+    }
+
+    showUnitConverterModal(fieldId, categoryData) {
+        const modal = document.createElement('div');
+        modal.className = 'modal fade';
+        modal.id = 'unitConverterModal';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Unit Converter - ${categoryData.name}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-5">
+                                <label>From:</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="convertFromValue" step="any">
+                                    <select class="form-select" id="convertFromUnit">
+                                        ${categoryData.units.map(unit => 
+                                            `<option value="${unit.value}">${unit.label}</option>`
+                                        ).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2 text-center">
+                                <div class="mt-4">
+                                    <i class="fas fa-arrow-right"></i>
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <label>To:</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="convertToValue" readonly>
+                                    <select class="form-select" id="convertToUnit">
+                                        ${categoryData.units.map(unit => 
+                                            `<option value="${unit.value}">${unit.label}</option>`
+                                        ).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-primary" id="performConversion">
+                                Convert
+                            </button>
+                            <button type="button" class="btn btn-success" id="useConvertedValue">
+                                Use Converted Value
+                            </button>
+                        </div>
+                        <div id="conversionResult" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        const bootstrapModal = new bootstrap.Modal(modal);
+        bootstrapModal.show();
+        
+        this.setupConverterModalHandlers(fieldId, modal, bootstrapModal);
+        
+        modal.addEventListener('hidden.bs.modal', () => {
+            modal.remove();
+        });
+    }
+
+    setupConverterModalHandlers(fieldId, modal, bootstrapModal) {
+        const performBtn = modal.querySelector('#performConversion');
+        const useBtn = modal.querySelector('#useConvertedValue');
+        const fromValue = modal.querySelector('#convertFromValue');
+        const fromUnit = modal.querySelector('#convertFromUnit');
+        const toValue = modal.querySelector('#convertToValue');
+        const toUnit = modal.querySelector('#convertToUnit');
+        const result = modal.querySelector('#conversionResult');
+        
+        performBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/admin/convert_unit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        value: parseFloat(fromValue.value),
+                        from_unit: fromUnit.value,
+                        to_unit: toUnit.value
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    toValue.value = data.converted_value;
+                    result.innerHTML = `
+                        <div class="alert alert-success">
+                            ${fromValue.value} ${fromUnit.value} = ${data.converted_value} ${toUnit.value}
+                        </div>
+                    `;
+                } else {
+                    result.innerHTML = `
+                        <div class="alert alert-danger">
+                            Conversion failed: ${data.error || 'Unknown error'}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                result.innerHTML = `
+                    <div class="alert alert-danger">
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+        });
+        
+        useBtn.addEventListener('click', () => {
+            if (toValue.value) {
+                const input = document.getElementById(`field_${fieldId}`);
+                const unitSelect = document.getElementById(`unit_${fieldId}`);
+                
+                if (input) input.value = toValue.value;
+                if (unitSelect) unitSelect.value = toUnit.value;
+                
+                bootstrapModal.hide();
+            }
+        });
     }
 }
 

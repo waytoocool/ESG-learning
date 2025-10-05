@@ -3,14 +3,15 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
 import mimetypes
 import os
+import click
 
 # Load environment variables FIRST before importing any config
 load_dotenv()
 
 from app.services.initial_data import create_initial_data
-from app.extensions import db, login_manager, mail, migrate
+from app.extensions import db, login_manager, mail
 from .config import DevelopmentConfig
-from .utils.helpers import init_url_versioning, init_caching
+from .utils.helpers import init_url_versioning, init_caching, init_dynamic_session_cookie_domain
 
 def create_app(config_object=DevelopmentConfig):
     app = Flask(__name__)
@@ -21,12 +22,12 @@ def create_app(config_object=DevelopmentConfig):
     # Initialize utility helpers
     init_url_versioning(app)
     init_caching(app)
+    init_dynamic_session_cookie_domain(app)
 
     # Initialize extensions with app
     db.init_app(app)
     login_manager.init_app(app)
     mail.init_app(app)
-    migrate.init_app(app, db)
 
     # Initialize ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app)
@@ -51,26 +52,15 @@ def create_app(config_object=DevelopmentConfig):
     # Initialize database tables
     with app.app_context():
         # Import models for migration compatibility
-        from .models import User, Entity, Framework, DataPoint, ESGData, Company
+        from .models import User, Entity, Framework, ESGData, Company
         
-        # Check if this is a test environment that wants to skip migrations
-        if app.config.get('SKIP_MIGRATIONS', False):
-            db.create_all()
-            app.logger.info("Test mode - forcing db.create_all()")
-            print("[app-init] 🧪 Test mode - creating all tables")
-        else:
-            # Check if migrations exist - if so, assume alembic manages the schema
-            migrations_dir = os.path.join(os.path.dirname(app.root_path), 'migrations', 'versions')
-            if os.path.exists(migrations_dir) and os.listdir(migrations_dir):
-                app.logger.info("Migrations detected - skipping db.create_all()")
-                print("[app-init] 🔧 Using Alembic migrations for schema management")
-            else:
-                # Only create tables if no migrations exist (for development/testing)
-                db.create_all()
-                app.logger.info("No migrations found - using db.create_all()")
+        # Create all database tables
+        db.create_all()
+        app.logger.info("Database tables created successfully")
+        print("[app-init] 🔧 Database tables created using db.create_all()")
         
-        # T-3 Seed data: Ensure SUPER_ADMIN user exists (skip in test mode and during migrations)
-        if not app.config.get('SKIP_MIGRATIONS', False) and not os.environ.get('FLASK_MIGRATE_RUNNING'):
+        # T-3 Seed data: Ensure SUPER_ADMIN user exists (skip in test mode)
+        if not app.config.get('SKIP_MIGRATIONS', False):
             try:
                 create_initial_data()
             except Exception as e:
@@ -78,10 +68,7 @@ def create_app(config_object=DevelopmentConfig):
                 app.logger.error(f"Failed to create initial data: {str(e)}")
                 print(f"[app-init] ⚠️  Failed to create initial data: {str(e)}")
         else:
-            if app.config.get('SKIP_MIGRATIONS', False):
-                print("[app-init] 🧪 Test mode - skipping initial data seeding")
-            else:
-                print("[app-init] 🔄 Migration mode - skipping initial data seeding")
+            print("[app-init] 🧪 Test mode - skipping initial data seeding")
 
     # Register MIME types
     for ext, mime_type in app.config['MIMETYPES'].items():
@@ -138,4 +125,55 @@ def register_cli_commands(app):
                 
         except Exception as e:
             print(f"❌ Seed verification failed: {str(e)}")
+            raise
+    
+    @app.cli.command("manage-superadmin")
+    @click.option('--action', type=click.Choice(['list', 'change-email', 'reset-password']), required=True, help='Action to perform')
+    @click.option('--new-email', help='New email for change-email action')
+    @click.option('--new-password', help='New password for reset-password action')
+    def manage_superadmin_command(action, new_email, new_password):
+        """Manage SUPER_ADMIN user safely."""
+        from app.models.user import User
+        from app.extensions import db
+        
+        try:
+            if action == 'list':
+                super_admins = User.query.filter_by(role='SUPER_ADMIN').all()
+                print(f"📋 Found {len(super_admins)} SUPER_ADMIN user(s):")
+                for i, user in enumerate(super_admins, 1):
+                    print(f"   {i}. ID: {user.id}, Email: {user.email}, Name: {user.name}")
+                    print(f"      Company: {user.company.name if user.company else 'None'}")
+                    print(f"      Active: {user.is_active}")
+                    
+            elif action == 'change-email':
+                if not new_email:
+                    print("❌ --new-email is required for change-email action")
+                    return
+                    
+                super_admin = User.query.filter_by(role='SUPER_ADMIN').first()
+                if not super_admin:
+                    print("❌ No SUPER_ADMIN user found")
+                    return
+                    
+                old_email = super_admin.email
+                super_admin.email = new_email
+                db.session.commit()
+                print(f"✅ SUPER_ADMIN email changed from {old_email} to {new_email}")
+                
+            elif action == 'reset-password':
+                if not new_password:
+                    print("❌ --new-password is required for reset-password action")
+                    return
+                    
+                super_admin = User.query.filter_by(role='SUPER_ADMIN').first()
+                if not super_admin:
+                    print("❌ No SUPER_ADMIN user found")
+                    return
+                    
+                super_admin.set_password(new_password)
+                db.session.commit()
+                print(f"✅ SUPER_ADMIN password reset for {super_admin.email}")
+                
+        except Exception as e:
+            print(f"❌ SUPER_ADMIN management failed: {str(e)}")
             raise

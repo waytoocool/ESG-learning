@@ -146,6 +146,19 @@ const PopupManager = {
         );
     },
 
+    // Compatibility method for bulk operations
+    showMessage(message, type = 'info') {
+        const typeMapping = {
+            'success': () => this.showSuccess('Success', message),
+            'error': () => this.showError('Error', message),
+            'warning': () => this.showWarning('Warning', message),
+            'info': () => this.showInfo('Info', message)
+        };
+        
+        const showMethod = typeMapping[type] || typeMapping['info'];
+        return showMethod();
+    },
+
     // Method for confirmation-style notifications
     confirm(title, message, onConfirm, onCancel) {
         const popup = this.showPopup(title, message + `

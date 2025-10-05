@@ -219,7 +219,7 @@ function displayDataDetails(data) {
                                 <span class="audit-date">${formatDateTime(entry.change_date)}</span>
                             </div>
                             <div class="audit-details">
-                                <span class="audit-user">by ${entry.changed_by_username}</span>
+                                <span class="audit-user">by ${entry.changed_by_name}</span>
                                 ${entry.old_value !== null ? `<span class="audit-change">from ${entry.old_value} to ${entry.new_value}</span>` : ''}
                             </div>
                         </div>

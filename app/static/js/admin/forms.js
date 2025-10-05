@@ -58,25 +58,30 @@ export function handleUserFormSubmit(event) {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => {
-    if (!response.ok) {
-        // If response isn't ok, throw error to be caught by catch block
-        throw new Error(`HTTP error! status: ${response.status}`);
+    .then(async response => {
+        // Always attempt to parse JSON so we can surface detailed error messages
+        let data = {};
+        try {
+            data = await response.json();
+        } catch (e) {
+            console.warn('Could not parse JSON from create_user response');
         }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            window.PopupManager?.showSuccess('Success', data.message) || console.log('Success:', data.message);
+
+        if (response.ok && data.success) {
+            window.PopupManager?.showSuccess('Success', data.message || 'User created successfully') || console.log('Success:', data.message);
             document.getElementById("user-drawer").style.display = "none";
             setTimeout(() => window.location.reload(), 1000);
         } else {
-            window.PopupManager?.showError('Error', data.message) || console.error('Error:', data.message);
+            const msg = data.message || `Server returned HTTP ${response.status}`;
+            window.PopupManager?.showError('Error', msg) || console.error('Error:', msg);
+            throw new Error(msg); // Ensure catch() gets triggered for logging
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        window.PopupManager?.showError('Error', 'An error occurred while saving the user.') || console.error('Error occurred');
+        if (!window.PopupManager) {
+            alert('Error creating user: ' + error.message);
+        }
     })
     .finally(() => {
         submitButton.disabled = false;
@@ -87,7 +92,7 @@ export function handleUserFormSubmit(event) {
 }
 
 // This function is responsible for handling the resending of the user verification email
-function handleVerificationResend(email) {
+export function handleVerificationResend(email) {
     const cooldownKey = `resend_cooldown_${email}`;
 
     // Check if there's an active cooldown
@@ -96,7 +101,10 @@ function handleVerificationResend(email) {
         return;
     }
 
-    fetch("{{ url_for('resend_verification') }}", {
+    // Use the Flask route path directly; this static file is not rendered by Jinja
+    // so we cannot rely on "{{ url_for(...) }}".  The Blueprint is registered
+    // under /admin so the final URL is /admin/resend_verification.
+    fetch('/admin/resend_verification', {
         method: 'POST',
         body: JSON.stringify({ email: email }),
         headers: {
@@ -134,4 +142,9 @@ function handleVerificationResend(email) {
         console.error('Error:', error);
         window.PopupManager?.showError('Error', 'An error occurred while resending verification email.') || console.error('Error occurred');
     });
+}
+
+// Make it available for inline onClick handlers created in HTML strings
+if (typeof window !== 'undefined') {
+    window.handleVerificationResend = handleVerificationResend;
 }

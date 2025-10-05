@@ -39,7 +39,7 @@ function generateEntityDetails(d) {
         return `
             <div class="user-item">
                 <div class="user-header">
-                    <span class="user-name">${user.name} (${user.username})</span>
+                    <span class="user-name">${user.name} (${user.name})</span>
                     ${user.is_email_verified ? 
                         `<span class="verified-user">✓ Verified
                             <span class="info-icon" title="Email verified on ${user.verification_date}">i</span>
@@ -84,7 +84,7 @@ function generateEntityDetailsMini(d) {
         return `
             <div class="user-item">
                 <div class="user-header">
-                    <span class="user-name">${user.name} (${user.username})</span>
+                    <span class="user-name">${user.name} (${user.name})</span>
                     ${user.is_email_verified ? 
                         `<span class="verified-user">✓ Verified
                             <span class="info-icon" title="Email verified on ${user.verification_date}">i</span>

@@ -34,36 +34,51 @@ body {
     padding: 0 15px;
 }
 
-/* Enhanced Sidebar with Active State */
+/* Modern Flexible Sidebar */
 .sidebar {
     background-color: #2F4728;
     color: #ffffff;
-    width: 250px;
+    width: clamp(200px, 15vw, 280px); /* Responsive width */
     height: 100vh;
     position: fixed;
-    padding: 20px;
+    top: 0;
+    left: 0;
+    padding: clamp(0.8rem, 2.4vw, 1.2rem); /* Reduced by 20% */
     overflow-y: auto;
     box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
 }
 
 .sidebar h2 {
     text-align: center;
-    margin-bottom: 30px;
-    font-size: 24px;
+    margin-bottom: clamp(1.2rem, 3.2vw, 1.6rem); /* Reduced by 20% */
+    font-size: clamp(1rem, 2.4vw, 1.2rem); /* Reduced by 20% */
     font-weight: bold;
     color: #ffffff;
-    padding-bottom: 20px;
+    padding-bottom: clamp(0.8rem, 1.6vw, 1rem); /* Reduced by 20% */
     border-bottom: 2px solid rgba(255,255,255,0.2);
+    flex-shrink: 0; /* Don't shrink header */
+}
+
+.sidebar nav {
+    flex: 1; /* Take remaining space */
+    display: flex;
+    flex-direction: column;
 }
 
 .sidebar nav ul {
     list-style: none;
     padding: 0;
     margin: 0;
+    flex: 1; /* Allow to grow */
+    display: flex;
+    flex-direction: column;
 }
 
 .sidebar nav ul li {
-    margin: 8px 0;
+    margin: clamp(0.2rem, 0.8vw, 0.4rem) 0; /* Reduced by 20% */
 }
 
 .sidebar nav ul li a {
@@ -71,12 +86,13 @@ body {
     text-decoration: none;
     font-weight: 500;
     display: block;
-    padding: 12px 16px;
-    border-radius: 8px;
+    padding: clamp(0.4rem, 1.6vw, 0.6rem) clamp(0.6rem, 1.6vw, 0.8rem); /* Reduced by 20% */
+    border-radius: clamp(3px, 0.8vw, 6px); /* Reduced by 20% */
     transition: all 0.3s ease;
     position: relative;
-    font-size: 14px;
+    font-size: clamp(0.64rem, 1.6vw, 0.7rem); /* Reduced by 20% */
     border-left: 4px solid transparent;
+    line-height: 1.4; /* Better line height for readability */
 }
 
 .sidebar nav ul li a:hover {
@@ -98,11 +114,24 @@ body {
     transform: none;
 }
 
+/* Navigation dividers and special styling */
+.nav-divider {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: clamp(0.56rem, 1.44vw, 0.6rem); /* Reduced by 20% */
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px; /* Reduced by 20% */
+    margin: clamp(0.8rem, 1.6vw, 1.2rem) 0 clamp(0.4rem, 0.8vw, 0.6rem) 0; /* Reduced by 20% */
+    padding: 0 clamp(0.6rem, 1.6vw, 0.8rem); /* Reduced by 20% */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: clamp(0.4rem, 0.8vw, 0.6rem); /* Reduced by 20% */
+}
+
 /* Logout Item Special Styling */
 .logout-item {
-    margin-top: 30px !important;
+    margin-top: auto !important; /* Push to bottom */
     border-top: 1px solid rgba(255, 255, 255, 0.2);
-    padding-top: 20px;
+    padding-top: clamp(0.8rem, 1.6vw, 1rem); /* Reduced by 20% */
 }
 
 .logout-item a {
@@ -115,12 +144,13 @@ body {
     border-left-color: #ff6b6b !important;
 }
 
-/* Main content area */
+/* Main content area - now handled by base.html flexbox */
 .main-content {
-    margin-left: 270px; /* Adjust to match sidebar width */
-    padding: 20px;
+    padding: clamp(1rem, 3vw, 1.5rem); /* Responsive padding */
     background-color: #ffffff;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Enhanced Buttons with Better Contrast */
@@ -177,7 +207,6 @@ body {
 
 /* Form Styles */
 form {
-    max-width: 400px;
     margin: 50px auto;
     padding: 30px;
     border: 1px solid #2F4728;

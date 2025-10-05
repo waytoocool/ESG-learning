@@ -100,14 +100,14 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for data_point_id, dp_data in matrix_data.items() %}
-                        <tr class="matrix-row" data-data-point-id="{{ data_point_id }}">
+                        {% for field_id, dp_data in matrix_data.items() %}
+                        <tr class="matrix-row" data-field-id="{{ field_id }}">
                             <td class="data-point-cell">
                                 <div class="data-point-info">
-                                    <span class="data-point-name">{{ dp_data.data_point.name }}</span>
+                                    <span class="data-point-name">{{ dp_data.field.field_name }}</span>
                                     <span class="data-point-framework">
-                                        {% if dp_data.data_point.framework %}
-                                            {{ dp_data.data_point.framework.framework_name }}
+                                        {% if dp_data.field.framework %}
+                                            {{ dp_data.field.framework.framework_name }}
                                         {% endif %}
                                     </span>
                                     <span class="data-point-type">
@@ -136,7 +136,7 @@
                                         {% if entity_data.esg_data %}
                                         <div class="status-actions">
                                             <button class="view-details-btn" 
-                                                    onclick="viewDetails('{{ entity_data.esg_data.id }}', '{{ dp_data.data_point.name }}', '{{ entity.name }}')"
+                                                    onclick="viewDetails('{{ entity_data.esg_data.id }}', '{{ dp_data.field.field_name }}', '{{ entity.name }}')"
                                                     title="View details">
                                                 <i class="fas fa-eye"></i>
                                             </button>
@@ -164,7 +164,7 @@
             </div>
             <h3>No Data Assignments Found</h3>
             <p>No data points have been assigned to entities yet.</p>
-            <a href="{{ url_for('admin.assign_data_points') }}" class="btn btn-primary">
+            <a href="{{ url_for('admin_assign_data_points.assign_data_points') }}" class="btn btn-primary">
                 <i class="fas fa-plus"></i>
                 Assign Data Points
             </a>

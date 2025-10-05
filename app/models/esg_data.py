@@ -1,26 +1,43 @@
 from ..extensions import db
 import uuid
-from datetime import datetime, UTC
+from datetime import datetime, UTC, date
+from typing import Optional, Dict, Any
 from .mixins import TenantScopedQueryMixin, TenantScopedModelMixin
 
 class ESGData(db.Model, TenantScopedQueryMixin, TenantScopedModelMixin):
-    """ESG Data model for storing actual metric values."""
+    """ESG Data model for storing actual metric values.
+    
+    Phase 2.5: Enhanced with dimensional support for complex data breakdowns.
+    Data can now be categorized by multiple dimensions (gender, age, department, etc.).
+    """
     
     __tablename__ = 'esg_data'
     
     data_id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    data_point_id = db.Column(db.String(36), db.ForeignKey('data_point.id'), nullable=False)
     entity_id = db.Column(db.Integer, db.ForeignKey('entity.id'), nullable=False)
     field_id = db.Column(db.String(36), db.ForeignKey('framework_data_fields.field_id'), nullable=False)
     # Add company_id for tenant isolation - temporarily nullable until T-3 seed data
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True)
+    
+    # Phase 1: Assignment relationship for versioning support
+    assignment_id = db.Column(db.String(36), db.ForeignKey('data_point_assignments.id'), nullable=True, index=True)
     raw_value = db.Column(db.String(255), nullable=True)  # String to accommodate both numeric and text values
     calculated_value = db.Column(db.Float, nullable=True)
+    # Phase 4.1: unit column for storing user-selected units (overrides field default_unit)
+    unit = db.Column(db.String(20), nullable=True)
+    
+    # Phase 2.5: Dimensional data support
+    dimension_values = db.Column(db.JSON, nullable=True)  # {"gender": "Male", "age": "<30", "department": "IT"}
+
+    # Phase 4: Draft support for auto-save functionality
+    is_draft = db.Column(db.Boolean, default=False, nullable=False)  # Flag to mark draft entries
+    draft_metadata = db.Column(db.JSON, nullable=True)  # Store additional draft metadata
+
     reporting_date = db.Column(db.Date, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
-    # Simplified relationships
+    # Updated relationships
     entity = db.relationship('Entity', 
                            back_populates='esg_data',
                            lazy='joined')
@@ -30,8 +47,10 @@ class ESGData(db.Model, TenantScopedQueryMixin, TenantScopedModelMixin):
     audit_logs = db.relationship('ESGDataAuditLog', 
                                back_populates='esg_data',
                                cascade='all, delete-orphan')
-    data_point = db.relationship('DataPoint', back_populates='esg_data')
     company = db.relationship('Company', backref='esg_data')
+    
+    # Phase 1: Assignment relationship for versioning support
+    assignment = db.relationship('DataPointAssignment', backref='esg_data_entries')
 
     # Add new relationship for attachments
     attachments = db.relationship('ESGDataAttachment', 
@@ -43,19 +62,240 @@ class ESGData(db.Model, TenantScopedQueryMixin, TenantScopedModelMixin):
         db.Index('idx_esg_entity_date', 'entity_id', 'reporting_date'),
         db.Index('idx_esg_field_date', 'field_id', 'reporting_date'),
         db.Index('idx_esg_company', 'company_id'),  # Index for tenant filtering
+        db.Index('idx_esg_assignment', 'assignment_id'),  # Index for assignment relationship
+        # Phase 2.5: Add index for dimensional queries
+        db.Index('idx_esg_dimensions', 'field_id', 'reporting_date', 'dimension_values'),
+        # Phase 4: Add index for draft queries
+        db.Index('idx_esg_draft_lookup', 'field_id', 'entity_id', 'reporting_date', 'is_draft'),
     )
 
-    def __init__(self, entity_id, field_id, data_point_id, raw_value, reporting_date, company_id=None, calculated_value=None):
+    def __init__(self, entity_id, field_id, raw_value, reporting_date, company_id=None, calculated_value=None, unit=None, dimension_values=None, assignment_id=None):
         self.entity_id = entity_id
         self.field_id = field_id
-        self.data_point_id = data_point_id
         self.company_id = company_id
+        self.assignment_id = assignment_id  # Phase 1: Support for assignment relationship
         self.raw_value = raw_value
         self.calculated_value = calculated_value
         self.reporting_date = reporting_date
+        self.dimension_values = dimension_values or {}
+        self.unit = unit  # Phase 1: Support for user-selected units
+
+    @property
+    def effective_unit(self):
+        """Get the effective unit for this data entry.
+        
+        Returns user-selected unit if available, otherwise field's default_unit.
+        """
+        return self.unit or (self.field.default_unit if self.field else None)
+
+    @property 
+    def value_type(self):
+        """Get the value type from the associated field."""
+        return self.field.value_type if self.field else 'TEXT'
+
+    def convert_to_default_unit(self):
+        """Phase 1: No conversion needed since unit comes from field definition."""
+        # This is a placeholder for future unit conversion logic
+        # For now, units are consistent since they come from field.default_unit
+        pass
+
+    # Phase 2.5: Dimensional data helper methods
+    def get_dimension_value(self, dimension_name):
+        """Get the value for a specific dimension."""
+        return (self.dimension_values or {}).get(dimension_name)
+
+    def set_dimension_value(self, dimension_name, value):
+        """Set the value for a specific dimension."""
+        if not self.dimension_values:
+            self.dimension_values = {}
+        self.dimension_values[dimension_name] = value
+
+    def has_dimensions(self):
+        """Check if this data entry has any dimensional breakdowns."""
+        return bool(self.dimension_values)
+
+    def matches_dimension_filter(self, dimension_filter):
+        """Check if this data entry matches the given dimension filter.
+        
+        Args:
+            dimension_filter (dict): Filter like {"gender": "Male", "age": "<30"}
+        
+        Returns:
+            bool: True if all dimensions in filter match this entry
+        """
+        if not dimension_filter:
+            return True
+        
+        if not self.dimension_values:
+            return False
+        
+        for dim_name, dim_value in dimension_filter.items():
+            if self.dimension_values.get(dim_name) != dim_value:
+                return False
+        
+        return True
+
+    def get_dimension_key(self):
+        """Get a string key representing the dimensional breakdown.
+        
+        Returns:
+            str: Sorted dimension key like "age:<30,gender:Male"
+        """
+        if not self.dimension_values:
+            return ""
+        
+        sorted_items = sorted(self.dimension_values.items())
+        return ",".join([f"{k}:{v}" for k, v in sorted_items])
+
+    # Phase 4: Assignment resolution methods for dual compatibility
+    def resolve_assignment(self) -> Optional['DataPointAssignment']:
+        """Resolve the assignment for this data entry.
+        
+        Returns the assignment based on either direct assignment_id or
+        field_id + entity_id + reporting_date resolution.
+        
+        Returns:
+            DataPointAssignment: Resolved assignment or None
+        """
+        from ..services.assignment_versioning import resolve_assignment_for_data
+        
+        return resolve_assignment_for_data(
+            self.field_id,
+            self.entity_id, 
+            self.reporting_date,
+            self.assignment_id
+        )
+    
+    @property
+    def resolved_assignment(self) -> Optional['DataPointAssignment']:
+        """Property for accessing the resolved assignment."""
+        if not hasattr(self, '_resolved_assignment'):
+            self._resolved_assignment = self.resolve_assignment()
+        return self._resolved_assignment
+    
+    def get_assignment_frequency(self) -> Optional[str]:
+        """Get the frequency from the resolved assignment.
+        
+        Returns:
+            str: Assignment frequency (Monthly/Quarterly/Annual) or None
+        """
+        assignment = self.resolved_assignment
+        return assignment.frequency if assignment else None
+    
+    def get_assignment_series_info(self) -> Dict[str, Any]:
+        """Get data series information for this data entry.
+        
+        Returns:
+            Dict containing series information
+        """
+        assignment = self.resolved_assignment
+        if not assignment:
+            return {'has_assignment': False}
+        
+        return {
+            'has_assignment': True,
+            'assignment_id': assignment.id,
+            'data_series_id': assignment.data_series_id,
+            'series_version': assignment.series_version,
+            'series_status': assignment.series_status,
+            'is_latest_version': assignment.is_latest_version(),
+            'frequency': assignment.frequency
+        }
+    
+    def is_assignment_compatible(self) -> bool:
+        """Check if this data entry is compatible with its resolved assignment.
+        
+        Returns:
+            bool: True if compatible, False if there are issues
+        """
+        assignment = self.resolved_assignment
+        if not assignment:
+            return False  # No assignment found
+        
+        # Check if reporting date is valid for assignment
+        try:
+            return assignment.is_valid_reporting_date(self.reporting_date)
+        except Exception:
+            return False
+    
+    @classmethod
+    def find_by_assignment(cls, assignment_id: str, entity_id: Optional[int] = None, reporting_date: Optional[date] = None):
+        """Find ESG data entries by assignment ID with optional filters.
+        
+        Args:
+            assignment_id: Assignment ID to search for
+            entity_id: Optional entity ID filter
+            reporting_date: Optional reporting date filter
+            
+        Returns:
+            Query: Filtered query for ESG data entries
+        """
+        query = cls.query.filter(cls.assignment_id == assignment_id)
+        
+        if entity_id:
+            query = query.filter(cls.entity_id == entity_id)
+        
+        if reporting_date:
+            query = query.filter(cls.reporting_date == reporting_date)
+        
+        return query
+    
+    @classmethod
+    def find_by_field_entity_date(cls, field_id: str, entity_id: int, reporting_date: date):
+        """Find ESG data entry by field + entity + date (legacy pattern).
+        
+        Args:
+            field_id: Framework data field ID
+            entity_id: Entity ID
+            reporting_date: Reporting date
+            
+        Returns:
+            ESGData: Data entry or None
+        """
+        return cls.query.filter(
+            cls.field_id == field_id,
+            cls.entity_id == entity_id,
+            cls.reporting_date == reporting_date
+        ).first()
+    
+    @classmethod
+    def resolve_data_for_assignment(cls, field_id: str, entity_id: int, reporting_date: date):
+        """Resolve ESG data using assignment resolution logic.
+        
+        This method uses the assignment resolution service to find the appropriate
+        assignment and then looks for data entries that match.
+        
+        Args:
+            field_id: Framework data field ID
+            entity_id: Entity ID
+            reporting_date: Reporting date
+            
+        Returns:
+            ESGData: Data entry or None
+        """
+        from ..services.assignment_versioning import resolve_assignment
+        
+        # First try to resolve the assignment
+        assignment = resolve_assignment(field_id, entity_id, reporting_date)
+        if not assignment:
+            return None
+        
+        # Look for data linked directly to this assignment
+        direct_data = cls.query.filter(
+            cls.assignment_id == assignment.id,
+            cls.reporting_date == reporting_date
+        ).first()
+        
+        if direct_data:
+            return direct_data
+        
+        # Fallback to field+entity+date pattern (legacy)
+        return cls.find_by_field_entity_date(field_id, entity_id, reporting_date)
 
     def __repr__(self):
-        return f'<ESGData {self.field_id}: {self.raw_value}>'
+        unit_str = f" {self.effective_unit}" if self.effective_unit else ""
+        dim_str = f" {self.get_dimension_key()}" if self.has_dimensions() else ""
+        return f'<ESGData {self.field_id}: {self.raw_value}{unit_str}{dim_str}>'
 
 
 class ESGDataAuditLog(db.Model):

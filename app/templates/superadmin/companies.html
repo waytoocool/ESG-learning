@@ -46,11 +46,18 @@
                     Create Admin
                 </button>
                 {% endif %}
-                <button class="btn btn-danger delete-company-btn" data-company-id="{{ item.company.id }}" data-company-name="{{ item.company.name }}" {{ 'disabled' if item.user_count > 0 }}>
+                <button class="btn btn-danger delete-company-btn" data-company-id="{{ item.company.id }}" data-company-name="{{ item.company.name }}" {{ 'disabled' if item.active_user_count > 0 }}>
                     Delete
                 </button>
-                {% if item.user_count > 0 %}
-                <small class="text-muted d-block">Cannot delete: {{ item.user_count }} users</small>
+                {% if item.active_user_count > 0 %}
+                <small class="text-muted d-block">Cannot delete: {{ item.active_user_count }} active users</small>
+                {% endif %}
+
+                {# Hard delete button shown only when company is already inactive #}
+                {% if not item.company.is_active %}
+                <button class="btn btn-outline-danger hard-delete-company-btn mt-2" data-company-id="{{ item.company.id }}" data-company-name="{{ item.company.name }}" {{ 'disabled' if item.active_user_count > 0 }}>
+                    Hard&nbsp;Delete
+                </button>
                 {% endif %}
             </div>
         </div>
@@ -73,7 +80,7 @@
                         <input type="email" class="form-control" id="admin-email" name="email" required>
                     </div>
                     <div class="form-group">
-                        <label for="admin-username">Username</label>
+                        <label for="admin-username">Name</label>
                         <input type="text" class="form-control" id="admin-username" name="username">
                     </div>
                     <div class="alert alert-info">
@@ -199,6 +206,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 .catch(error => {
                     console.error('Delete company error:', error);
                     alert('An error occurred while deleting the company.');
+                });
+            }
+        });
+    });
+
+    // Hard delete company (irreversible)
+    document.querySelectorAll('.hard-delete-company-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            if (this.disabled) { return; }
+            const companyId = this.dataset.companyId;
+            const companyName = this.dataset.companyName;
+
+            if (confirm(`This will permanently delete "${companyName}" and ALL its data. This action cannot be undone. Continue?`)) {
+                fetch(`/superadmin/companies/${companyId}/hard-delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(resp => resp.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(err => {
+                    console.error('Hard delete error', err);
+                    alert('An error occurred while hard deleting the company.');
                 });
             }
         });

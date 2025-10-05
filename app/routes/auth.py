@@ -18,7 +18,7 @@ def root():
 def login():
     if request.method == 'POST':
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-        email = request.form['email']
+        email = request.form['email'].lower().strip() if request.form['email'] else ''
         password = request.form['password']
         
         if not email or not password:
@@ -60,13 +60,23 @@ def login():
 @auth_bp.route('/logout')
 @login_required
 def logout():
+    # Clear any impersonation flags from session
+    session.pop('impersonating', None)
+    session.pop('original_user_id', None)
+    session.pop('impersonated_user_id', None)
+
+    # Logout the user
     logout_user()
+
+    # Clear the entire session to ensure clean state
+    session.clear()
+
     return redirect(url_for('auth.login'))
 
 @auth_bp.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
-        email = request.form['email']
+        email = request.form['email'].lower().strip() if request.form['email'] else ''
         user = User.query.filter_by(email=email).first()
         
         if user:
@@ -130,11 +140,11 @@ def register_user(token):
         return redirect(url_for('auth.login'))
 
     if request.method == 'POST':
-        username = request.form.get('username')
+        name = request.form.get('username')
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
 
-        if not username or not password or not confirm_password:
+        if not name or not password or not confirm_password:
             flash('Please fill in all fields.', 'danger')
             return render_template('register_user.html', user=user, token=token)
 
@@ -143,7 +153,7 @@ def register_user(token):
             return render_template('register_user.html', user=user, token=token)
 
         try:
-            user.username = username
+            user.name = name
             user.password = generate_password_hash(password, method='pbkdf2:sha256')
             user.is_email_verified = True
             db.session.commit()

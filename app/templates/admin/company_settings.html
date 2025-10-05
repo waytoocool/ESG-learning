@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/company_settings.css') }}">
+{% endblock %}
+
+{% block title %}Company Settings - ESG DataVault{% endblock %}
+
+{% block header %}Company Settings{% endblock %}
+
+{% block content %}
+<div class="company-settings-container">
+    <div class="settings-header">
+        <h2>Fiscal Year Configuration</h2>
+        <p class="settings-description">
+            Configure your company's fiscal year period. This affects all data reporting periods and calculations.
+        </p>
+    </div>
+
+    <!-- Current Settings Display -->
+    {% if company %}
+    <div class="current-settings-card">
+        <h3>Current Fiscal Year Settings</h3>
+        <div class="current-info">
+            <div class="info-item">
+                <label>Company:</label>
+                <span class="value">{{ company.name }}</span>
+            </div>
+            <div class="info-item">
+                <label>Fiscal Year End:</label>
+                <span class="value">
+                    {% set month_names = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] %}
+                    {{ month_names[company.fy_end_month] }} {{ company.fy_end_day }}
+                </span>
+            </div>
+            <div class="info-item">
+                <label>Example Current FY:</label>
+                <span class="value example-fy" id="current-fy-example">
+                    {% if company %}
+                        {% set current_year = 2025 %}
+                        {{ company.get_fy_display(current_year) }}
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Configuration Form -->
+    <div class="settings-form-card">
+        <h3>Update Fiscal Year Configuration</h3>
+        
+        <form method="POST" class="fy-config-form" id="fyConfigForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="fy_end_month" class="form-label">
+                        Fiscal Year End Month
+                        <span class="required">*</span>
+                    </label>
+                    <select id="fy_end_month" name="fy_end_month" class="form-control" required>
+                        <option value="">Select Month</option>
+                        {% set month_options = [
+                            (1, 'January'), (2, 'February'), (3, 'March'), (4, 'April'),
+                            (5, 'May'), (6, 'June'), (7, 'July'), (8, 'August'),
+                            (9, 'September'), (10, 'October'), (11, 'November'), (12, 'December')
+                        ] %}
+                        {% for value, name in month_options %}
+                        <option value="{{ value }}" {{ 'selected' if company and company.fy_end_month == value else '' }}>
+                            {{ name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="fy_end_day" class="form-label">
+                        Fiscal Year End Day
+                        <span class="required">*</span>
+                    </label>
+                    <input 
+                        type="number" 
+                        id="fy_end_day" 
+                        name="fy_end_day" 
+                        class="form-control" 
+                        min="1" 
+                        max="31" 
+                        value="{{ company.fy_end_day if company else 31 }}"
+                        required
+                    >
+                    <small class="form-help">Day will be adjusted for months with fewer days (e.g., February)</small>
+                </div>
+            </div>
+
+            <!-- Live Preview -->
+            <div class="preview-section">
+                <h4>Preview</h4>
+                <div class="preview-content">
+                    <div class="preview-item">
+                        <label>New Fiscal Year Example:</label>
+                        <span id="live-preview" class="preview-value">Select month and day to see preview</span>
+                    </div>
+                    <div class="preview-item">
+                        <label>Impact:</label>
+                        <span class="preview-impact">This will affect all future data reporting periods and calculations.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="resetForm()">Reset</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    Update Fiscal Year Settings
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Help Section -->
+    <div class="help-section">
+        <h3>Understanding Fiscal Years</h3>
+        <div class="help-content">
+            <div class="help-item">
+                <h4>What is a Fiscal Year?</h4>
+                <p>A fiscal year is a 12-month period used for accounting and budgeting purposes. It may differ from the calendar year.</p>
+            </div>
+            <div class="help-item">
+                <h4>Common Examples:</h4>
+                <ul>
+                    <li><strong>March 31:</strong> April - March (common in many countries)</li>
+                    <li><strong>December 31:</strong> January - December (calendar year)</li>
+                    <li><strong>September 30:</strong> October - September (US government)</li>
+                </ul>
+            </div>
+            <div class="help-item">
+                <h4>Important Notes:</h4>
+                <ul>
+                    <li>Changes affect all future data reporting periods</li>
+                    <li>Historical data periods remain unchanged</li>
+                    <li>Day 31 will be adjusted for months with fewer days</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Confirm Fiscal Year Change</h3>
+            <span class="close" onclick="closeConfirmModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to update the fiscal year configuration?</p>
+            <div class="change-summary">
+                <strong>New Configuration:</strong>
+                <div id="confirm-details"></div>
+            </div>
+            <p class="warning-text">
+                <i class="fas fa-exclamation-triangle"></i>
+                This will affect all future data reporting periods.
+            </p>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="confirmSubmit()">Confirm Update</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Month names for JavaScript calculations
+const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 
+                   'July', 'August', 'September', 'October', 'November', 'December'];
+
+// Days in each month (non-leap year, February handled separately)
+const daysInMonth = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+// Live preview functionality
+function updateLivePreview() {
+    const month = parseInt(document.getElementById('fy_end_month').value);
+    const day = parseInt(document.getElementById('fy_end_day').value);
+    const previewElement = document.getElementById('live-preview');
+    
+    if (month && day) {
+        // Calculate fiscal year start
+        const startMonth = (month % 12) + 1;
+        const currentYear = new Date().getFullYear();
+        
+        // Determine years for the fiscal year
+        let fyStartYear, fyEndYear;
+        if (startMonth > month) {
+            fyStartYear = currentYear;
+            fyEndYear = currentYear + 1;
+        } else {
+            fyStartYear = currentYear + 1;
+            fyEndYear = currentYear + 1;
+        }
+        
+        // Format the display
+        const startName = monthNames[startMonth];
+        const endName = monthNames[month];
+        const actualDay = Math.min(day, daysInMonth[month] || 31);
+        
+        previewElement.textContent = `${startName} ${fyStartYear} - ${endName} ${fyEndYear}`;
+        
+        // Update day if it was adjusted
+        if (actualDay !== day && day > 28) {
+            document.getElementById('fy_end_day').value = actualDay;
+            showTooltip(`Day adjusted to ${actualDay} for ${endName}`);
+        }
+    } else {
+        previewElement.textContent = 'Select month and day to see preview';
+    }
+}
+
+// Reset form to original values
+function resetForm() {
+    {% if company %}
+    document.getElementById('fy_end_month').value = '{{ company.fy_end_month }}';
+    document.getElementById('fy_end_day').value = '{{ company.fy_end_day }}';
+    {% else %}
+    document.getElementById('fy_end_month').value = '3';
+    document.getElementById('fy_end_day').value = '31';
+    {% endif %}
+    updateLivePreview();
+}
+
+// Form submission with confirmation
+function handleFormSubmit(event) {
+    event.preventDefault();
+    
+    const month = parseInt(document.getElementById('fy_end_month').value);
+    const day = parseInt(document.getElementById('fy_end_day').value);
+    
+    if (!month || !day) {
+        alert('Please select both month and day.');
+        return;
+    }
+    
+    // Show confirmation modal
+    const confirmDetails = document.getElementById('confirm-details');
+    const actualDay = Math.min(day, daysInMonth[month] || 31);
+    confirmDetails.innerHTML = `
+        <div class="confirm-item">End Month: ${monthNames[month]}</div>
+        <div class="confirm-item">End Day: ${actualDay}</div>
+        <div class="confirm-item">Example FY: ${document.getElementById('live-preview').textContent}</div>
+    `;
+    
+    document.getElementById('confirmModal').style.display = 'block';
+}
+
+// Close confirmation modal
+function closeConfirmModal() {
+    document.getElementById('confirmModal').style.display = 'none';
+}
+
+// Confirm and submit
+function confirmSubmit() {
+    document.getElementById('fyConfigForm').submit();
+}
+
+// Show temporary tooltip
+function showTooltip(message) {
+    // Create tooltip element
+    const tooltip = document.createElement('div');
+    tooltip.className = 'temp-tooltip';
+    tooltip.textContent = message;
+    tooltip.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #333;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        z-index: 1000;
+        font-size: 14px;
+    `;
+    
+    document.body.appendChild(tooltip);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        if (tooltip.parentNode) {
+            tooltip.parentNode.removeChild(tooltip);
+        }
+    }, 3000);
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize preview
+    updateLivePreview();
+    
+    // Add change listeners
+    document.getElementById('fy_end_month').addEventListener('change', updateLivePreview);
+    document.getElementById('fy_end_day').addEventListener('input', updateLivePreview);
+    
+    // Add form submission handler
+    document.getElementById('fyConfigForm').addEventListener('submit', handleFormSubmit);
+    
+    // Validate day input based on selected month
+    document.getElementById('fy_end_month').addEventListener('change', function() {
+        const month = parseInt(this.value);
+        const dayInput = document.getElementById('fy_end_day');
+        
+        if (month) {
+            const maxDay = daysInMonth[month] || 31;
+            dayInput.max = maxDay;
+            
+            if (parseInt(dayInput.value) > maxDay) {
+                dayInput.value = maxDay;
+                updateLivePreview();
+            }
+        }
+    });
+    
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('confirmModal');
+        if (event.target === modal) {
+            closeConfirmModal();
+        }
+    });
+});
+</script>
+{% endblock %}

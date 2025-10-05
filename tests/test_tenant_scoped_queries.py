@@ -20,7 +20,7 @@ from app.extensions import db
 from app.models.company import Company
 from app.models.entity import Entity
 from app.models.esg_data import ESGData
-from app.models.data_point import DataPoint
+from app.models.framework import FrameworkDataField
 from app.models.data_assignment import DataPointAssignment
 from app.models.framework import Framework, FrameworkDataField
 from app.models.user import User
@@ -116,9 +116,9 @@ class TestTenantScopedQueryMixin:
             db.session.commit()
             
             # Create data points for each tenant
-            acme_dp1 = DataPoint(name="Acme Metric 1", value_type="numeric", framework_id=framework.framework_id, company_id=acme_company.id)
-            acme_dp2 = DataPoint(name="Acme Metric 2", value_type="text", framework_id=framework.framework_id, company_id=acme_company.id)
-            beta_dp1 = DataPoint(name="Beta Metric 1", value_type="numeric", framework_id=framework.framework_id, company_id=beta_company.id)
+            acme_dp1 = FrameworkDataField(field_name="Acme Metric 1", value_type="NUMBER", framework_id=framework.framework_id, company_id=acme_company.id)
+            acme_dp2 = FrameworkDataField(field_name="Acme Metric 2", value_type="TEXT", framework_id=framework.framework_id, company_id=acme_company.id)
+            beta_dp1 = FrameworkDataField(field_name="Beta Metric 1", value_type="NUMBER", framework_id=framework.framework_id, company_id=beta_company.id)
             
             db.session.add_all([acme_dp1, acme_dp2, beta_dp1])
             db.session.commit()
@@ -128,7 +128,7 @@ class TestTenantScopedQueryMixin:
             
             # Query all models for Acme
             acme_entities = Entity.query_for_tenant(db.session).all()
-            acme_data_points = DataPoint.query_for_tenant(db.session).all()
+            acme_data_points = FrameworkDataField.query_for_tenant(db.session).all()
             
             # Verify Acme data
             assert len(acme_entities) == 2
@@ -141,7 +141,7 @@ class TestTenantScopedQueryMixin:
             
             # Query all models for Beta
             beta_entities = Entity.query_for_tenant(db.session).all()
-            beta_data_points = DataPoint.query_for_tenant(db.session).all()
+            beta_data_points = FrameworkDataField.query_for_tenant(db.session).all()
             
             # Verify Beta data is completely different
             assert len(beta_entities) == 2
@@ -239,15 +239,15 @@ class TestTenantScopedQueryMixin:
             # Test entity counts for each tenant
             g.tenant = acme_company
             assert Entity.count_for_tenant(db.session) == 2
-            assert DataPoint.count_for_tenant(db.session) == 2
+            assert FrameworkDataField.count_for_tenant(db.session) == 2
             
             g.tenant = beta_company
             assert Entity.count_for_tenant(db.session) == 2
-            assert DataPoint.count_for_tenant(db.session) == 1
+            assert FrameworkDataField.count_for_tenant(db.session) == 1
             
             g.tenant = gamma_company
             assert Entity.count_for_tenant(db.session) == 1
-            assert DataPoint.count_for_tenant(db.session) == 1
+            assert FrameworkDataField.count_for_tenant(db.session) == 1
 
     def test_exists_for_tenant_method(self, app):
         """✅ Test 5: Test exists_for_tenant method."""
@@ -478,7 +478,7 @@ class TestTenantScopedQueryMixin:
             g.tenant = acme_company
             
             acme_entities = Entity.query_for_tenant(db.session).all()
-            acme_data_points = DataPoint.query_for_tenant(db.session).all()
+            acme_data_points = FrameworkDataField.query_for_tenant(db.session).all()
             
             # Verify all records belong to Acme
             assert all(entity.company_id == acme_company.id for entity in acme_entities)
@@ -488,7 +488,7 @@ class TestTenantScopedQueryMixin:
             g.tenant = beta_company
             
             beta_entities = Entity.query_for_tenant(db.session).all()
-            beta_data_points = DataPoint.query_for_tenant(db.session).all()
+            beta_data_points = FrameworkDataField.query_for_tenant(db.session).all()
             
             # Verify all records belong to Beta
             assert all(entity.company_id == beta_company.id for entity in beta_entities)
