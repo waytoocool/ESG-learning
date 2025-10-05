@@ -19,6 +19,32 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node.js dependencies
+        run: npm install
+
+      - name: Start Flask Application
+        run: |
+          python3 run.py &
+          sleep 10
+          echo "Flask app started"
+        env:
+          DATABASE_URL: sqlite:///instance/esg_data.db
+          SECRET_KEY: ${{ secrets.SECRET_KEY || 'test-secret-key-for-ci' }}
+          FLASK_ENV: development
+
       - name: Run Claude Code Issue Validation
         id: claude-validation
         uses: anthropics/claude-code-action@v1
@@ -32,13 +58,29 @@ jobs:
 
             You are the Issue Validation Agent for the ESG DataVault application.
 
+            IMPORTANT: A live Flask application is running at http://127-0-0-1.nip.io:8000
+
+            Test environments available:
+            - Super Admin: http://127-0-0-1.nip.io:8000/login (admin@yourdomain.com / changeme)
+            - Test Company Alpha Admin: http://test-company-alpha.127-0-0-1.nip.io:8000/
+            - Test Company Beta Admin: http://test-company-beta.127-0-0-1.nip.io:8000/
+            - Test Company Gamma Admin: http://test-company-gamma.127-0-0-1.nip.io:8000/
+
             Your task is to:
             1. Analyze the reported issue thoroughly
             2. Determine if it's a bug report, feature request, or question
-            3. For bug reports: Attempt to reproduce the issue using the ui-testing-agent if applicable
+            3. **For bug reports: MUST test against the LIVE environment using ui-testing-agent**
             4. Assess the criticality: CRITICAL / HIGH / MEDIUM / LOW
             5. Identify affected components and potential impact
             6. Suggest initial troubleshooting steps or validation tests
+
+            Testing Instructions:
+            - Start MCP server with: npm run mcp:start
+            - Use the ui-testing-agent (via Task tool) to reproduce the issue on the live environment
+            - Navigate to the affected page/component mentioned in the issue
+            - Attempt to reproduce the exact steps described in the issue
+            - Capture screenshots of the issue if reproduced
+            - Document your testing process in your analysis
 
             Based on your analysis, provide:
             - **Issue Type**: [Bug/Feature/Question/Documentation]
@@ -46,16 +88,42 @@ jobs:
             - **Reproducibility**: [Confirmed/Cannot Reproduce/Needs More Info]
             - **Affected Area**: [Component/Module names]
             - **Impact Assessment**: Brief description
+            - **Testing Evidence**: Screenshots or test results
             - **Recommended Action**: Next steps
 
-            If this is a bug report and you can validate it:
-            - Use the ui-testing-agent to attempt reproduction
-            - Start MCP server with: npm run mcp:start
-            - Run relevant tests to validate the issue
-            - Capture screenshots if validation succeeds/fails
+            **CRITICAL BUG PROTOCOL**:
+            If you determine this is a CRITICAL bug:
+            1. Add a "🚨 CRITICAL" label to the issue using `gh issue edit`
+            2. Set output variable `critical_bug=true` for email notification
+            3. Include detailed reproduction steps and impact assessment in your comment
 
             After your analysis, use `gh issue comment` to post your findings on issue #${{ github.event.issue.number }}.
 
             Format your comment professionally with clear sections and markdown formatting.
 
-          claude_args: '--allowed-tools "Bash(npm run mcp:*),Bash(gh issue comment:*),Bash(gh issue view:*),Bash(gh issue edit:*),Bash(python3:*),Bash(node:*),Task(*)"'
+          claude_args: '--allowed-tools "Bash(npm run mcp:*),Bash(gh issue comment:*),Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh issue label:*),Bash(python3:*),Bash(node:*),Bash(pkill:*),Task(*)"'
+
+      - name: Send Critical Bug Email Notification
+        if: steps.claude-validation.outputs.critical_bug == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: '🚨 CRITICAL BUG: ${{ github.event.issue.title }}'
+          to: ${{ secrets.CRITICAL_BUG_EMAIL || secrets.MAIL_USERNAME }}
+          from: ESG DataVault CI <${{ secrets.MAIL_USERNAME }}>
+          body: |
+            A CRITICAL bug has been detected in the ESG DataVault application.
+
+            Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}
+            Reporter: @${{ github.event.issue.user.login }}
+
+            View Issue: ${{ github.event.issue.html_url }}
+
+            The issue has been automatically validated by Claude Code.
+            Please review the issue and validation report immediately.
+
+            ---
+            This is an automated notification from ESG DataVault CI/CD
