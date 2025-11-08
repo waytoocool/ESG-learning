@@ -152,7 +152,7 @@ def _create_sample_frameworks_and_data(company_id):
                         company_id=company_id,
                         field_name=field_data["name"],
                         field_code=field_data["code"],
-                        description=f"Description for {field_data["name"]}",
+                        description=f"Description for {field_data['name']}",
                         unit_category=field_data["unit"].split(' ')[0] if field_data["unit"] else None, # Simple guess
                         default_unit=field_data["unit"],
                         value_type="NUMBER" if field_data["type"] == "Numeric" else field_data["type"],
