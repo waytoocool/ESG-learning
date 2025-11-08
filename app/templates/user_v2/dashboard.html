@@ -1,208 +1,400 @@
 {% extends "base.html" %}
 
-{% block title %}User Dashboard V2{% endblock %}
+{% block title %}User Dashboard{% endblock %}
+
+{% block extra_head %}
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Material Icons -->
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<!-- Inter Font -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Chart.js for historical trends -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Tailwind Configuration -->
+<script>
+tailwind.config = {
+    darkMode: 'class',
+    theme: {
+        extend: {
+            colors: {
+                primary: {
+                    50: '#f0fdf4',
+                    100: '#dcfce7',
+                    200: '#bbf7d0',
+                    300: '#86efac',
+                    400: '#4ade80',
+                    500: '#16a34a',
+                    600: '#15803d',
+                    700: '#166534',
+                    800: '#14532d',
+                    900: '#052e16',
+                },
+            },
+            fontFamily: {
+                sans: ['Inter', 'sans-serif'],
+            },
+        }
+    }
+}
+</script>
+
+<style>
+    body {
+        font-family: 'Inter', sans-serif;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <!-- Phase 3: Computation Context CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/user_v2/computation_context.css') }}">
 
-<!-- Chart.js for historical trends -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<div class="container-fluid user-dashboard-v2">
-    <!-- Header with Entity Switcher -->
-    <div class="dashboard-header">
-        <div class="row align-items-center mb-4">
-            <div class="col-md-6">
-                <h1>Data Entry Dashboard</h1>
-                <p class="text-muted">Welcome, {{ user_name }}!</p>
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Header -->
+    <div class="mx-auto px-2 sm:px-3 lg:px-4 py-2">
+        <div class="flex items-center justify-between">
+            <!-- Left: Page Title -->
+            <div class="flex items-center gap-2">
+                <h1 class="text-base font-bold text-gray-900 dark:text-white">Data Entry Dashboard</h1>
             </div>
-            <div class="col-md-6 text-end">
-                <!-- Entity Switcher (only visible for admins with multiple entities) -->
-                {% if user_role == 'ADMIN' and entities|length > 1 %}
-                <div class="entity-switcher">
-                    <label for="entitySelect" class="form-label">Current Entity:</label>
-                    <select id="entitySelect" class="form-select entity-dropdown" style="max-width: 300px; display: inline-block;">
-                        {% for entity in entities %}
-                        <option value="{{ entity.id }}" {% if entity.is_current %}selected{% endif %}>
-                            {{ entity.name }} ({{ entity.type }})
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                {% elif current_entity %}
-                <div class="current-entity-display">
-                    <strong>Entity:</strong> {{ current_entity.name }} <span class="badge bg-secondary">{{ current_entity.type }}</span>
-                </div>
-                {% endif %}
 
-                <!-- Toggle Button (future implementation) -->
-                <button id="toggleViewBtn" class="btn btn-outline-primary ms-3" title="Toggle to legacy dashboard">
-                    <i class="fas fa-exchange-alt"></i> Legacy View
-                </button>
+            <!-- Right: User Info -->
+            <div class="flex items-center gap-2">
+                <div class="text-right">
+                    <p class="text-xs font-medium text-gray-900 dark:text-white">{{ user_name }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">USER {{ current_user.email }} {{ current_user.company.name if current_user.company else '' }}</p>
+                </div>
             </div>
         </div>
+    </div>
 
-        <!-- Statistics Cards -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card stats-card">
-                    <div class="card-body">
-                        <h5 class="card-title">Total Fields</h5>
-                        <p class="card-text display-6">{{ total_fields }}</p>
-                    </div>
-                </div>
+    <!-- Entity Selector Section -->
+    <div class="mx-auto px-2 sm:px-3 lg:px-4 py-3">
+        <div class="flex items-center justify-between">
+            <!-- Entity Switcher -->
+            <div class="flex items-center gap-2">
+                {% if user_role == 'ADMIN' and entities|length > 1 %}
+                <span class="material-icons text-gray-500 dark:text-gray-400">apartment</span>
+                <label for="entitySelect" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Data for:
+                </label>
+                <select id="entitySelect" class="block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-white dark:text-gray-900 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm py-1.5 px-3">
+                    {% for entity in entities %}
+                    <option value="{{ entity.id }}" {% if entity.is_current %}selected{% endif %}>
+                        {{ entity.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% elif current_entity %}
+                <span class="material-icons text-gray-500 dark:text-gray-400">apartment</span>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Data for:</span>
+                <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ current_entity.name }}</span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                    {{ current_entity.type }}
+                </span>
+                {% endif %}
             </div>
-            <div class="col-md-3">
-                <div class="card stats-card">
-                    <div class="card-body">
-                        <h5 class="card-title">Raw Input Fields</h5>
-                        <p class="card-text display-6">{{ raw_count }}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card stats-card">
-                    <div class="card-body">
-                        <h5 class="card-title">Computed Fields</h5>
-                        <p class="card-text display-6">{{ computed_count }}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card stats-card">
-                    <div class="card-body">
-                        <h5 class="card-title">Date</h5>
-                        <p class="card-text">
-                            <input type="date" id="selectedDate" class="form-control" value="{{ selected_date }}">
-                        </p>
-                    </div>
-                </div>
-            </div>
+
+            <!-- Toggle Button -->
+            <button id="toggleViewBtn" class="inline-flex items-center gap-1 text-sm text-primary-600 dark:text-primary-500 hover:underline">
+                <span class="material-icons text-sm">swap_horiz</span>
+                Legacy View
+            </button>
         </div>
     </div>
 
     <!-- Error Message Display -->
     {% if error_message %}
-    <div class="alert alert-danger" role="alert">
-        <i class="fas fa-exclamation-triangle"></i> {{ error_message }}
+    <div class="mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div class="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 border border-red-200 dark:border-red-800">
+            <div class="flex">
+                <span class="material-icons text-red-400 mr-3">error</span>
+                <p class="text-sm text-red-800 dark:text-red-200">{{ error_message }}</p>
+            </div>
+        </div>
     </div>
     {% endif %}
 
-    <!-- Data Points Table -->
-    <div class="data-points-section">
-        <!-- Raw Input Fields -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h3>Raw Input Fields</h3>
-            </div>
-            <div class="card-body">
-                {% if raw_input_fields %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Field Name</th>
-                                <th>Topic</th>
-                                <th>Frequency</th>
-                                <th>Unit</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for field in raw_input_fields %}
-                            <tr>
-                                <td>{{ field.field_name }}</td>
-                                <td>{{ field.topic_name or 'N/A' }}</td>
-                                <td><span class="badge bg-info">{{ field.frequency }}</span></td>
-                                <td>{{ field.default_unit or 'N/A' }}</td>
-                                <td>
-                                    {% if field.status == 'complete' %}
-                                        <span class="badge bg-success">Complete</span>
-                                    {% elif field.status == 'partial' %}
-                                        <span class="badge bg-warning">Partial</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">Empty</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <button class="btn btn-sm btn-primary open-data-modal"
-                                            data-field-id="{{ field.field_id }}"
-                                            data-field-name="{{ field.field_name }}"
-                                            data-field-type="raw_input">
-                                        <i class="fas fa-edit"></i> Enter Data
-                                    </button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+    <!-- Statistics Cards -->
+    <div class="mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <!-- Total Data Requests -->
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+                <div class="p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-full">
+                                <span class="material-icons text-blue-500 text-2xl">list_alt</span>
+                            </div>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-700 dark:text-gray-300">Total Data Requests</dt>
+                                <dd class="text-3xl font-bold text-gray-900 dark:text-white">{{ total_fields }}</dd>
+                            </dl>
+                        </div>
+                    </div>
                 </div>
-                {% else %}
-                <p class="text-muted">No raw input fields assigned to this entity.</p>
-                {% endif %}
             </div>
-        </div>
 
-        <!-- Computed Fields -->
-        <div class="card">
-            <div class="card-header">
-                <h3>Computed Fields</h3>
-            </div>
-            <div class="card-body">
-                {% if computed_fields %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Field Name</th>
-                                <th>Topic</th>
-                                <th>Frequency</th>
-                                <th>Unit</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for field in computed_fields %}
-                            <tr>
-                                <td>{{ field.field_name }}</td>
-                                <td>{{ field.topic_name or 'N/A' }}</td>
-                                <td><span class="badge bg-info">{{ field.frequency }}</span></td>
-                                <td>{{ field.default_unit or 'N/A' }}</td>
-                                <td>
-                                    {% if field.status == 'complete' %}
-                                        <span class="badge bg-success">Computed</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">Pending</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <button class="btn btn-sm btn-info open-data-modal"
-                                            data-field-id="{{ field.field_id }}"
-                                            data-field-name="{{ field.field_name }}"
-                                            data-field-type="computed">
-                                        <i class="fas fa-eye"></i> View Details
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-primary show-computation-context"
-                                            data-field-id="{{ field.field_id }}"
-                                            title="View Computation Context">
-                                        <i class="fas fa-info-circle"></i> Formula
-                                    </button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            <!-- Completed Requests -->
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+                <div class="p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="p-3 bg-green-100 dark:bg-green-900/50 rounded-full">
+                                <span class="material-icons text-green-500 text-2xl">check_circle</span>
+                            </div>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-700 dark:text-gray-300">Completed Requests</dt>
+                                <dd class="text-3xl font-bold text-gray-900 dark:text-white">
+                                    {{ raw_input_fields|selectattr('status', 'equalto', 'complete')|list|length + computed_fields|selectattr('status', 'equalto', 'complete')|list|length }}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
                 </div>
-                {% else %}
-                <p class="text-muted">No computed fields assigned to this entity.</p>
-                {% endif %}
+            </div>
+
+            <!-- Date Selector -->
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+                <div class="p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="p-3 bg-purple-100 dark:bg-purple-900/50 rounded-full">
+                                <span class="material-icons text-purple-500 text-2xl">calendar_today</span>
+                            </div>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-700 dark:text-gray-300">Reporting Date</dt>
+                                <dd class="mt-1">
+                                    <input type="date" id="selectedDate" value="{{ selected_date }}" class="block w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending Requests -->
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+                <div class="p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="p-3 bg-yellow-100 dark:bg-yellow-900/50 rounded-full">
+                                <span class="material-icons text-yellow-500 text-2xl">pending</span>
+                            </div>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-700 dark:text-gray-300">Pending<br>Requests</dt>
+                                <dd class="text-3xl font-bold text-gray-900 dark:text-white">
+                                    {{ raw_input_fields|rejectattr('status', 'equalto', 'complete')|list|length + computed_fields|rejectattr('status', 'equalto', 'complete')|list|length }}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Data Collection Modal -->
+    <!-- Search and Filters -->
+    <div class="mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <div class="flex flex-col sm:flex-row gap-4">
+                <!-- Search Box -->
+                <div class="flex-1">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span class="material-icons text-gray-400 text-sm">search</span>
+                        </div>
+                        <input type="text" id="searchMetrics" placeholder="Search metrics..." class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                    </div>
+                </div>
+
+                <!-- Filter: Status -->
+                <div class="sm:w-48">
+                    <select id="filterStatus" class="block w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+                        <option value="">All Statuses</option>
+                        <option value="complete">Complete</option>
+                        <option value="pending">Pending</option>
+                        <option value="overdue">Overdue</option>
+                    </select>
+                </div>
+
+                <!-- Filter: Category -->
+                <div class="sm:w-48">
+                    <select id="filterCategory" class="block w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+                        <option value="">All Categories</option>
+                        <option value="energy">Energy</option>
+                        <option value="emissions">Emissions</option>
+                        <option value="social">Social</option>
+                        <option value="governance">Governance</option>
+                    </select>
+                </div>
+
+                <!-- Filter: Field Type -->
+                <div class="sm:w-48">
+                    <select id="filterFieldType" class="block w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+                        <option value="">All Field Types</option>
+                        <option value="raw">Raw Input</option>
+                        <option value="computed">Computed</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Points Grid -->
+    <div class="mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {% set all_fields = raw_input_fields + computed_fields %}
+        {% set fields_by_category = {} %}
+
+        {# Group fields by category/topic #}
+        {% for field in all_fields %}
+            {% set category = field.topic_name or 'Uncategorized' %}
+            {% if category not in fields_by_category %}
+                {% set _ = fields_by_category.update({category: []}) %}
+            {% endif %}
+            {% set _ = fields_by_category[category].append(field) %}
+        {% endfor %}
+
+        <!-- Category Icons Mapping -->
+        {% set category_icons = {
+            'Energy': 'bolt',
+            'Emissions': 'cloud',
+            'Social': 'groups',
+            'Governance': 'gavel',
+            'Water': 'water_drop',
+            'Waste': 'delete',
+            'Biodiversity': 'nature',
+            'Uncategorized': 'folder'
+        } %}
+
+        <!-- Render Each Category -->
+        {% for category, fields in fields_by_category.items() %}
+        <div class="mb-8 category-section" data-category="{{ category.lower() }}">
+            <!-- Category Header -->
+            <div class="flex items-center mb-4">
+                <span class="material-icons text-primary-600 dark:text-primary-500 mr-2">
+                    {{ category_icons.get(category, 'folder') }}
+                </span>
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">{{ category }}</h2>
+                <span class="ml-3 inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200">
+                    {{ fields|length }} {{ 'field' if fields|length == 1 else 'fields' }}
+                </span>
+            </div>
+
+            <!-- Fields Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {% for field in fields %}
+                {% set is_computed = field.field_name in (computed_fields|map(attribute='field_name')|list) %}
+
+                <div class="field-card bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow duration-200 overflow-hidden border border-gray-200 dark:border-gray-700 {{ 'computed-field' if is_computed else 'raw-field' }}"
+                     data-field-type="{{ 'computed' if is_computed else 'raw' }}"
+                     data-field-name="{{ field.field_name|lower }}"
+                     data-status="{{ field.status or 'pending' }}">
+
+                    <!-- Card Header with Status Badge -->
+                    <div class="px-4 pt-4 pb-2">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <h3 class="text-sm font-semibold text-gray-900 dark:text-white line-clamp-2 min-h-[2.5rem]">
+                                    {{ field.field_name }}
+                                </h3>
+                            </div>
+                            <div class="ml-2">
+                                {% if field.status == 'complete' %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                                    Complete
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                                    Pending
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card Body -->
+                    <div class="px-4 py-3 space-y-2">
+                        <!-- Field Type Badge -->
+                        <div class="flex items-center gap-2">
+                            {% if is_computed %}
+                            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                <span class="material-icons text-xs mr-1">functions</span>
+                                Computed
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                                <span class="material-icons text-xs mr-1">edit</span>
+                                Raw Input
+                            </span>
+                            {% endif %}
+
+                            <!-- Frequency Badge -->
+                            {% if field.frequency %}
+                            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium
+                                {% if field.frequency == 'Annual' %}bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200
+                                {% elif field.frequency == 'Quarterly' %}bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200
+                                {% elif field.frequency == 'Monthly' %}bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200
+                                {% else %}bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200{% endif %}">
+                                {{ field.frequency }}
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Unit -->
+                        {% if field.default_unit %}
+                        <div class="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                            <span class="material-icons text-xs mr-1">straighten</span>
+                            <span>{{ field.default_unit }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Card Footer with Action Buttons -->
+                    <div class="px-4 pb-4">
+                        {% if is_computed %}
+                        <div class="flex gap-2">
+                            <button class="open-data-modal flex-1 inline-flex items-center justify-center px-3 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                                    data-field-id="{{ field.field_id }}"
+                                    data-field-name="{{ field.field_name }}"
+                                    data-field-type="computed">
+                                <span class="material-icons text-sm mr-1">visibility</span>
+                                View Data
+                            </button>
+                            <button class="show-computation-context inline-flex items-center justify-center px-3 py-2.5 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                                    data-field-id="{{ field.field_id }}"
+                                    title="View Calculation">
+                                <span class="material-icons text-sm">functions</span>
+                            </button>
+                        </div>
+                        {% else %}
+                        <button class="open-data-modal w-full inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                                data-field-id="{{ field.field_id }}"
+                                data-field-name="{{ field.field_name }}"
+                                data-field-type="raw_input">
+                            <span class="material-icons text-sm mr-2">edit</span>
+                            Enter Data
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Data Collection Modal (Keep existing Bootstrap modal for compatibility) -->
     <div class="modal fade" id="dataCollectionModal" tabindex="-1" aria-labelledby="dataCollectionModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <div class="modal-container">
@@ -292,45 +484,9 @@
     </dialog>
 </div>
 
+<!-- Keep all existing custom styles that don't conflict with Tailwind -->
 <style>
-/* User Dashboard V2 Styles */
-.user-dashboard-v2 {
-    padding: 20px;
-}
-
-.dashboard-header {
-    margin-bottom: 30px;
-}
-
-.entity-switcher {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.stats-card {
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    border-radius: 8px;
-}
-
-.stats-card .card-body {
-    text-align: center;
-    padding: 20px;
-}
-
-.stats-card .card-title {
-    font-size: 14px;
-    color: #666;
-    margin-bottom: 10px;
-}
-
-.stats-card .display-6 {
-    font-size: 2rem;
-    font-weight: bold;
-    color: #333;
-}
-
-/* Modal Styles */
+/* Modal Styles (Bootstrap compatibility) */
 .modal-xl {
     max-width: 90%;
 }
@@ -368,13 +524,13 @@
 }
 
 .modal-tabs .tab.active {
-    color: #0d6efd;
-    border-bottom-color: #0d6efd;
+    color: #16a34a;
+    border-bottom-color: #16a34a;
 }
 
 .modal-tabs .tab:hover {
-    color: #0d6efd;
-    background: rgba(13, 110, 253, 0.05);
+    color: #16a34a;
+    background: rgba(22, 163, 74, 0.05);
 }
 
 .modal-body {
@@ -400,8 +556,8 @@
 }
 
 .file-upload-area:hover {
-    border-color: #0d6efd;
-    background: rgba(13, 110, 253, 0.05);
+    border-color: #16a34a;
+    background: rgba(22, 163, 74, 0.05);
 }
 
 .modal-footer {
@@ -412,26 +568,56 @@
     gap: 10px;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-    .modal-xl {
-        max-width: 100%;
-        margin: 10px;
-    }
+/* Dark mode for modals */
+.dark .modal-container {
+    background: #1f2937;
+    color: white;
+}
 
-    .stats-card {
-        margin-bottom: 15px;
-    }
+.dark .modal-header,
+.dark .modal-footer {
+    border-color: #374151;
+}
 
-    .entity-switcher {
-        flex-direction: column;
-        align-items: flex-start;
-    }
+.dark .file-upload-area {
+    border-color: #374151;
+    color: #9ca3af;
+}
+
+.dark .file-upload-area:hover {
+    border-color: #16a34a;
+}
+
+/* Line clamp utility for field names */
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Smooth transitions for cards */
+.field-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.field-card:hover {
+    transform: translateY(-2px);
+}
+
+/* Computed field special styling */
+.computed-field {
+    background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+}
+
+.dark .computed-field {
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
 }
 </style>
 
+<!-- Keep ALL existing Phase 2, 3, and 4 JavaScript from original template -->
 <script>
-// Phase 1: Basic Modal Functionality (JavaScript implementation will be added in Phase 2)
+// Phase 1: Basic Modal Functionality
 document.addEventListener('DOMContentLoaded', function() {
     const modal = new bootstrap.Modal(document.getElementById('dataCollectionModal'));
 
@@ -471,13 +657,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (entitySelect) {
         entitySelect.addEventListener('change', function() {
             const entityId = this.value;
-
-            // Call API to switch entity (placeholder for Phase 2)
             console.log('Switching to entity:', entityId);
-
-            // For now, just reload the page
-            // In Phase 2, this will use the API endpoint
-            // window.location.reload();
         });
     }
 
@@ -490,7 +670,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         fileUploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
-            fileUploadArea.style.borderColor = '#0d6efd';
+            fileUploadArea.style.borderColor = '#16a34a';
         });
 
         fileUploadArea.addEventListener('dragleave', (e) => {
@@ -504,13 +684,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const files = e.dataTransfer.files;
             console.log('Files dropped:', files.length);
-            // Handle files (Phase 2)
         });
 
         fileInput.addEventListener('change', (e) => {
             const files = e.target.files;
             console.log('Files selected:', files.length);
-            // Handle files (Phase 2)
         });
     }
 
@@ -521,6 +699,52 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = '{{ url_for("user.dashboard") }}';
         });
     }
+
+    // Search and Filter Functionality
+    const searchInput = document.getElementById('searchMetrics');
+    const filterStatus = document.getElementById('filterStatus');
+    const filterCategory = document.getElementById('filterCategory');
+    const filterFieldType = document.getElementById('filterFieldType');
+
+    function applyFilters() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const statusFilter = filterStatus.value;
+        const categoryFilter = filterCategory.value.toLowerCase();
+        const fieldTypeFilter = filterFieldType.value;
+
+        document.querySelectorAll('.field-card').forEach(card => {
+            const fieldName = card.dataset.fieldName;
+            const status = card.dataset.status;
+            const fieldType = card.dataset.fieldType;
+            const category = card.closest('.category-section').dataset.category;
+
+            const matchesSearch = !searchTerm || fieldName.includes(searchTerm);
+            const matchesStatus = !statusFilter || status === statusFilter;
+            const matchesCategory = !categoryFilter || category === categoryFilter;
+            const matchesFieldType = !fieldTypeFilter || fieldType === fieldTypeFilter;
+
+            if (matchesSearch && matchesStatus && matchesCategory && matchesFieldType) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        // Hide/show category sections if all cards are hidden
+        document.querySelectorAll('.category-section').forEach(section => {
+            const visibleCards = section.querySelectorAll('.field-card[style="display: block;"], .field-card:not([style*="display"])');
+            if (visibleCards.length === 0) {
+                section.style.display = 'none';
+            } else {
+                section.style.display = 'block';
+            }
+        });
+    }
+
+    if (searchInput) searchInput.addEventListener('input', applyFilters);
+    if (filterStatus) filterStatus.addEventListener('change', applyFilters);
+    if (filterCategory) filterCategory.addEventListener('change', applyFilters);
+    if (filterFieldType) filterFieldType.addEventListener('change', applyFilters);
 });
 </script>
 
@@ -563,11 +787,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     if (matrix.has_dimensions) {
                         matrixContainer.style.display = 'block';
-                        valueInput.style.display = 'none'; // Hide simple value input
+                        valueInput.style.display = 'none';
 
-                        // Attach number formatters to dynamically created inputs
                         if (window.attachNumberFormatters) {
-                            // Wait for DOM to update, then attach formatters
                             setTimeout(() => {
                                 window.attachNumberFormatters(matrixContainer);
                                 console.log('[Phase 4] ✅ Number formatters attached to dimensional inputs');
@@ -575,7 +797,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     } else {
                         matrixContainer.style.display = 'none';
-                        valueInput.style.display = 'block'; // Show simple value input
+                        valueInput.style.display = 'block';
                     }
                 } catch (error) {
                     console.error('Error loading dimension matrix:', error);
@@ -592,10 +814,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const matrixContainer = document.getElementById('dimensionMatrixContainer');
 
                 if (matrixContainer.style.display !== 'none' && dimensionalDataHandler.currentMatrix) {
-                    // Submit dimensional data
                     await dimensionalDataHandler.submitDimensionalData();
                 } else {
-                    // Submit simple data (existing logic)
                     console.log('Submitting simple data...');
                 }
             } catch (error) {
@@ -605,7 +825,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Phase 3: Computation Context Handler
-    // Add event listeners for "Formula" buttons
     document.querySelectorAll('.show-computation-context').forEach(button => {
         button.addEventListener('click', function() {
             const fieldId = this.dataset.fieldId;
@@ -636,7 +855,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="{{ url_for('static', filename='js/user_v2/performance_optimizer.js') }}"></script>
 
 <script>
-// Phase 4: Initialize advanced features
+// Phase 4: Initialize advanced features (Keep ALL existing Phase 4 code from original)
 document.addEventListener('DOMContentLoaded', function() {
     console.log('[Phase 4] Initializing advanced features...');
 
@@ -667,7 +886,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             });
-            window.keyboardShortcuts.enable(); // Correct method name
+            window.keyboardShortcuts.enable();
             console.log('[Phase 4] ✅ Keyboard shortcuts initialized');
         }
     } catch (error) {
@@ -680,9 +899,9 @@ document.addEventListener('DOMContentLoaded', function() {
             window.perfOptimizer = new PerformanceOptimizer({
                 enableLazyLoading: true,
                 enableCaching: true,
-                enableWebWorkers: false // Disabled for now to avoid complexity
+                enableWebWorkers: false
             });
-            window.perfOptimizer.initialize(); // Correct method name
+            window.perfOptimizer.initialize();
             console.log('[Phase 4] ✅ Performance optimizer initialized');
         }
     } catch (error) {
@@ -692,14 +911,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize number formatter for all number inputs
     try {
         if (typeof NumberFormatter !== 'undefined') {
-            // Create global helper function to attach formatters to inputs
             window.attachNumberFormatters = function(container) {
                 const selector = container
                     ? container.querySelectorAll('input[type="number"], input[data-format="number"]')
                     : document.querySelectorAll('input[type="number"], input[data-format="number"]');
 
                 selector.forEach(input => {
-                    // Skip if already has formatter attached
                     if (input._numberFormatter) return;
 
                     const formatter = new NumberFormatter({
@@ -711,11 +928,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             };
 
-            // Apply formatter to existing number inputs
             window.attachNumberFormatters();
             console.log('[Phase 4] ✅ Number formatter initialized');
 
-            // Create global formatter instance for dynamic inputs
             window.numberFormatter = new NumberFormatter();
         }
     } catch (error) {
@@ -724,46 +939,39 @@ document.addEventListener('DOMContentLoaded', function() {
 
     console.log('[Phase 4] Advanced features initialization complete');
 
-    // Phase 4: Auto-save handler (initialized when modal opens)
+    // Phase 4: Auto-save handler
     window.autoSaveHandler = null;
     window.currentFieldId = null;
 
-    // Initialize auto-save when modal is shown (Bootstrap 5 event)
     const dataCollectionModalEl = document.getElementById('dataCollectionModal');
     if (dataCollectionModalEl) {
         dataCollectionModalEl.addEventListener('shown.bs.modal', function(event) {
             console.log('[Phase 4] Modal shown event fired');
 
-            // Get field ID from stored value (set when modal opens)
             const fieldId = window.currentFieldId;
             if (!fieldId) {
                 console.warn('[Phase 4] No field ID available for auto-save');
                 return;
             }
 
-            // Update keyboard shortcuts modal state
             if (window.keyboardShortcuts) {
                 window.keyboardShortcuts.setModalOpen(true);
             }
 
-            // Initialize auto-save for this field
             const entityId = {{ current_entity.id if current_entity else 'null' }};
             const reportingDate = document.getElementById('selectedDate')?.value || '{{ selected_date }}';
 
             if (typeof AutoSaveHandler !== 'undefined' && fieldId && entityId) {
                 try {
-                    // Stop previous auto-save if exists
                     if (window.autoSaveHandler) {
                         window.autoSaveHandler.stop();
                     }
 
-                    // Create new auto-save handler
                     window.autoSaveHandler = new AutoSaveHandler({
                         fieldId: fieldId,
                         entityId: entityId,
                         reportingDate: reportingDate,
                         getFormData: function() {
-                            // Get current form state from the modal
                             const valueInput = document.getElementById('fieldValue');
                             const notesInput = document.getElementById('fieldNotes');
 
@@ -772,7 +980,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 notes: notesInput ? notesInput.value : null
                             };
 
-                            // Add dimensional data if present
                             if (window.dimensionalDataHandler && window.dimensionalDataHandler.getCurrentData) {
                                 data.dimension_values = window.dimensionalDataHandler.getCurrentData();
                             }
@@ -788,7 +995,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         onDraftRestored: function(draftData) {
                             console.log('[Auto-save] Restoring draft data:', draftData);
 
-                            // Restore form data
                             const valueInput = document.getElementById('fieldValue');
                             const notesInput = document.getElementById('fieldNotes');
 
@@ -799,7 +1005,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 notesInput.value = draftData.notes;
                             }
 
-                            // Restore dimensional data if present
                             if (draftData.dimension_values && window.dimensionalDataHandler && window.dimensionalDataHandler.setCurrentData) {
                                 window.dimensionalDataHandler.setCurrentData(draftData.dimension_values);
                             }
@@ -809,7 +1014,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.autoSaveHandler.start();
                     console.log('[Phase 4] ✅ Auto-save started for field:', fieldId);
 
-                    // Listen for form changes to trigger auto-save
                     const formInputs = dataCollectionModalEl.querySelectorAll('input, textarea, select');
                     formInputs.forEach(input => {
                         input.addEventListener('input', () => {
@@ -825,23 +1029,19 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Stop auto-save when modal closes
         dataCollectionModalEl.addEventListener('hidden.bs.modal', function() {
             console.log('[Phase 4] Modal hidden event fired');
 
-            // Update keyboard shortcuts modal state
             if (window.keyboardShortcuts) {
                 window.keyboardShortcuts.setModalOpen(false);
             }
 
-            // Stop auto-save
             if (window.autoSaveHandler) {
                 window.autoSaveHandler.stop();
                 window.autoSaveHandler = null;
                 console.log('[Phase 4] Auto-save stopped');
             }
 
-            // Clear current field ID
             window.currentFieldId = null;
         });
     }
