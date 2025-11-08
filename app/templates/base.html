@@ -274,5 +274,14 @@
 
     {% block extra_js %}{% endblock %}
     {% block afterbody %}{% endblock %}
+
+    {% if current_user.is_authenticated %}
+    <!-- Bug Report Chatbot -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="{{ url_for('static', filename='js/chatbot/data-capture.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chatbot/screenshot.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chatbot/chatbot.js') }}"></script>
+    {% endif %}
 </body>
 </html>

@@ -1,0 +1,900 @@
+/* ===================================================================
+   Bug Report Chatbot Widget - Comprehensive Styling
+   ================================================================ */
+
+/* Color Variables */
+:root {
+    --chatbot-primary: #2F4728;
+    --chatbot-primary-light: #4A6B3C;
+    --chatbot-primary-lighter: #5A7D4C;
+    --chatbot-bg-light: #E8F5E9;
+    --chatbot-bg-lighter: #F1F8F2;
+    --chatbot-hover: #3D5B32;
+}
+
+/* ===================================================================
+   1. Floating Trigger Button
+   ================================================================ */
+.chatbot-trigger {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--chatbot-primary) 0%, var(--chatbot-primary-light) 100%);
+    box-shadow: 0 4px 12px rgba(47, 71, 40, 0.3);
+    border: none;
+    cursor: pointer;
+    z-index: 9998;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chatbot-trigger:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.chatbot-trigger svg {
+    width: 28px;
+    height: 28px;
+    fill: white;
+}
+
+.chatbot-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #ff4444;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chatbot-badge.hidden {
+    display: none;
+}
+
+/* ===================================================================
+   2. Chatbot Container
+   ================================================================ */
+.chatbot-container {
+    position: fixed;
+    bottom: 100px;
+    right: 20px;
+    width: 400px;
+    max-height: 600px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    transform-origin: bottom right;
+}
+
+.chatbot-container.hidden {
+    opacity: 0;
+    transform: scale(0.95);
+    pointer-events: none;
+}
+
+.chatbot-container.visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* ===================================================================
+   3. Header
+   ================================================================ */
+.chatbot-header {
+    background: linear-gradient(135deg, var(--chatbot-primary) 0%, var(--chatbot-primary-light) 100%);
+    color: white;
+    padding: 16px 20px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.chatbot-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.chatbot-close {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.chatbot-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* ===================================================================
+   4. Body
+   ================================================================ */
+.chatbot-body {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    max-height: 480px;
+}
+
+.chatbot-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chatbot-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.chatbot-body::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+.chatbot-body::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* ===================================================================
+   5. Footer & Progress Bar
+   ================================================================ */
+.chatbot-footer {
+    padding: 12px 20px;
+    border-top: 1px solid #e0e0e0;
+    border-radius: 0 0 12px 12px;
+}
+
+.chatbot-progress {
+    background: #e0e0e0;
+    height: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    background: linear-gradient(90deg, var(--chatbot-primary) 0%, var(--chatbot-primary-light) 100%);
+    height: 100%;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+/* ===================================================================
+   6. Form Steps
+   ================================================================ */
+.form-step {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.form-step.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.form-step h4 {
+    margin: 0 0 20px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+}
+
+/* ===================================================================
+   7. Category Grid (Step 1)
+   ================================================================ */
+.category-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.category-card {
+    background: #f8f9fa;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.category-card:hover {
+    border-color: var(--chatbot-primary);
+    background: var(--chatbot-bg-lighter);
+    transform: translateY(-2px);
+}
+
+.category-card.selected {
+    border-color: var(--chatbot-primary);
+    background: var(--chatbot-bg-light);
+}
+
+.category-card svg {
+    width: 32px;
+    height: 32px;
+    fill: var(--chatbot-primary);
+}
+
+.category-card span {
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+}
+
+.category-card p {
+    margin: 0;
+    font-size: 12px;
+    color: #666;
+}
+
+/* ===================================================================
+   8. Severity Selection (Step 2)
+   ================================================================ */
+.severity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.severity-option {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.severity-option:hover {
+    border-color: var(--chatbot-primary);
+    background: #f8f9fa;
+}
+
+.severity-option input[type="radio"] {
+    margin-right: 12px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.severity-option input[type="radio"]:checked ~ .severity-content {
+    color: var(--chatbot-primary);
+}
+
+.severity-option.critical:has(input:checked) {
+    border-color: #dc3545;
+    background: #fff5f5;
+}
+
+.severity-option.high:has(input:checked) {
+    border-color: #fd7e14;
+    background: #fff8f3;
+}
+
+.severity-option.medium:has(input:checked) {
+    border-color: #ffc107;
+    background: #fffbf0;
+}
+
+.severity-option.low:has(input:checked) {
+    border-color: #28a745;
+    background: #f0fff4;
+}
+
+.severity-content strong {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.severity-content p {
+    margin: 0;
+    font-size: 12px;
+    color: #666;
+}
+
+/* ===================================================================
+   9. Form Elements (Step 3)
+   ================================================================ */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 6px;
+}
+
+.form-group .required {
+    color: #dc3545;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--chatbot-primary);
+    box-shadow: 0 0 0 3px rgba(47, 71, 40, 0.1);
+}
+
+.form-control.error {
+    border-color: #dc3545;
+}
+
+.form-hint {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+}
+
+.form-error {
+    display: block;
+    font-size: 12px;
+    color: #dc3545;
+    margin-top: 4px;
+}
+
+textarea.form-control {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* ===================================================================
+   10. Screenshot Section
+   ================================================================ */
+.btn-screenshot {
+    background: #f8f9fa;
+    border: 2px dashed var(--chatbot-primary);
+    border-radius: 6px;
+    padding: 12px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--chatbot-primary);
+    font-weight: 600;
+    transition: all 0.2s ease;
+    width: 100%;
+    justify-content: center;
+}
+
+.btn-screenshot:hover {
+    background: var(--chatbot-bg-light);
+    border-style: solid;
+}
+
+.btn-screenshot svg {
+    width: 20px;
+    height: 20px;
+    fill: var(--chatbot-primary);
+}
+
+.screenshot-preview {
+    margin-top: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 8px;
+    position: relative;
+}
+
+.screenshot-preview.hidden {
+    display: none;
+}
+
+.screenshot-preview img {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+}
+
+.screenshot-preview .btn-remove {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.screenshot-preview .btn-remove:hover {
+    background: #c82333;
+}
+
+/* ===================================================================
+   11. Review Section (Step 4)
+   ================================================================ */
+.review-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.review-item {
+    margin-bottom: 12px;
+}
+
+.review-item:last-child {
+    margin-bottom: 0;
+}
+
+.review-item strong {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.review-item span,
+.review-item p {
+    font-size: 14px;
+    color: #333;
+    margin: 0;
+}
+
+.debug-info-section {
+    background: #fff8e1;
+    border-left: 4px solid #ffc107;
+    padding: 16px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.debug-info-section h5 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    color: #333;
+}
+
+.debug-info-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 12px 0;
+}
+
+.debug-info-list li {
+    font-size: 13px;
+    color: #333;
+    padding: 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.debug-info-list li.hidden {
+    display: none;
+}
+
+.privacy-note {
+    font-size: 12px;
+    color: #666;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ===================================================================
+   12. Action Buttons
+   ================================================================ */
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.btn-primary,
+.btn-secondary {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--chatbot-primary) 0%, var(--chatbot-primary-light) 100%);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(47, 71, 40, 0.3);
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: #f8f9fa;
+    color: #333;
+    border: 2px solid #e0e0e0;
+}
+
+.btn-secondary:hover {
+    background: #e9ecef;
+    border-color: #ccc;
+}
+
+.btn-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.btn-spinner.hidden {
+    display: none;
+}
+
+.btn-text.hidden {
+    display: none;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ===================================================================
+   13. Success/Error Messages
+   ================================================================ */
+.success-message {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.success-icon {
+    width: 64px;
+    height: 64px;
+    fill: #28a745;
+    margin: 0 auto 20px;
+    display: block;
+}
+
+.success-message h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 10px 0;
+}
+
+.success-message p {
+    font-size: 14px;
+    color: #666;
+    margin: 0 0 20px 0;
+}
+
+.ticket-number-box {
+    background: #f8f9fa;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 20px 0;
+}
+
+.ticket-number-box strong {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.ticket-number-box code {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--chatbot-primary);
+    background: var(--chatbot-bg-light);
+    padding: 8px 16px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.success-note {
+    font-size: 13px;
+    color: #666;
+}
+
+.error-message {
+    background: #fff5f5;
+    border-left: 4px solid #dc3545;
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.error-icon {
+    width: 24px;
+    height: 24px;
+    fill: #dc3545;
+}
+
+.error-message p {
+    margin: 0;
+    font-size: 13px;
+    color: #dc3545;
+}
+
+/* ===================================================================
+   14. Screenshot Annotation Modal
+   ================================================================ */
+.screenshot-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.screenshot-modal-content {
+    background: white;
+    border-radius: 12px;
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.screenshot-modal-header {
+    background: linear-gradient(135deg, var(--chatbot-primary) 0%, var(--chatbot-primary-light) 100%);
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.screenshot-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.screenshot-modal-header .btn-close {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+}
+
+.screenshot-modal-toolbar {
+    padding: 12px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    gap: 10px;
+}
+
+.tool-btn {
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tool-btn:hover {
+    border-color: var(--chatbot-primary);
+    background: var(--chatbot-bg-lighter);
+}
+
+.tool-btn.active {
+    border-color: var(--chatbot-primary);
+    background: var(--chatbot-bg-light);
+}
+
+.tool-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: #333;
+}
+
+.screenshot-modal-body {
+    flex: 1;
+    overflow: auto;
+    padding: 20px;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#screenshot-canvas {
+    max-width: 100%;
+    max-height: calc(90vh - 200px);
+    cursor: crosshair;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.screenshot-modal-footer {
+    padding: 16px 20px;
+    background: white;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+/* ===================================================================
+   15. Responsive Design
+   ================================================================ */
+@media (max-width: 768px) {
+    .chatbot-container {
+        width: calc(100vw - 40px);
+        max-height: calc(100vh - 140px);
+        right: 20px;
+        left: 20px;
+        bottom: 90px;
+    }
+
+    .chatbot-trigger {
+        bottom: 16px;
+        right: 16px;
+    }
+
+    .category-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column-reverse;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        width: 100%;
+    }
+
+    .screenshot-modal {
+        padding: 10px;
+    }
+
+    .screenshot-modal-content {
+        max-width: 100%;
+        max-height: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .chatbot-container {
+        width: 100vw;
+        max-height: 100vh;
+        bottom: 0;
+        right: 0;
+        left: 0;
+        border-radius: 0;
+    }
+
+    .chatbot-header {
+        border-radius: 0;
+    }
+
+    .chatbot-footer {
+        border-radius: 0;
+    }
+}
+
+/* ===================================================================
+   16. Accessibility & Focus States
+   ================================================================ */
+*:focus-visible {
+    outline: 2px solid var(--chatbot-primary);
+    outline-offset: 2px;
+}
+
+.category-card:focus-visible,
+.severity-option:focus-visible,
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible {
+    outline: 2px solid var(--chatbot-primary);
+    outline-offset: 2px;
+}
+
+/* ===================================================================
+   17. Utility Classes
+   ================================================================ */
+.hidden {
+    display: none !important;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.mt-2 {
+    margin-top: 8px;
+}
+
+.mb-2 {
+    margin-bottom: 8px;
+}

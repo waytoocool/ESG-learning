@@ -98,24 +98,44 @@ class IssueReport(db.Model, TenantScopedQueryMixin, TenantScopedModelMixin):
 
     @classmethod
     def generate_ticket_number(cls):
-        """Generate a unique ticket number in format BUG-YYYY-NNNN."""
+        """
+        Generate a unique ticket number in format BUG-YYYY-NNNN.
+
+        This method handles concurrent ticket generation by attempting up to 10 times
+        to find the next available ticket number in case of race conditions.
+
+        Returns:
+            str: Unique ticket number in format BUG-YYYY-NNNN
+        """
         from datetime import datetime
         year = datetime.now().year
 
-        # Get the latest ticket number for the current year
-        latest = cls.query.filter(
-            cls.ticket_number.like(f'BUG-{year}-%')
-        ).order_by(cls.ticket_number.desc()).first()
+        # Try up to 10 times to find a unique ticket number
+        for attempt in range(10):
+            # Get the latest ticket number for the current year
+            latest = cls.query.filter(
+                cls.ticket_number.like(f'BUG-{year}-%')
+            ).order_by(cls.ticket_number.desc()).first()
 
-        if latest:
-            # Extract the sequence number and increment
-            last_num = int(latest.ticket_number.split('-')[-1])
-            next_num = last_num + 1
-        else:
-            # First ticket of the year
-            next_num = 1
+            if latest:
+                # Extract the sequence number and increment
+                last_num = int(latest.ticket_number.split('-')[-1])
+                next_num = last_num + 1 + attempt  # Add attempt to handle concurrency
+            else:
+                # First ticket of the year
+                next_num = 1 + attempt
 
-        return f'BUG-{year}-{next_num:04d}'
+            ticket = f'BUG-{year}-{next_num:04d}'
+
+            # Check if this ticket number already exists
+            existing = cls.query.filter_by(ticket_number=ticket).first()
+            if not existing:
+                return ticket
+
+        # Fallback: use UUID suffix for guaranteed uniqueness
+        import uuid
+        unique_suffix = str(uuid.uuid4())[:4].upper()
+        return f'BUG-{year}-{unique_suffix}'
 
     def to_dict(self):
         """Convert issue report to dictionary for API responses."""

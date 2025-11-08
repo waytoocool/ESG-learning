@@ -1,3 +1,0 @@
-Field ID,Field Name,Entity ID,Entity Name,Frequency,Start Date,End Date,Required,Unit Override,Notes
-CF-FIELD-1,Complete Framework Field 1,1,Headquarters,Monthly,2024-01-01,2024-12-31,Yes,kWh,Test import
-CF-FIELD-2,Complete Framework Field 2,1,Headquarters,Quarterly,2024-01-01,2024-12-31,No,,Another test

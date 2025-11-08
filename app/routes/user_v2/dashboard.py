@@ -129,3 +129,4 @@ def dashboard():
     }
 
     return render_template('user_v2/dashboard.html', **context)
+

@@ -1,8 +1,0 @@
-Field ID,Field Name,Entity Name,Frequency,Unit Override,Topic,Notes
-054dd45e-9265-4527-9206-09fab8886863,High Coverage Framework Field 1,"Alpha HQ, Alpha Factory",Monthly,kWh,Energy Management,Test Case A: Valid comma-separated entities with same settings
-14eeb82a-113a-4ed8-a8a9-52ceed225a10,Complete Framework Field 6,"Alpha HQ, Alpha Factory, Alpha Warehouse",Quarterly,tCO2e,Emissions Tracking,Test Case B: Three entities
-607342a0-533b-40fb-b654-f5385162de1c,Complete Framework Field 5,Alpha HQ,Annual,,Water Management,Test Case C: Single entity (backward compatibility)
-3a0cb397-f784-4cab-becc-ea029b072a6c,Low Coverage Framework Field 2,"Alpha HQ, NonexistentEntity",Monthly,,Social Impact,Test Case D: Invalid entity name
-41d86e2a-e3dc-4518-ba05-638c2b04e720,High Coverage Framework Field 8,"Alpha HQ, ",Monthly,,Energy Management,Test Case E: Empty after comma
-511c14d0-320a-4662-99cf-c7e44e558090,High Coverage Framework Field 7,"ALPHA HQ, alpha factory",Monthly,,Energy Management,Test Case F: Mixed case entity names
-8c125b6d-9193-4e18-bff2-ed3501d6f35a,Low Coverage Framework Field 1,"Alpha HQ, Alpha Factory",Quarterly,,Waste Management,Test Case G: Another valid comma-separated test

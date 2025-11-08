@@ -1,4 +1,0 @@
-Field ID,Field Name,Entity ID,Entity Name,Frequency,Start Date,End Date,Required,Unit Override,Topic,Status,Version,Notes
-054dd45e-9265-4527-9206-09fab8886863,High Coverage Framework Field 1,2,Alpha HQ,Weekly,,,Yes,,Energy Management,active,1,Changed to Weekly
-14eeb82a-113a-4ed8-a8a9-52ceed225a10,Complete Framework Field 6,3,Alpha Factory,Quarterly,,,Yes,,Social Impact,active,2,Changed to Quarterly
-3a0cb397-f784-4cab-becc-ea029b072a6c,Low Coverage Framework Field 2,3,Alpha Factory,Monthly,,,No,,Water Management,active,1,Changed to Monthly

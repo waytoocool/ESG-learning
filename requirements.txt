@@ -14,3 +14,5 @@ python-dotenv
 uuid
 python-dateutil
 psutil
+PyGithub==2.1.1
+Pillow==10.1.0

@@ -150,7 +150,7 @@ class ComputationContextService:
                 'calculation_steps': calculation_steps,
                 'current_values': current_values,
                 'missing_dependencies': validation['missing'],
-                'historical_trend': historical_trend.get('data_points', []),
+                'historical_trend': historical_trend,  # Return full object with data_points, trend, change_rate
                 'last_calculated': computed_data.updated_at.isoformat() if computed_data else None,
                 'calculation_status': calculation_status,
                 'validation': validation

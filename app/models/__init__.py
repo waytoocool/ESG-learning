@@ -9,6 +9,7 @@ from .system_config import SystemConfig
 from .sync_operation import SyncOperation
 from .dimension import Dimension, DimensionValue, FieldDimension
 from .user_feedback import UserFeedback
+from .issue_report import IssueReport, IssueComment
 
 __all__ = [
     'User',
@@ -28,5 +29,7 @@ __all__ = [
     'Dimension',
     'DimensionValue',
     'FieldDimension',
-    'UserFeedback'
+    'UserFeedback',
+    'IssueReport',
+    'IssueComment'
 ]
