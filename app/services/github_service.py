@@ -384,7 +384,31 @@ class GitHubService:
         for action in actions[:10]:  # Limit to 10 most recent
             timestamp = action.get('timestamp', 'N/A')
             action_type = action.get('type', 'unknown')
-            target = action.get('target', 'N/A')
+
+            # Extract target information from element field if present
+            target = 'N/A'
+            if action.get('element'):
+                element = action['element']
+                target_parts = []
+                if element.get('tagName'):
+                    target_parts.append(element['tagName'])
+                if element.get('id'):
+                    target_parts.append(f"#{element['id']}")
+                if element.get('className'):
+                    # Get first class name if multiple
+                    class_name = element['className'].split()[0] if element['className'] else ''
+                    if class_name:
+                        target_parts.append(f".{class_name}")
+                if element.get('text'):
+                    target_parts.append(f'"{element["text"][:30]}..."' if len(element['text']) > 30 else f'"{element["text"]}"')
+                target = ' '.join(target_parts) if target_parts else 'N/A'
+            elif action.get('target'):
+                # Fallback to 'target' field if present (for backward compatibility)
+                target = action['target']
+            elif action.get('url'):
+                # For navigation actions
+                target = action.get('url', 'N/A')
+
             formatted_actions.append(f"[{timestamp}] {action_type}: {target}")
 
         if len(actions) > 10:

@@ -44,15 +44,30 @@ class ScreenshotCapture {
                 windowHeight: window.innerHeight
             });
 
+            // Validate canvas was created successfully
+            if (!canvas || !canvas.toDataURL) {
+                throw new Error('Canvas creation failed - invalid canvas object');
+            }
+
             // Convert to base64
             this.screenshot = canvas.toDataURL('image/png');
 
-            // Show annotation modal
+            // Validate screenshot data
+            if (!this.screenshot || this.screenshot.length < 100) {
+                throw new Error('Screenshot data is invalid or empty');
+            }
+
+            // Show annotation modal only if screenshot was captured successfully
             this.showAnnotationModal();
 
         } catch (error) {
             console.error('Screenshot capture failed:', error);
-            alert('Failed to capture screenshot. Please try again.');
+            // Show user-friendly error message
+            const errorMsg = error.message || 'Failed to capture screenshot. Please try again.';
+            alert(errorMsg);
+
+            // Reset screenshot data
+            this.screenshot = null;
         } finally {
             // Restore chatbot visibility
             if (chatbot) chatbot.style.display = 'block';
