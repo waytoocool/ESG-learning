@@ -16,6 +16,8 @@
             <option value="Create">Create</option>
             <option value="Update">Update</option>
             <option value="Delete">Delete</option>
+            <option value="Excel Upload">Excel Upload</option>
+            <option value="Excel Upload Update">Excel Upload Update</option>
             <option value="On-demand Computation">On-demand Computation</option>
             <option value="Smart Computation">Smart Computation</option>
             <option value="CSV Upload">CSV Upload</option>
@@ -29,6 +31,7 @@
         <table class="audit-table">
             <thead>
                 <tr>
+                    <th width="30"></th>
                     <th>Date</th>
                     <th>User</th>
                     <th>Change Type</th>
@@ -39,7 +42,14 @@
             </thead>
             <tbody>
                 {% for log in audit_logs %}
-                <tr>
+                <tr class="audit-row" data-log-id="{{ loop.index }}">
+                    <td>
+                        {% if log.change_metadata and log.change_metadata.get('dimensional_changes') %}
+                        <button class="expand-btn" onclick="toggleDetails('{{ loop.index }}')">
+                            <span class="expand-icon">▶</span>
+                        </button>
+                        {% endif %}
+                    </td>
                     <td>{{ log.change_date.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                     <td>{{ log.user.name }}</td>
                     <td><span class="change-type {{ log.change_type.lower().replace(' ', '-').replace('-', '') }}">{{ log.change_type }}</span></td>
@@ -47,6 +57,74 @@
                     <td>{{ log.new_value if log.new_value is not none else '-' }}</td>
                     <td>{{ log.esg_data.field.field_name }}</td>
                 </tr>
+                {% if log.change_metadata and log.change_metadata.get('dimensional_changes') %}
+                <tr class="detail-row" id="details-{{ loop.index }}" style="display: none;">
+                    <td></td>
+                    <td colspan="6">
+                        <div class="detail-content">
+                            <div class="metadata-section">
+                                <h4>📊 Dimensional Changes ({{ log.change_metadata.get('changed_cells_count', 0) }} cell{{ 's' if log.change_metadata.get('changed_cells_count', 0) != 1 else '' }} changed)</h4>
+                                <table class="dimensional-changes-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Dimension</th>
+                                            <th>Old Value</th>
+                                            <th>New Value</th>
+                                            <th>Change</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for change in log.change_metadata.get('dimensional_changes', []) %}
+                                        <tr>
+                                            <td><strong>{{ change.get('dimension_label', 'Unknown') }}</strong></td>
+                                            <td>{{ change.get('old_value', '-') }}</td>
+                                            <td>{{ change.get('new_value', '-') }}</td>
+                                            <td>
+                                                {% set diff = (change.get('new_value', 0) or 0) - (change.get('old_value', 0) or 0) %}
+                                                <span class="change-delta {{ 'positive' if diff > 0 else 'negative' if diff < 0 else 'neutral' }}">
+                                                    {{ '+' if diff > 0 else '' }}{{ diff }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="metadata-section">
+                                <h4>ℹ️ Additional Metadata</h4>
+                                <div class="metadata-grid">
+                                    <div class="metadata-item">
+                                        <span class="metadata-label">Source:</span>
+                                        <span class="metadata-value">{{ log.change_metadata.get('source', 'Unknown') }}</span>
+                                    </div>
+                                    <div class="metadata-item">
+                                        <span class="metadata-label">Reporting Date:</span>
+                                        <span class="metadata-value">{{ log.change_metadata.get('reporting_date', '-') }}</span>
+                                    </div>
+                                    <div class="metadata-item">
+                                        <span class="metadata-label">Has Notes:</span>
+                                        <span class="metadata-value">{{ '✅ Yes' if log.change_metadata.get('has_notes') else '❌ No' }}</span>
+                                    </div>
+                                    <div class="metadata-item">
+                                        <span class="metadata-label">Notes Modified:</span>
+                                        <span class="metadata-value">{{ '✅ Yes' if log.change_metadata.get('notes_modified') else '❌ No' }}</span>
+                                    </div>
+                                    <div class="metadata-item">
+                                        <span class="metadata-label">Total Dimensions:</span>
+                                        <span class="metadata-value">{{ log.change_metadata.get('dimension_count', 0) }}</span>
+                                    </div>
+                                    {% if log.change_metadata.get('previous_submission_date') %}
+                                    <div class="metadata-item">
+                                        <span class="metadata-label">Previous Submission:</span>
+                                        <span class="metadata-value">{{ log.change_metadata.get('previous_submission_date', '-')[:19] }}</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endif %}
                 {% endfor %}
             </tbody>
         </table>

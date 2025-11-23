@@ -32,7 +32,16 @@ class Company(db.Model):
     # Fiscal Year Configuration
     fy_end_month = db.Column(db.Integer, nullable=False, default=3)  # March = 3 (default for Apr-Mar FY)
     fy_end_day = db.Column(db.Integer, nullable=False, default=31)   # Last day of March
-    
+    data_due_days = db.Column(db.Integer, nullable=False, default=10)  # Number of days after period end for data submission
+
+    # Validation Configuration
+    validation_trend_threshold_pct = db.Column(
+        db.Float,
+        nullable=False,
+        default=20.0,
+        comment="Percentage threshold for trend variance warnings (default: 20%)"
+    )
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
@@ -40,10 +49,10 @@ class Company(db.Model):
     # Users will have a company_id foreign key pointing to this model
     # Other tenant-scoped models will reference this via company_id
     
-    def __init__(self, name, slug, is_active=True, is_global_framework_provider=False, fy_end_month=3, fy_end_day=31):
+    def __init__(self, name, slug, is_active=True, is_global_framework_provider=False, fy_end_month=3, fy_end_day=31, data_due_days=10, validation_trend_threshold_pct=20.0):
         """
         Initialize a new Company.
-        
+
         Args:
             name (str): Display name of the company
             slug (str): URL-safe identifier for subdomain routing
@@ -51,6 +60,8 @@ class Company(db.Model):
             is_global_framework_provider (bool): Whether this company provides global frameworks (default: False)
             fy_end_month (int): Fiscal year end month (1-12, default: 3 for March)
             fy_end_day (int): Fiscal year end day (1-31, default: 31)
+            data_due_days (int): Days after period end for data submission (default: 10)
+            validation_trend_threshold_pct (float): Percentage threshold for trend variance warnings (default: 20.0)
         """
         self.name = name
         self.slug = slug.lower()  # Ensure slug is lowercase for consistency
@@ -58,6 +69,8 @@ class Company(db.Model):
         self.is_global_framework_provider = is_global_framework_provider
         self.fy_end_month = fy_end_month
         self.fy_end_day = fy_end_day
+        self.data_due_days = data_due_days
+        self.validation_trend_threshold_pct = validation_trend_threshold_pct
     
     def deactivate(self):
         """Deactivate the company (soft delete)."""
@@ -181,28 +194,43 @@ class Company(db.Model):
         
         return date(fy_year, self.fy_end_month, actual_day)
     
+    def get_validation_threshold(self):
+        """
+        Get validation threshold with fallback to default.
+
+        Returns:
+            float: Validation threshold percentage (default: 20.0)
+        """
+        return self.validation_trend_threshold_pct or 20.0
+
     def validate_fy_configuration(self):
         """
         Validate fiscal year configuration fields.
-        
+
         Returns:
             tuple: (is_valid: bool, error_message: str)
         """
         if not (1 <= self.fy_end_month <= 12):
             return False, f"fy_end_month must be between 1 and 12, got {self.fy_end_month}"
-        
+
         if not (1 <= self.fy_end_day <= 31):
             return False, f"fy_end_day must be between 1 and 31, got {self.fy_end_day}"
-        
+
+        if not (1 <= self.data_due_days <= 90):
+            return False, f"data_due_days must be between 1 and 90, got {self.data_due_days}"
+
+        if not (0 <= self.validation_trend_threshold_pct <= 100):
+            return False, f"validation_trend_threshold_pct must be between 0 and 100, got {self.validation_trend_threshold_pct}"
+
         # Check if day is valid for the month (using current year as example)
         import calendar
         from datetime import datetime
         current_year = datetime.now().year
         max_day = calendar.monthrange(current_year, self.fy_end_month)[1]
-        
+
         if self.fy_end_day > max_day:
             return False, f"Day {self.fy_end_day} is invalid for month {self.fy_end_month}"
-        
+
         return True, ""
     
     def get_fy_display(self, fy_year):

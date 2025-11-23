@@ -283,6 +283,166 @@ class FrameworkDataField(db.Model):
         """Check if this field has any dependants (Phase 3)."""
         return len(self.get_dependants()) > 0
 
+    def get_all_dependencies(self, visited=None):
+        """
+        Get all raw field dependencies recursively.
+        Returns flat list of all dependency field objects.
+
+        Args:
+            visited (set): Set of visited field IDs to prevent circular dependencies
+
+        Returns:
+            list: List of FrameworkDataField objects that this field depends on
+        """
+        if not self.is_computed:
+            return []
+
+        if visited is None:
+            visited = set()
+
+        if self.field_id in visited:
+            return []  # Circular dependency protection
+
+        visited.add(self.field_id)
+        dependencies = []
+
+        for mapping in self.variable_mappings:
+            raw_field = mapping.raw_field
+            dependencies.append(raw_field)
+
+            # Recursively get dependencies if raw field is also computed
+            if raw_field.is_computed:
+                dependencies.extend(raw_field.get_all_dependencies(visited))
+
+        return dependencies
+
+    def get_dependency_tree(self):
+        """
+        Get hierarchical dependency structure.
+        Returns nested dictionary representing dependency tree.
+
+        Returns:
+            dict: Nested structure with field info and dependencies
+        """
+        if not self.is_computed:
+            return None
+
+        tree = {
+            'field_id': self.field_id,
+            'field_name': self.field_name,
+            'is_computed': True,
+            'formula': self.formula_expression,
+            'dependencies': []
+        }
+
+        for mapping in self.variable_mappings:
+            dep_info = {
+                'variable': mapping.variable_name,
+                'coefficient': mapping.coefficient,
+                'field_id': mapping.raw_field_id,
+                'field_name': mapping.raw_field.field_name,
+                'is_computed': mapping.raw_field.is_computed
+            }
+
+            if mapping.raw_field.is_computed:
+                dep_info['dependencies'] = mapping.raw_field.get_dependency_tree()
+
+            tree['dependencies'].append(dep_info)
+
+        return tree
+
+    def validate_frequency_compatibility(self, proposed_frequency):
+        """
+        Check if proposed frequency is compatible with all dependencies.
+        Returns (is_valid, incompatible_fields).
+
+        Args:
+            proposed_frequency (str): Frequency to validate (Annual, Quarterly, Monthly)
+
+        Returns:
+            tuple: (bool is_valid, list incompatible_fields)
+        """
+        if not self.is_computed:
+            return (True, [])
+
+        freq_hierarchy = {
+            'Annual': 1,
+            'Quarterly': 2,
+            'Monthly': 3
+        }
+
+        proposed_level = freq_hierarchy.get(proposed_frequency, 1)
+        incompatible = []
+
+        for dep in self.get_all_dependencies():
+            # Check if dependency has existing assignment
+            from ..models.data_assignment import DataPointAssignment
+            assignments = DataPointAssignment.query.filter_by(
+                field_id=dep.field_id,
+                series_status='active'
+            ).all()
+
+            for assignment in assignments:
+                dep_level = freq_hierarchy.get(assignment.frequency, 3)
+                if dep_level < proposed_level:
+                    incompatible.append({
+                        'field': dep.field_name,
+                        'current_frequency': assignment.frequency,
+                        'required_frequency': proposed_frequency
+                    })
+
+        return (len(incompatible) == 0, incompatible)
+
+    def get_fields_depending_on_this(self):
+        """
+        Get all computed fields that depend on this field.
+        Returns list of computed fields using this as dependency.
+
+        Returns:
+            list: List of FrameworkDataField objects that depend on this field
+        """
+        from . import FieldVariableMapping
+
+        dependent_mappings = FieldVariableMapping.query.filter_by(
+            raw_field_id=self.field_id
+        ).all()
+
+        dependent_fields = []
+        for mapping in dependent_mappings:
+            if mapping.computed_field and mapping.computed_field.is_computed:
+                dependent_fields.append(mapping.computed_field)
+
+        return dependent_fields
+
+    def can_be_removed(self):
+        """
+        Check if this field can be safely removed from assignments.
+        Returns (can_remove, blocking_computed_fields).
+
+        Returns:
+            tuple: (bool can_remove, list blocking_fields)
+        """
+        dependents = self.get_fields_depending_on_this()
+
+        # Check if any dependent computed fields are assigned
+        from ..models.data_assignment import DataPointAssignment
+        blocking_fields = []
+
+        for computed_field in dependents:
+            assignments = DataPointAssignment.query.filter_by(
+                field_id=computed_field.field_id,
+                series_status='active'
+            ).count()
+
+            if assignments > 0:
+                blocking_fields.append({
+                    'field_id': computed_field.field_id,
+                    'field_name': computed_field.field_name,
+                    'assignment_count': assignments
+                })
+
+        return (len(blocking_fields) == 0, blocking_fields)
+
     def __repr__(self):
         return f'<FrameworkDataField {self.field_name} ({self.field_code})>'
 

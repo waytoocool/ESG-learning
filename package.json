@@ -11,13 +11,19 @@
     "test:core": "playwright test core-workflow-validation",
     "test:explore": "playwright test ui-exploration-test",
     "show-report": "playwright show-report",
-    "mcp:cleanup": "pkill -f 'chrome.*--remote-debugging-port' 2>/dev/null || true; pkill -f 'chromium.*--remote-debugging-port' 2>/dev/null || true; pkill -f 'npx @playwright/mcp' 2>/dev/null || true; rm -rf ~/.cache/ms-playwright/mcp-chrome-* 2>/dev/null || true; rm -rf ~/Library/Caches/ms-playwright/mcp-chrome-* 2>/dev/null || true",
+    "mcp:cleanup": "pkill -f 'chrome.*--remote-debugging-port' 2>/dev/null || true; pkill -f 'chromium.*--remote-debugging-port' 2>/dev/null || true; pkill -f 'firefox.*--remote-debugging-port' 2>/dev/null || true; pkill -f 'npx @playwright/mcp' 2>/dev/null || true; rm -rf ~/.cache/ms-playwright/mcp-chrome-* 2>/dev/null || true; rm -rf ~/Library/Caches/ms-playwright/mcp-chrome-* 2>/dev/null || true; rm -rf ~/.cache/ms-playwright/mcp-firefox-* 2>/dev/null || true; rm -rf ~/Library/Caches/ms-playwright/mcp-firefox-* 2>/dev/null || true",
     "mcp:start": "npm run mcp:cleanup && sleep 1 && npx @playwright/mcp --port 3001 --headless --isolated --viewport-size '1280,720'",
     "mcp:start-headed": "npm run mcp:cleanup && sleep 1 && npx @playwright/mcp --port 3001 --viewport-size '1280,720'",
-    "mcp:restart": "npm run mcp:cleanup && sleep 2 && npm run mcp:start"
+    "mcp:start-firefox": "pkill -f 'firefox.*--remote-debugging-port' 2>/dev/null || true; sleep 1 && npx @playwright/mcp --port 3002 --headless --isolated --viewport-size '1280,720' --browser firefox",
+    "mcp:start-firefox-headed": "pkill -f 'firefox.*--remote-debugging-port' 2>/dev/null || true; sleep 1 && npx @playwright/mcp --port 3002 --viewport-size '1280,720' --browser firefox",
+    "mcp:restart": "npm run mcp:cleanup && sleep 2 && npm run mcp:start",
+    "chrome-mcp:cleanup": "pkill -f 'chrome-devtools-mcp' 2>/dev/null || true",
+    "chrome-mcp:start": "npm run chrome-mcp:cleanup && sleep 1 && npx chrome-devtools-mcp@latest",
+    "chrome-mcp:restart": "npm run chrome-mcp:cleanup && sleep 2 && npm run chrome-mcp:start"
   },
   "devDependencies": {
     "@playwright/mcp": "^0.0.36",
-    "@playwright/test": "^1.53.1"
+    "@playwright/test": "^1.53.1",
+    "chrome-devtools-mcp": "^0.10.1"
   }
 }

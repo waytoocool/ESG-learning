@@ -134,10 +134,8 @@ class ScreenshotCapture {
         document.body.appendChild(modal);
 
         // Load screenshot onto canvas
+        // Note: attachToolListeners() is now called from loadScreenshotToCanvas() after canvas is ready
         this.loadScreenshotToCanvas();
-
-        // Attach tool event listeners
-        this.attachToolListeners();
     }
 
     /**
@@ -154,6 +152,16 @@ class ScreenshotCapture {
             this.canvas = canvas;
             this.ctx = canvas.getContext('2d');
             this.ctx.drawImage(img, 0, 0);
+
+            // Attach tool event listeners AFTER canvas is initialized
+            // This fixes the race condition where listeners were being attached before canvas was ready
+            this.attachToolListeners();
+        };
+
+        img.onerror = () => {
+            console.error('Failed to load screenshot image');
+            alert('Failed to load screenshot. Please try again.');
+            this.closeModal();
         };
 
         img.src = this.screenshot;
@@ -163,6 +171,12 @@ class ScreenshotCapture {
      * Attach event listeners to annotation tools
      */
     attachToolListeners() {
+        // Safety check: ensure canvas is initialized
+        if (!this.canvas) {
+            console.error('Cannot attach listeners: canvas is not initialized');
+            return;
+        }
+
         // Tool button clicks
         document.querySelectorAll('.tool-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {

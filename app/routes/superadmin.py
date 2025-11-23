@@ -1465,7 +1465,7 @@ def impersonate_user(user_id):
         elif target_user.role == 'ADMIN':
             redirect_url = _build_tenant_url(url_for('admin.home'))
         elif target_user.role == 'USER':
-            redirect_url = _build_tenant_url(url_for('user.dashboard'))
+            redirect_url = _build_tenant_url(url_for('user_v2.dashboard'))
         else:
             redirect_url = url_for('auth.login')
         

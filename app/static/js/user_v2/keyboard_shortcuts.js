@@ -126,8 +126,10 @@ class KeyboardShortcutHandler {
         // Global Shortcuts (work everywhere)
         // -----------------------------------
 
-        // Ctrl/Cmd + ? : Show help
-        if (isCtrlOrCmd && (key === '?' || key === '/')) {
+        // Ctrl/Cmd + ? OR F1 : Show help
+        // Handle both '?' directly and 'Shift+/' (which produces '?' on most keyboards)
+        const isHelpShortcut = (isCtrlOrCmd && (key === '?' || (key === '/' && e.shiftKey))) || key === 'F1';
+        if (isHelpShortcut) {
             e.preventDefault();
             this.showHelp();
             return;
@@ -433,7 +435,7 @@ class KeyboardShortcutHandler {
                                 <td>Open previous field</td>
                             </tr>
                             <tr>
-                                <td><kbd>${modKey}</kbd> + <kbd>?</kbd></td>
+                                <td><kbd>${modKey}</kbd> + <kbd>?</kbd> or <kbd>F1</kbd></td>
                                 <td>Show this help</td>
                             </tr>
                         </table>

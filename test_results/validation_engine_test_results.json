@@ -1,0 +1,52 @@
+{
+  "summary": {
+    "total": 6,
+    "passed": 4,
+    "failed": 2,
+    "success_rate": 66.66666666666666
+  },
+  "results": [
+    {
+      "test": "Variance Calculation (150 vs 100)",
+      "passed": true,
+      "message": "Result: 50.0%",
+      "details": "",
+      "timestamp": "2025-11-21T23:01:34.249051"
+    },
+    {
+      "test": "Risk Score Calculation",
+      "passed": true,
+      "message": "Result: 47",
+      "details": "",
+      "timestamp": "2025-11-21T23:01:34.249072"
+    },
+    {
+      "test": "Validation Service Unit Tests",
+      "passed": false,
+      "message": "Exception: ValidationService._format_period_label() takes 2 positional arguments but 3 were given",
+      "details": "",
+      "timestamp": "2025-11-21T23:01:34.249080"
+    },
+    {
+      "test": "Login",
+      "passed": true,
+      "message": "Logged in as bob@alpha.com",
+      "details": "",
+      "timestamp": "2025-11-21T23:01:35.590039"
+    },
+    {
+      "test": "Validation API Endpoint",
+      "passed": true,
+      "message": "API returned success",
+      "details": "Passed: True, Risk Score: 2, Flags: 1",
+      "timestamp": "2025-11-21T23:01:35.602554"
+    },
+    {
+      "test": "Login",
+      "passed": false,
+      "message": "Failed to login as alice@alpha.com",
+      "details": "Status: 200, URL: http://test-company-alpha.127-0-0-1.nip.io:8000/admin/home",
+      "timestamp": "2025-11-21T23:01:35.965200"
+    }
+  ]
+}

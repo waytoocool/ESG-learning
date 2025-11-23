@@ -74,27 +74,45 @@ tailwind.config = {
     <div class="mx-auto px-2 sm:px-3 lg:px-4 py-3">
         <div class="flex items-center justify-between">
             <!-- Entity Switcher -->
-            <div class="flex items-center gap-2">
-                {% if user_role == 'ADMIN' and entities|length > 1 %}
-                <span class="material-icons text-gray-500 dark:text-gray-400">apartment</span>
-                <label for="entitySelect" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Data for:
-                </label>
-                <select id="entitySelect" class="block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-white dark:text-gray-900 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm py-1.5 px-3">
-                    {% for entity in entities %}
-                    <option value="{{ entity.id }}" {% if entity.is_current %}selected{% endif %}>
-                        {{ entity.name }}
-                    </option>
-                    {% endfor %}
-                </select>
-                {% elif current_entity %}
-                <span class="material-icons text-gray-500 dark:text-gray-400">apartment</span>
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Data for:</span>
-                <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ current_entity.name }}</span>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-                    {{ current_entity.type }}
-                </span>
-                {% endif %}
+            <div class="flex items-center gap-4">
+                <!-- Entity Selector -->
+                <div class="flex items-center gap-2">
+                    {% if user_role == 'ADMIN' and entities|length > 1 %}
+                    <span class="material-icons text-gray-500 dark:text-gray-400">apartment</span>
+                    <label for="entitySelect" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Data for:
+                    </label>
+                    <select id="entitySelect" class="block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-white dark:text-gray-900 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm py-1.5 px-3">
+                        {% for entity in entities %}
+                        <option value="{{ entity.id }}" {% if entity.is_current %}selected{% endif %}>
+                            {{ entity.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% elif current_entity %}
+                    <span class="material-icons text-gray-500 dark:text-gray-400">apartment</span>
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Data for:</span>
+                    <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ current_entity.name }}</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                        {{ current_entity.type }}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <!-- Fiscal Year Selector -->
+                <div class="flex items-center gap-2 border-l border-gray-300 dark:border-gray-600 pl-4">
+                    <span class="material-icons text-gray-500 dark:text-gray-400">calendar_today</span>
+                    <label for="fySelect" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Fiscal Year:
+                    </label>
+                    <select id="fySelect" class="block rounded-lg border-gray-300 dark:border-gray-600 dark:bg-white dark:text-gray-900 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm py-1.5 px-3">
+                        {% for fy_year, fy_label in fy_year_list %}
+                        <option value="{{ fy_year }}" {% if fy_year == current_fy_year %}selected{% endif %}>
+                            {{ fy_label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
 
             <!-- Toggle Button -->
@@ -120,7 +138,7 @@ tailwind.config = {
     <!-- Statistics Cards -->
     <div class="mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            <!-- Total Data Requests -->
+            <!-- Assigned Fields -->
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
                 <div class="p-6">
                     <div class="flex items-center">
@@ -131,7 +149,7 @@ tailwind.config = {
                         </div>
                         <div class="ml-5 w-0 flex-1">
                             <dl>
-                                <dt class="text-sm font-medium text-gray-700 dark:text-gray-300">Total Data Requests</dt>
+                                <dt class="text-sm font-medium text-gray-700 dark:text-gray-300">Assigned Fields</dt>
                                 <dd class="text-3xl font-bold text-gray-900 dark:text-white">{{ total_fields }}</dd>
                             </dl>
                         </div>
@@ -139,7 +157,7 @@ tailwind.config = {
                 </div>
             </div>
 
-            <!-- Completed Requests -->
+            <!-- Completed Fields -->
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
                 <div class="p-6">
                     <div class="flex items-center">
@@ -150,7 +168,7 @@ tailwind.config = {
                         </div>
                         <div class="ml-5 w-0 flex-1">
                             <dl>
-                                <dt class="text-sm font-medium text-gray-700 dark:text-gray-300">Completed Requests</dt>
+                                <dt class="text-sm font-medium text-gray-700 dark:text-gray-300">Completed Fields</dt>
                                 <dd class="text-3xl font-bold text-gray-900 dark:text-white">
                                     {{ raw_input_fields|selectattr('status', 'equalto', 'complete')|list|length + computed_fields|selectattr('status', 'equalto', 'complete')|list|length }}
                                 </dd>
@@ -160,28 +178,7 @@ tailwind.config = {
                 </div>
             </div>
 
-            <!-- Date Selector -->
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-                <div class="p-6">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <div class="p-3 bg-purple-100 dark:bg-purple-900/50 rounded-full">
-                                <span class="material-icons text-purple-500 text-2xl">calendar_today</span>
-                            </div>
-                        </div>
-                        <div class="ml-5 w-0 flex-1">
-                            <dl>
-                                <dt class="text-sm font-medium text-gray-700 dark:text-gray-300">Reporting Date</dt>
-                                <dd class="mt-1">
-                                    <input type="date" id="selectedDate" value="{{ selected_date }}" class="block w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
-                                </dd>
-                            </dl>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Pending Requests -->
+            <!-- Pending Fields -->
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
                 <div class="p-6">
                     <div class="flex items-center">
@@ -192,9 +189,30 @@ tailwind.config = {
                         </div>
                         <div class="ml-5 w-0 flex-1">
                             <dl>
-                                <dt class="text-sm font-medium text-gray-700 dark:text-gray-300">Pending<br>Requests</dt>
+                                <dt class="text-sm font-medium text-gray-700 dark:text-gray-300">Pending Fields</dt>
                                 <dd class="text-3xl font-bold text-gray-900 dark:text-white">
-                                    {{ raw_input_fields|rejectattr('status', 'equalto', 'complete')|list|length + computed_fields|rejectattr('status', 'equalto', 'complete')|list|length }}
+                                    {{ raw_input_fields|selectattr('status', 'equalto', 'pending')|list|length + computed_fields|selectattr('status', 'equalto', 'pending')|list|length }}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overdue Fields -->
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+                <div class="p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="p-3 bg-red-100 dark:bg-red-900/50 rounded-full">
+                                <span class="material-icons text-red-500 text-2xl">warning</span>
+                            </div>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-700 dark:text-gray-300">Overdue Fields</dt>
+                                <dd class="text-3xl font-bold text-gray-900 dark:text-white">
+                                    {{ raw_input_fields|selectattr('status', 'equalto', 'overdue')|list|length + computed_fields|selectattr('status', 'equalto', 'overdue')|list|length }}
                                 </dd>
                             </dl>
                         </div>
@@ -246,6 +264,14 @@ tailwind.config = {
                         <option value="raw">Raw Input</option>
                         <option value="computed">Computed</option>
                     </select>
+                </div>
+
+                <!-- Enhancement #4: Bulk Upload Button -->
+                <div>
+                    <button id="open-bulk-upload" class="inline-flex items-center gap-2 px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors">
+                        <span class="material-icons text-sm">upload_file</span>
+                        Bulk Upload Data
+                    </button>
                 </div>
             </div>
         </div>
@@ -313,6 +339,11 @@ tailwind.config = {
                                 {% if field.status == 'complete' %}
                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
                                     Complete
+                                </span>
+                                {% elif field.status == 'overdue' %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+                                    <span class="material-icons text-xs mr-1">warning</span>
+                                    Overdue
                                 </span>
                                 {% else %}
                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
@@ -397,14 +428,18 @@ tailwind.config = {
     <!-- Data Collection Modal (Keep existing Bootstrap modal for compatibility) -->
     <div class="modal fade" id="dataCollectionModal" tabindex="-1" aria-labelledby="dataCollectionModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
-            <div class="modal-container">
+            <div class="modal-content">
                 <!-- Modal Header -->
                 <div class="modal-header">
                     <h2 class="modal-title" id="dataCollectionModalLabel">
-                        Enter Data: <span id="modalFieldName">Field Name</span> -
-                        <span id="modalEntityName">{{ current_entity.name if current_entity else 'Entity' }}</span>
+                        Enter Data: <span id="modalFieldName">Field Name</span>
                     </h2>
-                    <button type="button" class="btn-close modal-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <div class="modal-header-right">
+                        <div class="auto-save-status-container"></div>
+                        <button type="button" class="btn-close modal-close" data-bs-dismiss="modal" aria-label="Close">
+                            &times;
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Tab Navigation -->
@@ -418,31 +453,71 @@ tailwind.config = {
                 <div class="modal-body">
                     <!-- Current Entry Tab -->
                     <div class="tab-content active" id="entry-tab">
-                        <form id="dataEntryForm">
-                            <div class="mb-3">
-                                <label for="reportingDate" class="form-label">Reporting Date</label>
-                                <input type="date" class="form-control" id="reportingDate" required>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="dataValue" class="form-label">Value</label>
-                                <input type="text" class="form-control" id="dataValue" required>
-                            </div>
-
-                            <!-- Dimensional Data Matrix Container -->
-                            <div class="mb-3" id="dimensionMatrixContainer" style="display: none;">
-                                <!-- Dimensional matrix will be rendered here by DimensionalDataHandler -->
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">File Attachments</label>
-                                <div class="file-upload-area" id="fileUploadArea">
-                                    <p>Drag and drop files here or click to browse</p>
-                                    <input type="file" id="fileInput" multiple style="display: none;">
+                        <!-- Data Entry Form Container (for raw input fields) -->
+                        <div id="data-entry-form-container" style="display: block;">
+                            <form id="dataEntryForm">
+                                <!-- Smart Date Selector -->
+                                <div class="mb-4">
+                                    <div id="dateSelectorContainer">
+                                        <!-- Date selector will be rendered here by DateSelector component -->
+                                        <div class="text-center text-muted py-3">
+                                            <span class="material-icons">event</span>
+                                            <p class="mb-0">Loading dates...</p>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="reportingDate" name="reporting_date" required>
                                 </div>
-                                <div id="fileList" class="mt-2"></div>
-                            </div>
-                        </form>
+
+                                <div class="mb-3">
+                                    <label for="dataValue" class="form-label">Value</label>
+                                    <input type="text" class="form-control" id="dataValue" required>
+                                </div>
+
+                                <!-- Dimensional Data Matrix Container -->
+                                <div class="mb-3" id="dimensionMatrixContainer" style="display: none;">
+                                    <!-- Dimensional matrix will be rendered here by DimensionalDataHandler -->
+                                </div>
+
+                                <!-- Enhancement #2: Notes/Comments Section -->
+                                <div class="mb-3" id="notesSection">
+                                    <label for="fieldNotes" class="form-label">
+                                        <span class="material-icons text-sm align-middle">comment</span>
+                                        Notes / Comments <span class="text-muted">(Optional)</span>
+                                    </label>
+                                    <textarea
+                                        class="form-control"
+                                        id="fieldNotes"
+                                        rows="4"
+                                        maxlength="1000"
+                                        placeholder="Add context about unusual values, data sources, methodology, or clarifications for reviewers..."
+                                    ></textarea>
+                                    <div class="d-flex justify-content-between align-items-center mt-1">
+                                        <small class="form-text text-muted">
+                                            <span class="material-icons text-xs align-middle">info</span>
+                                            Provide context to help reviewers understand this data entry
+                                        </small>
+                                        <small class="char-counter text-muted">
+                                            <span id="notesCharCount">0</span> / 1000 characters
+                                        </small>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">File Attachments</label>
+                                    <div class="file-upload-area" id="fileUploadArea">
+                                        <span class="material-icons-outlined">cloud_upload</span>
+                                        <p><strong>Click to upload</strong> or drag and drop</p>
+                                        <input type="file" id="fileInput" multiple style="display: none;">
+                                    </div>
+                                    <div id="fileList" class="mt-2"></div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Computed Field View Container (for computed fields) -->
+                        <div id="computed-field-view-container" style="display: none;">
+                            <!-- Computed field view will be rendered here by ComputedFieldView component -->
+                        </div>
                     </div>
 
                     <!-- Historical Data Tab -->
@@ -463,8 +538,7 @@ tailwind.config = {
                 <!-- Modal Footer -->
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary btn-cancel" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-outline-primary btn-save-draft" id="saveDraftBtn">Save Draft</button>
-                    <button type="button" class="btn btn-primary btn-submit" id="submitDataBtn">Submit Data</button>
+                    <button type="button" class="btn btn-primary btn-submit" id="submitDataBtn">Save Data</button>
                 </div>
             </div>
         </div>
@@ -482,370 +556,49 @@ tailwind.config = {
             </div>
         </div>
     </dialog>
+
+    <!-- Enhancement #4: Bulk Upload Modal -->
+    {% include 'user_v2/_bulk_upload_modal.html' %}
 </div>
 
-<!-- Keep all existing custom styles that don't conflict with Tailwind -->
-<style>
-/* Modal Styles (Bootstrap compatibility) */
-.modal-xl {
-    max-width: 90%;
-}
+<!-- Dashboard Modal Styles (external file) -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user_v2/dashboard_modal.css') }}">
 
-.modal-container {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
+<!-- Session Handler - MUST load first to handle session expiration globally -->
+<script src="{{ url_for('static', filename='js/common/session_handler.js') }}"></script>
 
-.modal-header {
-    padding: 20px 30px;
-    border-bottom: 1px solid #dee2e6;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
+<!-- Modular JavaScript - Dashboard Core Functionality -->
+<script src="{{ url_for('static', filename='js/user_v2/notes_handler.js') }}"></script>
+<script src="{{ url_for('static', filename='js/user_v2/form_validation.js') }}"></script>
+<script src="{{ url_for('static', filename='js/user_v2/search_filter.js') }}"></script>
+<script src="{{ url_for('static', filename='js/user_v2/modal_manager.js') }}"></script>
 
-.modal-tabs {
-    display: flex;
-    border-bottom: 2px solid #dee2e6;
-    padding: 0 30px;
-    gap: 10px;
-}
-
-.modal-tabs .tab {
-    padding: 12px 24px;
-    background: none;
-    border: none;
-    border-bottom: 3px solid transparent;
-    cursor: pointer;
-    font-weight: 500;
-    color: #666;
-    transition: all 0.3s;
-}
-
-.modal-tabs .tab.active {
-    color: #16a34a;
-    border-bottom-color: #16a34a;
-}
-
-.modal-tabs .tab:hover {
-    color: #16a34a;
-    background: rgba(22, 163, 74, 0.05);
-}
-
-.modal-body {
-    padding: 30px;
-    min-height: 400px;
-}
-
-.tab-content {
-    display: none;
-}
-
-.tab-content.active {
-    display: block;
-}
-
-.file-upload-area {
-    border: 2px dashed #dee2e6;
-    border-radius: 8px;
-    padding: 40px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.file-upload-area:hover {
-    border-color: #16a34a;
-    background: rgba(22, 163, 74, 0.05);
-}
-
-.modal-footer {
-    padding: 20px 30px;
-    border-top: 1px solid #dee2e6;
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-}
-
-/* Dark mode for modals */
-.dark .modal-container {
-    background: #1f2937;
-    color: white;
-}
-
-.dark .modal-header,
-.dark .modal-footer {
-    border-color: #374151;
-}
-
-.dark .file-upload-area {
-    border-color: #374151;
-    color: #9ca3af;
-}
-
-.dark .file-upload-area:hover {
-    border-color: #16a34a;
-}
-
-/* Line clamp utility for field names */
-.line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-/* Smooth transitions for cards */
-.field-card {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.field-card:hover {
-    transform: translateY(-2px);
-}
-
-/* Computed field special styling */
-.computed-field {
-    background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
-}
-
-.dark .computed-field {
-    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-}
-</style>
-
-<!-- Keep ALL existing Phase 2, 3, and 4 JavaScript from original template -->
 <script>
-// Phase 1: Basic Modal Functionality
-document.addEventListener('DOMContentLoaded', function() {
-    const modal = new bootstrap.Modal(document.getElementById('dataCollectionModal'));
-
-    // Open modal when clicking "Enter Data" buttons
-    document.querySelectorAll('.open-data-modal').forEach(button => {
-        button.addEventListener('click', function() {
-            const fieldId = this.dataset.fieldId;
-            const fieldName = this.dataset.fieldName;
-            const fieldType = this.dataset.fieldType;
-
-            document.getElementById('modalFieldName').textContent = fieldName;
-
-            // Load field details via API (placeholder for Phase 2)
-            console.log('Opening modal for field:', fieldId, fieldType);
-
-            modal.show();
-        });
-    });
-
-    // Tab switching
-    document.querySelectorAll('.modal-tabs .tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-            const tabName = this.dataset.tab;
-
-            // Update tab buttons
-            document.querySelectorAll('.modal-tabs .tab').forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-
-            // Update tab content
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            document.getElementById(tabName + '-tab').classList.add('active');
-        });
-    });
-
-    // Entity switcher (for admins)
-    const entitySelect = document.getElementById('entitySelect');
-    if (entitySelect) {
-        entitySelect.addEventListener('change', function() {
-            const entityId = this.value;
-            console.log('Switching to entity:', entityId);
-        });
-    }
-
-    // File upload area
-    const fileUploadArea = document.getElementById('fileUploadArea');
-    const fileInput = document.getElementById('fileInput');
-
-    if (fileUploadArea && fileInput) {
-        fileUploadArea.addEventListener('click', () => fileInput.click());
-
-        fileUploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            fileUploadArea.style.borderColor = '#16a34a';
-        });
-
-        fileUploadArea.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            fileUploadArea.style.borderColor = '#dee2e6';
-        });
-
-        fileUploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            fileUploadArea.style.borderColor = '#dee2e6';
-
-            const files = e.dataTransfer.files;
-            console.log('Files dropped:', files.length);
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            const files = e.target.files;
-            console.log('Files selected:', files.length);
-        });
-    }
-
-    // Toggle button to switch back to legacy dashboard
-    const toggleViewBtn = document.getElementById('toggleViewBtn');
-    if (toggleViewBtn) {
-        toggleViewBtn.addEventListener('click', function() {
-            window.location.href = '{{ url_for("user.dashboard") }}';
-        });
-    }
-
-    // Search and Filter Functionality
-    const searchInput = document.getElementById('searchMetrics');
-    const filterStatus = document.getElementById('filterStatus');
-    const filterCategory = document.getElementById('filterCategory');
-    const filterFieldType = document.getElementById('filterFieldType');
-
-    function applyFilters() {
-        const searchTerm = searchInput.value.toLowerCase();
-        const statusFilter = filterStatus.value;
-        const categoryFilter = filterCategory.value.toLowerCase();
-        const fieldTypeFilter = filterFieldType.value;
-
-        document.querySelectorAll('.field-card').forEach(card => {
-            const fieldName = card.dataset.fieldName;
-            const status = card.dataset.status;
-            const fieldType = card.dataset.fieldType;
-            const category = card.closest('.category-section').dataset.category;
-
-            const matchesSearch = !searchTerm || fieldName.includes(searchTerm);
-            const matchesStatus = !statusFilter || status === statusFilter;
-            const matchesCategory = !categoryFilter || category === categoryFilter;
-            const matchesFieldType = !fieldTypeFilter || fieldType === fieldTypeFilter;
-
-            if (matchesSearch && matchesStatus && matchesCategory && matchesFieldType) {
-                card.style.display = 'block';
-            } else {
-                card.style.display = 'none';
-            }
-        });
-
-        // Hide/show category sections if all cards are hidden
-        document.querySelectorAll('.category-section').forEach(section => {
-            const visibleCards = section.querySelectorAll('.field-card[style="display: block;"], .field-card:not([style*="display"])');
-            if (visibleCards.length === 0) {
-                section.style.display = 'none';
-            } else {
-                section.style.display = 'block';
-            }
-        });
-    }
-
-    if (searchInput) searchInput.addEventListener('input', applyFilters);
-    if (filterStatus) filterStatus.addEventListener('change', applyFilters);
-    if (filterCategory) filterCategory.addEventListener('change', applyFilters);
-    if (filterFieldType) filterFieldType.addEventListener('change', applyFilters);
-});
+// Set global context variables for modular scripts
+window.currentEntityId = {{ current_entity.id if current_entity else 'null' }};
+window.currentFYYear = {{ current_fy_year if current_fy_year else 'null' }};
 </script>
 
 <!-- Phase 2: Dimensional Data Handler -->
 <script src="{{ url_for('static', filename='js/user_v2/dimensional_data_handler.js') }}"></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/user_v2/dimensional_grid.css') }}">
 
-<script>
-// Initialize Dimensional Data Handler
-let dimensionalDataHandler = null;
+<!-- Data Submission Handler -->
+<script src="{{ url_for('static', filename='js/user_v2/data_submission.js') }}"></script>
 
-document.addEventListener('DOMContentLoaded', function() {
-    const dimensionContainer = document.getElementById('dimensionMatrixContainer');
-    if (dimensionContainer) {
-        dimensionalDataHandler = new DimensionalDataHandler(dimensionContainer);
-    }
-
-    // Enhanced modal open to check for dimensional fields
-    document.querySelectorAll('.open-data-modal').forEach(button => {
-        button.addEventListener('click', async function() {
-            const fieldId = this.dataset.fieldId;
-            const entityId = {{ current_entity.id if current_entity else 'null' }};
-            const reportingDate = document.getElementById('reportingDate')?.value;
-
-            // Store field ID globally for auto-save to access
-            window.currentFieldId = fieldId;
-
-            if (dimensionalDataHandler && fieldId && entityId) {
-                try {
-                    // Load dimension matrix
-                    const matrix = await dimensionalDataHandler.loadDimensionMatrix(
-                        fieldId,
-                        entityId,
-                        reportingDate || new Date().toISOString().split('T')[0]
-                    );
-
-                    // Show/hide dimensional matrix based on field
-                    const matrixContainer = document.getElementById('dimensionMatrixContainer');
-                    const valueInput = document.getElementById('dataValue').closest('.mb-3');
-
-                    if (matrix.has_dimensions) {
-                        matrixContainer.style.display = 'block';
-                        valueInput.style.display = 'none';
-
-                        if (window.attachNumberFormatters) {
-                            setTimeout(() => {
-                                window.attachNumberFormatters(matrixContainer);
-                                console.log('[Phase 4] ✅ Number formatters attached to dimensional inputs');
-                            }, 50);
-                        }
-                    } else {
-                        matrixContainer.style.display = 'none';
-                        valueInput.style.display = 'block';
-                    }
-                } catch (error) {
-                    console.error('Error loading dimension matrix:', error);
-                }
-            }
-        });
-    });
-
-    // Enhanced submit button to handle dimensional data
-    const submitBtn = document.getElementById('submitDataBtn');
-    if (submitBtn && dimensionalDataHandler) {
-        submitBtn.addEventListener('click', async function() {
-            try {
-                const matrixContainer = document.getElementById('dimensionMatrixContainer');
-
-                if (matrixContainer.style.display !== 'none' && dimensionalDataHandler.currentMatrix) {
-                    await dimensionalDataHandler.submitDimensionalData();
-                } else {
-                    console.log('Submitting simple data...');
-                }
-            } catch (error) {
-                console.error('Error submitting data:', error);
-            }
-        });
-    }
-
-    // Phase 3: Computation Context Handler
-    document.querySelectorAll('.show-computation-context').forEach(button => {
-        button.addEventListener('click', function() {
-            const fieldId = this.dataset.fieldId;
-            const entityId = {{ current_entity.id if current_entity else 'null' }};
-            const reportingDate = document.getElementById('selectedDate').value || '{{ selected_date }}';
-
-            if (window.showComputationContext) {
-                window.showComputationContext(fieldId, entityId, reportingDate);
-            } else {
-                console.error('Computation context handler not loaded');
-            }
-        });
-    });
-});
-</script>
+<!-- Validation Engine: Modal CSS & JS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user_v2/validation_modal.css') }}">
+<script src="{{ url_for('static', filename='js/user_v2/validation_modal.js') }}"></script>
 
 <!-- Phase 3: Load Computation Context Handler -->
 <script src="{{ url_for('static', filename='js/user_v2/computation_context_handler.js') }}"></script>
 
 <!-- Phase 4: Advanced Features - CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/user_v2/phase4_features.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user_v2/date_selector.css') }}">
+
+<!-- Enhancement #3: File Upload - CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user_v2/file_upload.css') }}">
 
 <!-- Phase 4: Advanced Features - JavaScript Handlers -->
 <script src="{{ url_for('static', filename='js/user_v2/auto_save_handler.js') }}"></script>
@@ -853,199 +606,20 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="{{ url_for('static', filename='js/user_v2/number_formatter.js') }}"></script>
 <script src="{{ url_for('static', filename='js/user_v2/bulk_paste_handler.js') }}"></script>
 <script src="{{ url_for('static', filename='js/user_v2/performance_optimizer.js') }}"></script>
+<script src="{{ url_for('static', filename='js/user_v2/date_selector.js') }}"></script>
 
-<script>
-// Phase 4: Initialize advanced features (Keep ALL existing Phase 4 code from original)
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('[Phase 4] Initializing advanced features...');
+<!-- Enhancement #3: File Upload - JavaScript -->
+<script src="{{ url_for('static', filename='js/user_v2/file_upload_handler.js') }}"></script>
 
-    // Initialize keyboard shortcuts globally
-    try {
-        if (typeof KeyboardShortcutHandler !== 'undefined') {
-            window.keyboardShortcuts = new KeyboardShortcutHandler({
-                onSave: function() {
-                    if (autoSaveHandler && autoSaveHandler.isActive) {
-                        autoSaveHandler.forceSave();
-                    } else {
-                        console.log('[Keyboard] Save triggered but auto-save not active');
-                    }
-                },
-                onSubmit: function() {
-                    const submitBtn = document.querySelector('#dataCollectionModal .btn-primary[type="submit"]');
-                    if (submitBtn) {
-                        submitBtn.click();
-                    }
-                },
-                onClose: function() {
-                    const modal = document.getElementById('dataCollectionModal');
-                    if (modal) {
-                        const bsModal = bootstrap.Modal.getInstance(modal);
-                        if (bsModal) {
-                            bsModal.hide();
-                        }
-                    }
-                }
-            });
-            window.keyboardShortcuts.enable();
-            console.log('[Phase 4] ✅ Keyboard shortcuts initialized');
-        }
-    } catch (error) {
-        console.error('[Phase 4] Error initializing keyboard shortcuts:', error);
-    }
+<!-- Enhancement #1: Computed Field Modal - CSS & JS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user_v2/computed_field_view.css') }}">
+<script src="{{ url_for('static', filename='js/user_v2/computed_field_view.js') }}"></script>
 
-    // Initialize performance optimizer
-    try {
-        if (typeof PerformanceOptimizer !== 'undefined') {
-            window.perfOptimizer = new PerformanceOptimizer({
-                enableLazyLoading: true,
-                enableCaching: true,
-                enableWebWorkers: false
-            });
-            window.perfOptimizer.initialize();
-            console.log('[Phase 4] ✅ Performance optimizer initialized');
-        }
-    } catch (error) {
-        console.error('[Phase 4] Error initializing performance optimizer:', error);
-    }
+<!-- Enhancement #4: Bulk Excel Upload - CSS & JS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user_v2/bulk_upload.css') }}">
+<script src="{{ url_for('static', filename='js/user_v2/bulk_upload_handler.js') }}"></script>
 
-    // Initialize number formatter for all number inputs
-    try {
-        if (typeof NumberFormatter !== 'undefined') {
-            window.attachNumberFormatters = function(container) {
-                const selector = container
-                    ? container.querySelectorAll('input[type="number"], input[data-format="number"]')
-                    : document.querySelectorAll('input[type="number"], input[data-format="number"]');
-
-                selector.forEach(input => {
-                    if (input._numberFormatter) return;
-
-                    const formatter = new NumberFormatter({
-                        fieldType: input.dataset.fieldType || 'DECIMAL',
-                        unit: input.dataset.unit || '',
-                        decimals: input.dataset.decimals ? parseInt(input.dataset.decimals) : 2
-                    });
-                    formatter.attachToInput(input);
-                });
-            };
-
-            window.attachNumberFormatters();
-            console.log('[Phase 4] ✅ Number formatter initialized');
-
-            window.numberFormatter = new NumberFormatter();
-        }
-    } catch (error) {
-        console.error('[Phase 4] Error initializing number formatter:', error);
-    }
-
-    console.log('[Phase 4] Advanced features initialization complete');
-
-    // Phase 4: Auto-save handler
-    window.autoSaveHandler = null;
-    window.currentFieldId = null;
-
-    const dataCollectionModalEl = document.getElementById('dataCollectionModal');
-    if (dataCollectionModalEl) {
-        dataCollectionModalEl.addEventListener('shown.bs.modal', function(event) {
-            console.log('[Phase 4] Modal shown event fired');
-
-            const fieldId = window.currentFieldId;
-            if (!fieldId) {
-                console.warn('[Phase 4] No field ID available for auto-save');
-                return;
-            }
-
-            if (window.keyboardShortcuts) {
-                window.keyboardShortcuts.setModalOpen(true);
-            }
-
-            const entityId = {{ current_entity.id if current_entity else 'null' }};
-            const reportingDate = document.getElementById('selectedDate')?.value || '{{ selected_date }}';
-
-            if (typeof AutoSaveHandler !== 'undefined' && fieldId && entityId) {
-                try {
-                    if (window.autoSaveHandler) {
-                        window.autoSaveHandler.stop();
-                    }
-
-                    window.autoSaveHandler = new AutoSaveHandler({
-                        fieldId: fieldId,
-                        entityId: entityId,
-                        reportingDate: reportingDate,
-                        getFormData: function() {
-                            const valueInput = document.getElementById('fieldValue');
-                            const notesInput = document.getElementById('fieldNotes');
-
-                            const data = {
-                                value: valueInput ? valueInput.value : null,
-                                notes: notesInput ? notesInput.value : null
-                            };
-
-                            if (window.dimensionalDataHandler && window.dimensionalDataHandler.getCurrentData) {
-                                data.dimension_values = window.dimensionalDataHandler.getCurrentData();
-                            }
-
-                            return data;
-                        },
-                        onSaveSuccess: function(result) {
-                            console.log('[Auto-save] Draft saved successfully:', result);
-                        },
-                        onSaveError: function(error) {
-                            console.error('[Auto-save] Error saving draft:', error);
-                        },
-                        onDraftRestored: function(draftData) {
-                            console.log('[Auto-save] Restoring draft data:', draftData);
-
-                            const valueInput = document.getElementById('fieldValue');
-                            const notesInput = document.getElementById('fieldNotes');
-
-                            if (valueInput && draftData.value) {
-                                valueInput.value = draftData.value;
-                            }
-                            if (notesInput && draftData.notes) {
-                                notesInput.value = draftData.notes;
-                            }
-
-                            if (draftData.dimension_values && window.dimensionalDataHandler && window.dimensionalDataHandler.setCurrentData) {
-                                window.dimensionalDataHandler.setCurrentData(draftData.dimension_values);
-                            }
-                        }
-                    });
-
-                    window.autoSaveHandler.start();
-                    console.log('[Phase 4] ✅ Auto-save started for field:', fieldId);
-
-                    const formInputs = dataCollectionModalEl.querySelectorAll('input, textarea, select');
-                    formInputs.forEach(input => {
-                        input.addEventListener('input', () => {
-                            if (window.autoSaveHandler) {
-                                window.autoSaveHandler.handleFormChange();
-                            }
-                        });
-                    });
-
-                } catch (error) {
-                    console.error('[Phase 4] Error initializing auto-save:', error);
-                }
-            }
-        });
-
-        dataCollectionModalEl.addEventListener('hidden.bs.modal', function() {
-            console.log('[Phase 4] Modal hidden event fired');
-
-            if (window.keyboardShortcuts) {
-                window.keyboardShortcuts.setModalOpen(false);
-            }
-
-            if (window.autoSaveHandler) {
-                window.autoSaveHandler.stop();
-                window.autoSaveHandler = null;
-                console.log('[Phase 4] Auto-save stopped');
-            }
-
-            window.currentFieldId = null;
-        });
-    }
-});
-</script>
+<!-- Dashboard Initialization - Phase 4 Advanced Features -->
+<script src="{{ url_for('static', filename='js/user_v2/dashboard_init.js') }}"></script>
 
 {% endblock %}

@@ -210,15 +210,21 @@ def company_settings():
             # Get form data
             fy_end_month = int(request.form.get('fy_end_month', 3))
             fy_end_day = int(request.form.get('fy_end_day', 31))
-            
+            data_due_days = int(request.form.get('data_due_days', 10))
+
+            # Validation Engine: Get validation threshold
+            validation_trend_threshold_pct = float(request.form.get('validation_trend_threshold_pct', 20.0))
+
             # Update company settings
             company.fy_end_month = fy_end_month
             company.fy_end_day = fy_end_day
-            
+            company.data_due_days = data_due_days
+            company.validation_trend_threshold_pct = validation_trend_threshold_pct
+
             # Validate the configuration
             is_valid, error_message = company.validate_fy_configuration()
             if not is_valid:
-                flash(f'Invalid fiscal year configuration: {error_message}', 'error')
+                flash(f'Invalid configuration: {error_message}', 'error')
                 return render_template('admin/company_settings.html', company=company)
             
             # Save changes
@@ -994,6 +1000,7 @@ def save_assignments():
             unit = assignment_data.get('unit')
             frequency = assignment_data.get('frequency')
             assigned_topic_id = assignment_data.get('assigned_topic_id')
+            attachment_required = assignment_data.get('attachment_required', False)
 
             # Get assignment with proper access control
             if is_super_admin():
@@ -1015,6 +1022,8 @@ def save_assignments():
                 changes['frequency'] = frequency
             if assigned_topic_id != assignment.assigned_topic_id:
                 changes['assigned_topic_id'] = assigned_topic_id
+            if assignment.attachment_required != attachment_required:
+                changes['attachment_required'] = attachment_required
 
             # Handle inactive assignment reactivation
             was_inactive = assignment.series_status != 'active'
@@ -1046,6 +1055,7 @@ def save_assignments():
                             assignment.frequency = frequency
                         if assigned_topic_id is not None:
                             assignment.assigned_topic_id = assigned_topic_id
+                        assignment.attachment_required = attachment_required
                         updated_count += 1
 
                 except Exception as version_error:
@@ -1056,6 +1066,7 @@ def save_assignments():
                         assignment.frequency = frequency
                     if assigned_topic_id is not None:
                         assignment.assigned_topic_id = assigned_topic_id
+                    assignment.attachment_required = attachment_required
                     updated_count += 1
 
             elif changes:
@@ -1075,6 +1086,9 @@ def save_assignments():
                         if not topic:
                             return jsonify({'success': False, 'error': f'Invalid topic ID: {assigned_topic_id}'}), 400
                     assignment.assigned_topic_id = assigned_topic_id
+
+                # Handle attachment required
+                assignment.attachment_required = attachment_required
 
                 updated_count += 1
 

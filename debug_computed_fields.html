@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Computed Fields</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .log { margin: 10px 0; padding: 10px; background: #f0f0f0; }
+        .error { background: #ffcccc; }
+        .success { background: #ccffcc; }
+        button { padding: 10px 20px; margin: 5px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <h1>Computed Fields Debugging</h1>
+    <button onclick="testDependencyManager()">Test DependencyManager</button>
+    <button onclick="testAddComputedField()">Test Add Computed Field</button>
+    <button onclick="checkSelectedItems()">Check Selected Items</button>
+    <div id="output"></div>
+
+    <script>
+        function log(message, type = 'log') {
+            const output = document.getElementById('output');
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = message;
+            output.appendChild(div);
+            console.log(message);
+        }
+
+        function testDependencyManager() {
+            log('=== Testing DependencyManager ===');
+
+            if (typeof window.DependencyManager === 'undefined') {
+                log('ERROR: DependencyManager not found!', 'error');
+                return;
+            }
+
+            log('DependencyManager found!', 'success');
+
+            if (typeof window.DependencyManager.isReady === 'function') {
+                const isReady = window.DependencyManager.isReady();
+                log(`DependencyManager.isReady(): ${isReady}`, isReady ? 'success' : 'error');
+
+                if (isReady) {
+                    const depMap = window.DependencyManager.getDependencyMap();
+                    log(`Dependency Map size: ${depMap.size}`);
+
+                    if (depMap.size > 0) {
+                        log('Sample computed fields:');
+                        let count = 0;
+                        for (const [fieldId, deps] of depMap.entries()) {
+                            if (count < 3) {
+                                const metadata = window.DependencyManager.getFieldMetadata(fieldId);
+                                log(`  - ${metadata?.field_name || fieldId}: ${deps.length} dependencies`);
+                                count++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function testAddComputedField() {
+            log('=== Testing Add Computed Field ===');
+
+            if (!window.DependencyManager || !window.DependencyManager.isReady()) {
+                log('ERROR: DependencyManager not ready!', 'error');
+                return;
+            }
+
+            const depMap = window.DependencyManager.getDependencyMap();
+            if (depMap.size === 0) {
+                log('ERROR: No computed fields in dependency map!', 'error');
+                return;
+            }
+
+            // Get first computed field
+            const [fieldId, deps] = depMap.entries().next().value;
+            const metadata = window.DependencyManager.getFieldMetadata(fieldId);
+
+            log(`Testing with field: ${metadata?.field_name || fieldId}`);
+            log(`Field ID: ${fieldId}`);
+            log(`Dependencies: ${deps.length}`);
+
+            // Simulate what addItem does
+            const itemData = {
+                field_id: fieldId,
+                field_name: metadata?.field_name || 'Test Field',
+                is_computed: true
+            };
+
+            log('Simulating addItem enrichment...');
+
+            const dependencies = window.DependencyManager.getDependencies(fieldId);
+            log(`getDependencies() returned: ${JSON.stringify(dependencies)}`);
+
+            if (dependencies && dependencies.length > 0) {
+                const enrichedDeps = dependencies.map(depId => {
+                    const depMetadata = window.DependencyManager.getFieldMetadata(depId);
+                    return {
+                        fieldId: depId,
+                        field_id: depId,
+                        name: depMetadata ? depMetadata.field_name : depId,
+                        field_name: depMetadata ? depMetadata.field_name : depId
+                    };
+                });
+
+                log(`Enriched dependencies: ${JSON.stringify(enrichedDeps, null, 2)}`);
+                log('SUCCESS: Enrichment would work!', 'success');
+            } else {
+                log('ERROR: No dependencies returned!', 'error');
+            }
+        }
+
+        function checkSelectedItems() {
+            log('=== Checking Selected Items ===');
+
+            if (!window.SelectedDataPointsPanel) {
+                log('ERROR: SelectedDataPointsPanel not found!', 'error');
+                return;
+            }
+
+            if (!window.SelectedDataPointsPanel.selectedItems) {
+                log('ERROR: selectedItems not found!', 'error');
+                return;
+            }
+
+            const items = window.SelectedDataPointsPanel.selectedItems;
+            log(`Total selected items: ${items.size}`);
+
+            let computedCount = 0;
+            let withDepsCount = 0;
+
+            items.forEach((item, fieldId) => {
+                if (item.is_computed) {
+                    computedCount++;
+                    log(`Computed field: ${item.field_name || item.name || fieldId}`);
+
+                    if (item.dependencies) {
+                        withDepsCount++;
+                        log(`  Has dependencies array: ${item.dependencies.length} items`, 'success');
+                    } else {
+                        log(`  Missing dependencies array!`, 'error');
+                    }
+                }
+            });
+
+            log(`Computed fields: ${computedCount}`);
+            log(`With dependencies: ${withDepsCount}`);
+        }
+
+        // Auto-run tests on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                log('Auto-running tests...');
+                testDependencyManager();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

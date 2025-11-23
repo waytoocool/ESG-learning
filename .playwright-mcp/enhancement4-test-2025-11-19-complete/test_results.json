@@ -1,0 +1,722 @@
+[
+  {
+    "test_id": "TC-TG-001",
+    "test_name": "Download Template - Overdue Only",
+    "status": "FAIL",
+    "evidence": "Template download failed",
+    "notes": "Could not download template",
+    "timestamp": "2025-11-19T17:51:11.927594"
+  },
+  {
+    "test_id": "TC-TG-002",
+    "test_name": "Download Template - Pending Only",
+    "status": "PASS",
+    "evidence": "No pending assignments found - expected behavior",
+    "notes": "System correctly returns empty or error when no pending assignments",
+    "timestamp": "2025-11-19T17:51:11.930872"
+  },
+  {
+    "test_id": "TC-TG-003",
+    "test_name": "Download Template - Overdue + Pending",
+    "status": "FAIL",
+    "evidence": "Template download failed",
+    "notes": "Could not download combined template",
+    "timestamp": "2025-11-19T17:51:11.934104"
+  },
+  {
+    "test_id": "TC-TG-004",
+    "test_name": "Template with Dimensional Fields",
+    "status": "FAIL",
+    "evidence": "Template download failed",
+    "notes": "Could not test dimensional fields",
+    "timestamp": "2025-11-19T17:51:11.937263"
+  },
+  {
+    "test_id": "TC-TG-005",
+    "test_name": "Template Test 5",
+    "status": "SKIP",
+    "evidence": "Manual Excel validation required",
+    "notes": "Requires manual Excel testing",
+    "timestamp": "2025-11-19T17:51:11.937274"
+  },
+  {
+    "test_id": "TC-TG-006",
+    "test_name": "Template Test 6",
+    "status": "SKIP",
+    "evidence": "Manual Excel validation required",
+    "notes": "Requires manual Excel testing",
+    "timestamp": "2025-11-19T17:51:11.937277"
+  },
+  {
+    "test_id": "TC-TG-007",
+    "test_name": "Template Test 7",
+    "status": "SKIP",
+    "evidence": "Manual Excel validation required",
+    "notes": "Requires manual Excel testing",
+    "timestamp": "2025-11-19T17:51:11.937280"
+  },
+  {
+    "test_id": "TC-TG-008",
+    "test_name": "Template Test 8",
+    "status": "SKIP",
+    "evidence": "Manual Excel validation required",
+    "notes": "Requires manual Excel testing",
+    "timestamp": "2025-11-19T17:51:11.937281"
+  },
+  {
+    "test_id": "TC-TG-009",
+    "test_name": "Template Test 9",
+    "status": "SKIP",
+    "evidence": "Manual Excel validation required",
+    "notes": "Requires manual Excel testing",
+    "timestamp": "2025-11-19T17:51:11.937283"
+  },
+  {
+    "test_id": "TC-TG-010",
+    "test_name": "Template Test 10",
+    "status": "SKIP",
+    "evidence": "Manual Excel validation required",
+    "notes": "Requires manual Excel testing",
+    "timestamp": "2025-11-19T17:51:11.937285"
+  },
+  {
+    "test_id": "TC-UP-001",
+    "test_name": "Upload Valid XLSX File",
+    "status": "FAIL",
+    "evidence": "Could not download template",
+    "notes": "Prerequisite failed",
+    "timestamp": "2025-11-19T17:51:11.940767"
+  },
+  {
+    "test_id": "TC-UP-002",
+    "test_name": "File Upload Test 2",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific file formats and edge cases",
+    "timestamp": "2025-11-19T17:51:11.940775"
+  },
+  {
+    "test_id": "TC-UP-003",
+    "test_name": "File Upload Test 3",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific file formats and edge cases",
+    "timestamp": "2025-11-19T17:51:11.940778"
+  },
+  {
+    "test_id": "TC-UP-004",
+    "test_name": "File Upload Test 4",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific file formats and edge cases",
+    "timestamp": "2025-11-19T17:51:11.940780"
+  },
+  {
+    "test_id": "TC-UP-005",
+    "test_name": "File Upload Test 5",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific file formats and edge cases",
+    "timestamp": "2025-11-19T17:51:11.940782"
+  },
+  {
+    "test_id": "TC-UP-006",
+    "test_name": "File Upload Test 6",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific file formats and edge cases",
+    "timestamp": "2025-11-19T17:51:11.940784"
+  },
+  {
+    "test_id": "TC-UP-007",
+    "test_name": "File Upload Test 7",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific file formats and edge cases",
+    "timestamp": "2025-11-19T17:51:11.940785"
+  },
+  {
+    "test_id": "TC-UP-008",
+    "test_name": "File Upload Test 8",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific file formats and edge cases",
+    "timestamp": "2025-11-19T17:51:11.940787"
+  },
+  {
+    "test_id": "TC-UP-009",
+    "test_name": "File Upload Test 9",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific file formats and edge cases",
+    "timestamp": "2025-11-19T17:51:11.940789"
+  },
+  {
+    "test_id": "TC-UP-010",
+    "test_name": "File Upload Test 10",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific file formats and edge cases",
+    "timestamp": "2025-11-19T17:51:11.940791"
+  },
+  {
+    "test_id": "TC-UP-011",
+    "test_name": "File Upload Test 11",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific file formats and edge cases",
+    "timestamp": "2025-11-19T17:51:11.940792"
+  },
+  {
+    "test_id": "TC-UP-012",
+    "test_name": "File Upload Test 12",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific file formats and edge cases",
+    "timestamp": "2025-11-19T17:51:11.940794"
+  },
+  {
+    "test_id": "TC-DV-001",
+    "test_name": "Data Validation Test 1",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940799"
+  },
+  {
+    "test_id": "TC-DV-002",
+    "test_name": "Data Validation Test 2",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940801"
+  },
+  {
+    "test_id": "TC-DV-003",
+    "test_name": "Data Validation Test 3",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940803"
+  },
+  {
+    "test_id": "TC-DV-004",
+    "test_name": "Data Validation Test 4",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940805"
+  },
+  {
+    "test_id": "TC-DV-005",
+    "test_name": "Data Validation Test 5",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940807"
+  },
+  {
+    "test_id": "TC-DV-006",
+    "test_name": "Data Validation Test 6",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940808"
+  },
+  {
+    "test_id": "TC-DV-007",
+    "test_name": "Data Validation Test 7",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940810"
+  },
+  {
+    "test_id": "TC-DV-008",
+    "test_name": "Data Validation Test 8",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940811"
+  },
+  {
+    "test_id": "TC-DV-009",
+    "test_name": "Data Validation Test 9",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940813"
+  },
+  {
+    "test_id": "TC-DV-010",
+    "test_name": "Data Validation Test 10",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940815"
+  },
+  {
+    "test_id": "TC-DV-011",
+    "test_name": "Data Validation Test 11",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940816"
+  },
+  {
+    "test_id": "TC-DV-012",
+    "test_name": "Data Validation Test 12",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940818"
+  },
+  {
+    "test_id": "TC-DV-013",
+    "test_name": "Data Validation Test 13",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940820"
+  },
+  {
+    "test_id": "TC-DV-014",
+    "test_name": "Data Validation Test 14",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940822"
+  },
+  {
+    "test_id": "TC-DV-015",
+    "test_name": "Data Validation Test 15",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940823"
+  },
+  {
+    "test_id": "TC-DV-016",
+    "test_name": "Data Validation Test 16",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940825"
+  },
+  {
+    "test_id": "TC-DV-017",
+    "test_name": "Data Validation Test 17",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940826"
+  },
+  {
+    "test_id": "TC-DV-018",
+    "test_name": "Data Validation Test 18",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940828"
+  },
+  {
+    "test_id": "TC-DV-019",
+    "test_name": "Data Validation Test 19",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940829"
+  },
+  {
+    "test_id": "TC-DV-020",
+    "test_name": "Data Validation Test 20",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific validation scenarios",
+    "timestamp": "2025-11-19T17:51:11.940831"
+  },
+  {
+    "test_id": "TC-AT-001",
+    "test_name": "Attachment Upload Test 1",
+    "status": "NOT_IMPLEMENTED",
+    "evidence": "Step 4 (Attachments) not implemented in current version",
+    "notes": "Feature intentionally skipped in implementation",
+    "timestamp": "2025-11-19T17:51:11.940834"
+  },
+  {
+    "test_id": "TC-AT-002",
+    "test_name": "Attachment Upload Test 2",
+    "status": "NOT_IMPLEMENTED",
+    "evidence": "Step 4 (Attachments) not implemented in current version",
+    "notes": "Feature intentionally skipped in implementation",
+    "timestamp": "2025-11-19T17:51:11.940836"
+  },
+  {
+    "test_id": "TC-AT-003",
+    "test_name": "Attachment Upload Test 3",
+    "status": "NOT_IMPLEMENTED",
+    "evidence": "Step 4 (Attachments) not implemented in current version",
+    "notes": "Feature intentionally skipped in implementation",
+    "timestamp": "2025-11-19T17:51:11.940838"
+  },
+  {
+    "test_id": "TC-AT-004",
+    "test_name": "Attachment Upload Test 4",
+    "status": "NOT_IMPLEMENTED",
+    "evidence": "Step 4 (Attachments) not implemented in current version",
+    "notes": "Feature intentionally skipped in implementation",
+    "timestamp": "2025-11-19T17:51:11.940839"
+  },
+  {
+    "test_id": "TC-AT-005",
+    "test_name": "Attachment Upload Test 5",
+    "status": "NOT_IMPLEMENTED",
+    "evidence": "Step 4 (Attachments) not implemented in current version",
+    "notes": "Feature intentionally skipped in implementation",
+    "timestamp": "2025-11-19T17:51:11.940841"
+  },
+  {
+    "test_id": "TC-AT-006",
+    "test_name": "Attachment Upload Test 6",
+    "status": "NOT_IMPLEMENTED",
+    "evidence": "Step 4 (Attachments) not implemented in current version",
+    "notes": "Feature intentionally skipped in implementation",
+    "timestamp": "2025-11-19T17:51:11.940843"
+  },
+  {
+    "test_id": "TC-AT-007",
+    "test_name": "Attachment Upload Test 7",
+    "status": "NOT_IMPLEMENTED",
+    "evidence": "Step 4 (Attachments) not implemented in current version",
+    "notes": "Feature intentionally skipped in implementation",
+    "timestamp": "2025-11-19T17:51:11.940844"
+  },
+  {
+    "test_id": "TC-AT-008",
+    "test_name": "Attachment Upload Test 8",
+    "status": "NOT_IMPLEMENTED",
+    "evidence": "Step 4 (Attachments) not implemented in current version",
+    "notes": "Feature intentionally skipped in implementation",
+    "timestamp": "2025-11-19T17:51:11.940846"
+  },
+  {
+    "test_id": "TC-DS-001",
+    "test_name": "Data Submission Test 1",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires end-to-end workflow",
+    "timestamp": "2025-11-19T17:51:11.940848"
+  },
+  {
+    "test_id": "TC-DS-002",
+    "test_name": "Data Submission Test 2",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires end-to-end workflow",
+    "timestamp": "2025-11-19T17:51:11.940850"
+  },
+  {
+    "test_id": "TC-DS-003",
+    "test_name": "Data Submission Test 3",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires end-to-end workflow",
+    "timestamp": "2025-11-19T17:51:11.940852"
+  },
+  {
+    "test_id": "TC-DS-004",
+    "test_name": "Data Submission Test 4",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires end-to-end workflow",
+    "timestamp": "2025-11-19T17:51:11.940853"
+  },
+  {
+    "test_id": "TC-DS-005",
+    "test_name": "Data Submission Test 5",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires end-to-end workflow",
+    "timestamp": "2025-11-19T17:51:11.940855"
+  },
+  {
+    "test_id": "TC-DS-006",
+    "test_name": "Data Submission Test 6",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires end-to-end workflow",
+    "timestamp": "2025-11-19T17:51:11.940856"
+  },
+  {
+    "test_id": "TC-DS-007",
+    "test_name": "Data Submission Test 7",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires end-to-end workflow",
+    "timestamp": "2025-11-19T17:51:11.940858"
+  },
+  {
+    "test_id": "TC-DS-008",
+    "test_name": "Data Submission Test 8",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires end-to-end workflow",
+    "timestamp": "2025-11-19T17:51:11.940860"
+  },
+  {
+    "test_id": "TC-DS-009",
+    "test_name": "Data Submission Test 9",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires end-to-end workflow",
+    "timestamp": "2025-11-19T17:51:11.940861"
+  },
+  {
+    "test_id": "TC-DS-010",
+    "test_name": "Data Submission Test 10",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires end-to-end workflow",
+    "timestamp": "2025-11-19T17:51:11.940863"
+  },
+  {
+    "test_id": "TC-EH-001",
+    "test_name": "Error Handling Test 1",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires fault injection and security testing",
+    "timestamp": "2025-11-19T17:51:11.940865"
+  },
+  {
+    "test_id": "TC-EH-002",
+    "test_name": "Error Handling Test 2",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires fault injection and security testing",
+    "timestamp": "2025-11-19T17:51:11.940867"
+  },
+  {
+    "test_id": "TC-EH-003",
+    "test_name": "Error Handling Test 3",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires fault injection and security testing",
+    "timestamp": "2025-11-19T17:51:11.940868"
+  },
+  {
+    "test_id": "TC-EH-004",
+    "test_name": "Error Handling Test 4",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires fault injection and security testing",
+    "timestamp": "2025-11-19T17:51:11.940870"
+  },
+  {
+    "test_id": "TC-EH-005",
+    "test_name": "Error Handling Test 5",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires fault injection and security testing",
+    "timestamp": "2025-11-19T17:51:11.940872"
+  },
+  {
+    "test_id": "TC-EH-006",
+    "test_name": "Error Handling Test 6",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires fault injection and security testing",
+    "timestamp": "2025-11-19T17:51:11.940874"
+  },
+  {
+    "test_id": "TC-EH-007",
+    "test_name": "Error Handling Test 7",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires fault injection and security testing",
+    "timestamp": "2025-11-19T17:51:11.940875"
+  },
+  {
+    "test_id": "TC-EH-008",
+    "test_name": "Error Handling Test 8",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires fault injection and security testing",
+    "timestamp": "2025-11-19T17:51:11.940877"
+  },
+  {
+    "test_id": "TC-EH-009",
+    "test_name": "Error Handling Test 9",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires fault injection and security testing",
+    "timestamp": "2025-11-19T17:51:11.940879"
+  },
+  {
+    "test_id": "TC-EH-010",
+    "test_name": "Error Handling Test 10",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires fault injection and security testing",
+    "timestamp": "2025-11-19T17:51:11.940880"
+  },
+  {
+    "test_id": "TC-EH-011",
+    "test_name": "Error Handling Test 11",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires fault injection and security testing",
+    "timestamp": "2025-11-19T17:51:11.940882"
+  },
+  {
+    "test_id": "TC-EH-012",
+    "test_name": "Error Handling Test 12",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires fault injection and security testing",
+    "timestamp": "2025-11-19T17:51:11.940884"
+  },
+  {
+    "test_id": "TC-EH-013",
+    "test_name": "Error Handling Test 13",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires fault injection and security testing",
+    "timestamp": "2025-11-19T17:51:11.940885"
+  },
+  {
+    "test_id": "TC-EH-014",
+    "test_name": "Error Handling Test 14",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires fault injection and security testing",
+    "timestamp": "2025-11-19T17:51:11.940887"
+  },
+  {
+    "test_id": "TC-EH-015",
+    "test_name": "Error Handling Test 15",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires fault injection and security testing",
+    "timestamp": "2025-11-19T17:51:11.940888"
+  },
+  {
+    "test_id": "TC-EC-001",
+    "test_name": "Edge Case Test 1",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific edge case scenarios",
+    "timestamp": "2025-11-19T17:51:11.940891"
+  },
+  {
+    "test_id": "TC-EC-002",
+    "test_name": "Edge Case Test 2",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific edge case scenarios",
+    "timestamp": "2025-11-19T17:51:11.940893"
+  },
+  {
+    "test_id": "TC-EC-003",
+    "test_name": "Edge Case Test 3",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific edge case scenarios",
+    "timestamp": "2025-11-19T17:51:11.940895"
+  },
+  {
+    "test_id": "TC-EC-004",
+    "test_name": "Edge Case Test 4",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific edge case scenarios",
+    "timestamp": "2025-11-19T17:51:11.940897"
+  },
+  {
+    "test_id": "TC-EC-005",
+    "test_name": "Edge Case Test 5",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific edge case scenarios",
+    "timestamp": "2025-11-19T17:51:11.940898"
+  },
+  {
+    "test_id": "TC-EC-006",
+    "test_name": "Edge Case Test 6",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific edge case scenarios",
+    "timestamp": "2025-11-19T17:51:11.940900"
+  },
+  {
+    "test_id": "TC-EC-007",
+    "test_name": "Edge Case Test 7",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific edge case scenarios",
+    "timestamp": "2025-11-19T17:51:11.940901"
+  },
+  {
+    "test_id": "TC-EC-008",
+    "test_name": "Edge Case Test 8",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific edge case scenarios",
+    "timestamp": "2025-11-19T17:51:11.940903"
+  },
+  {
+    "test_id": "TC-EC-009",
+    "test_name": "Edge Case Test 9",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific edge case scenarios",
+    "timestamp": "2025-11-19T17:51:11.940904"
+  },
+  {
+    "test_id": "TC-EC-010",
+    "test_name": "Edge Case Test 10",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires specific edge case scenarios",
+    "timestamp": "2025-11-19T17:51:11.940906"
+  },
+  {
+    "test_id": "TC-PL-001",
+    "test_name": "Performance Test 1",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires load testing infrastructure",
+    "timestamp": "2025-11-19T17:51:11.940909"
+  },
+  {
+    "test_id": "TC-PL-002",
+    "test_name": "Performance Test 2",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires load testing infrastructure",
+    "timestamp": "2025-11-19T17:51:11.940911"
+  },
+  {
+    "test_id": "TC-PL-003",
+    "test_name": "Performance Test 3",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires load testing infrastructure",
+    "timestamp": "2025-11-19T17:51:11.940912"
+  },
+  {
+    "test_id": "TC-PL-004",
+    "test_name": "Performance Test 4",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires load testing infrastructure",
+    "timestamp": "2025-11-19T17:51:11.940914"
+  },
+  {
+    "test_id": "TC-PL-005",
+    "test_name": "Performance Test 5",
+    "status": "SKIP",
+    "evidence": "Not implemented in automated suite",
+    "notes": "Requires load testing infrastructure",
+    "timestamp": "2025-11-19T17:51:11.940916"
+  }
+]

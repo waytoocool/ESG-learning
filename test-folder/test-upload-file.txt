@@ -1,0 +1,5 @@
+This is a test file for ESG Data Attachment Upload Feature Testing.
+Test Date: Fri Nov 14 23:12:27 IST 2025
+File Purpose: Validate file upload functionality
+Test Case: Multiple test cases
+Created by: UI Testing Agent

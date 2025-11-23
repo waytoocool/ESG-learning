@@ -37,9 +37,9 @@ class ChatbotWidget {
     createWidget() {
         const widgetHTML = `
             <!-- Floating trigger button -->
-            <button id="chatbot-trigger" class="chatbot-trigger">
+            <button id="chatbot-trigger" class="chatbot-trigger" title="Report an issue or get help">
                 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M20 8h-2.81c-.45-.78-1.07-1.45-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5c-.49 0-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8zm-6 8h-4v-2h4v2zm0-4h-4v-2h4v2z"/>
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
                 </svg>
                 <span class="chatbot-badge hidden" id="chatbot-badge">1</span>
             </button>
@@ -353,6 +353,37 @@ class ChatbotWidget {
                 });
             }
         });
+
+        // Scroll indicator
+        const chatbotBody = document.getElementById('chatbot-body');
+        if (chatbotBody) {
+            chatbotBody.addEventListener('scroll', () => {
+                this.updateScrollIndicator();
+            });
+        }
+    }
+
+    /**
+     * Update scroll indicator based on scroll position
+     */
+    updateScrollIndicator() {
+        const chatbotBody = document.getElementById('chatbot-body');
+        if (!chatbotBody) return;
+
+        const hasScroll = chatbotBody.scrollHeight > chatbotBody.clientHeight;
+        const isAtBottom = chatbotBody.scrollHeight - chatbotBody.scrollTop <= chatbotBody.clientHeight + 5;
+
+        if (hasScroll) {
+            chatbotBody.classList.add('has-scroll');
+        } else {
+            chatbotBody.classList.remove('has-scroll');
+        }
+
+        if (isAtBottom) {
+            chatbotBody.classList.add('scrolled-bottom');
+        } else {
+            chatbotBody.classList.remove('scrolled-bottom');
+        }
     }
 
     /**
@@ -375,6 +406,8 @@ class ChatbotWidget {
         if (container) {
             container.classList.remove('hidden');
             container.classList.add('visible');
+            // Check scroll state after opening
+            setTimeout(() => this.updateScrollIndicator(), 100);
         } else {
             console.error('Chatbot container not found');
         }
@@ -410,6 +443,8 @@ class ChatbotWidget {
             targetStep.classList.add('active');
             this.currentStep = step;
             this.updateProgress();
+            // Update scroll indicator after step change
+            setTimeout(() => this.updateScrollIndicator(), 100);
         }
     }
 

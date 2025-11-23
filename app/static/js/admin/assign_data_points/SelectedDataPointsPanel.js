@@ -170,6 +170,10 @@ window.SelectedDataPointsPanel = {
             this.updateItemStatus(data.fieldId, 'assignment', data.status);
         });
 
+        // Listen for data reload completion
+        AppEvents.on('data-points-reload-complete', (data) => {
+            this.handleDataReloadComplete(data);
+        });
 
         // Listen for panel refresh requests
         AppEvents.on('panel-refresh-requested', () => {
@@ -212,15 +216,41 @@ window.SelectedDataPointsPanel = {
 
     // Item management
     addItem(fieldId, itemData) {
-        console.log('[SelectedDataPointsPanel] Adding item:', fieldId);
+        // Enrich item data with dependency information if it's a computed field
+        let enrichedItemData = { ...itemData };
 
-        if (this.selectedItems.has(fieldId)) {
-            console.log('[SelectedDataPointsPanel] Item already exists, updating:', fieldId);
+        if (window.DependencyManager && window.DependencyManager.isReady()) {
+            // Check if this is a computed field
+            const isComputed = itemData.is_computed || false;
+
+            if (isComputed) {
+                // Get dependencies from DependencyManager
+                const dependencies = window.DependencyManager.getDependencies(fieldId);
+
+                if (dependencies && dependencies.length > 0) {
+                    // Enrich with dependency metadata
+                    enrichedItemData.dependencies = dependencies.map(depId => {
+                        const depMetadata = window.DependencyManager.getFieldMetadata(depId);
+                        return {
+                            fieldId: depId,
+                            field_id: depId,
+                            name: depMetadata ? depMetadata.field_name : depId,
+                            field_name: depMetadata ? depMetadata.field_name : depId
+                        };
+                    });
+
+                    console.log(`[SelectedDataPointsPanel] ✓ Enriched computed field with ${dependencies.length} dependencies`);
+                } else {
+                    console.warn('[SelectedDataPointsPanel] ✗ No dependencies found for computed field:', fieldId);
+                }
+            }
+        } else {
+            console.warn('[SelectedDataPointsPanel] DependencyManager not available or not ready');
         }
 
         // Store item data with is_active flag (default to true for new items)
         this.selectedItems.set(fieldId, {
-            ...itemData,
+            ...enrichedItemData,
             fieldId: fieldId,
             addedAt: Date.now(),
             is_active: itemData.is_active !== undefined ? itemData.is_active : true
@@ -338,23 +368,34 @@ window.SelectedDataPointsPanel = {
 
         this.hideEmptyState();
 
-        // Generate HTML based on grouping method
+        // ALWAYS use dependency grouping when DependencyManager is available
+        // This ensures computed fields show with their visual indicators
         let html = '';
-        switch (this.groupingMethod) {
-            case 'topic':
-                html = this.generateTopicGroupsHTML();
-                break;
-            case 'framework':
-                html = this.generateFrameworkGroupsHTML();
-                break;
-            default:
-                html = this.generateFlatHTML();
+        if (window.DependencyManager && window.DependencyManager.isReady()) {
+            console.log('[SelectedDataPointsPanel] ✓ Using dependency grouping (DependencyManager active)');
+            html = this.generateFlatHTMLWithDependencyGrouping();
+        } else {
+            // Fallback to legacy grouping methods when DependencyManager not available
+            console.log('[SelectedDataPointsPanel] Using legacy grouping:', this.groupingMethod);
+            switch (this.groupingMethod) {
+                case 'topic':
+                    html = this.generateTopicGroupsHTML();
+                    break;
+                case 'framework':
+                    html = this.generateFrameworkGroupsHTML();
+                    break;
+                default:
+                    html = this.generateFlatHTML();
+            }
         }
 
         container.innerHTML = html;
 
         // Update button states
         this.updateBulkSelectionButtons();
+
+        // Setup dependency toggle listeners (for collapsible groups)
+        this.setupDependencyToggleListeners();
 
         // Emit display updated event
         AppEvents.emit('selected-panel-updated', {
@@ -480,6 +521,18 @@ window.SelectedDataPointsPanel = {
     generateFlatHTML() {
         console.log('[SelectedDataPointsPanel] Generating flat HTML...');
 
+        // Use dependency grouping if DependencyManager is available and ready
+        const depMgrAvailable = !!window.DependencyManager;
+        const depMgrReady = window.DependencyManager?.isReady() || false;
+        console.log('[SelectedDataPointsPanel] DependencyManager available:', depMgrAvailable, 'ready:', depMgrReady);
+
+        if (window.DependencyManager && window.DependencyManager.isReady()) {
+            console.log('[SelectedDataPointsPanel] ✓ Using dependency grouping layout');
+            return this.generateFlatHTMLWithDependencyGrouping();
+        }
+
+        // Fallback to original flat layout
+        console.log('[SelectedDataPointsPanel] ✗ Using fallback flat layout (no dependency grouping)');
         let html = '<div class="selected-items-flat">';
 
         const items = Array.from(this.selectedItems.values());
@@ -499,15 +552,50 @@ window.SelectedDataPointsPanel = {
         const assignmentStatus = this.getAssignmentStatus(fieldId);
         const isInactive = this.isInactiveItem(item);
 
+        // Determine item type
+        const isComputed = item.is_computed || false;
+        const hasDependencies = item.dependencies && item.dependencies.length > 0;
+        const isDependency = item.isDependency || false;
+        const depCount = hasDependencies ? item.dependencies.length : 0;
+        const isCollapsed = hasDependencies ? this.isGroupCollapsed(fieldId) : false;
+
+        // Build CSS classes
+        let itemClasses = 'topic-group-item selected-point-item';
+        if (isInactive) itemClasses += ' inactive';
+        if (isComputed) itemClasses += ' is-computed';
+        if (isDependency) itemClasses += ' is-dependency';
+
         return `
-            <div class="topic-group-item selected-point-item${isInactive ? ' inactive' : ''}" data-field-id="${fieldId}">
+            <div class="${itemClasses}" data-field-id="${fieldId}"${isDependency && item.parentId ? ` data-parent-id="${item.parentId}"` : ''}>
+                ${hasDependencies ? `
+                <button class="dependency-toggle-btn" data-field-id="${fieldId}" aria-label="${isCollapsed ? 'Expand' : 'Collapse'} dependencies">
+                    <i class="fas fa-chevron-${isCollapsed ? 'right' : 'down'}"></i>
+                </button>
+                ` : ''}
+                ${isDependency ? `
+                <div class="dependency-indicator" title="Dependency">
+                    <i class="fas fa-arrow-turn-down-right"></i>
+                </div>
+                ` : ''}
                 <div class="point-checkbox">
                     <input type="checkbox" class="form-check-input point-select" id="selected_${fieldId}" data-field-id="${fieldId}">
                 </div>
                 <div class="point-content">
                     <div class="point-header">
-                        <h6 class="point-title">${item.name || item.field_name || 'Unnamed Field'}</h6>
+                        <h6 class="point-title">
+                            ${isComputed ? `
+                            <span class="computed-badge" data-field-id="${fieldId}" title="Computed Field">
+                                <i class="fas fa-calculator"></i>
+                            </span>
+                            ` : ''}
+                            ${item.name || item.field_name || 'Unnamed Field'}
+                            ${hasDependencies ? `<span class="dependency-count-badge" title="${depCount} dependencies">${depCount}</span>` : ''}
+                        </h6>
                         ${isInactive ? '<span class="inactive-badge"><i class="fas fa-pause-circle"></i> Inactive</span>' : ''}
+                    </div>
+                    <!-- Phase 9.5: Dimension badges container -->
+                    <div class="dimension-badges-container" id="field-badges-${fieldId}" data-field-id="${fieldId}">
+                        <!-- Dimension badges will be rendered here by DimensionBadge.js -->
                     </div>
                     <div class="point-details">
                         <div class="detail-item">
@@ -528,7 +616,6 @@ window.SelectedDataPointsPanel = {
                             }
                         </div>
                     </div>
-                    ${item.dependencies ? this.generateDependenciesHTML(item) : ''}
                 </div>
                 <div class="point-actions">
                     <button type="button" class="action-btn info field-info-single" data-field-id="${fieldId}" title="View field information">
@@ -539,6 +626,10 @@ window.SelectedDataPointsPanel = {
                     </button>
                     <button type="button" class="action-btn secondary assign-single ${assignmentStatus.class === 'assigned' ? 'status-assigned' : 'status-not-assigned'}" data-field-id="${fieldId}" title="${assignmentStatus.class === 'assigned' ? `✓ ${assignmentStatus.count || 0} entities assigned` : 'Assign entities to this data point'}" ${assignmentStatus.class === 'assigned' && assignmentStatus.count ? `data-entity-count="${assignmentStatus.count}"` : ''}>
                         <i class="fas fa-building"></i>
+                    </button>
+                    <!-- Phase 9.5: Manage Dimensions button -->
+                    <button type="button" class="action-btn manage-dimensions-btn" data-field-id="${fieldId}" data-field-name="${item.name || item.field_name || 'Unnamed Field'}" title="Manage field dimensions">
+                        <i class="fas fa-layer-group"></i>
                     </button>
                     <button type="button" class="remove-point" data-field-id="${fieldId}" title="Remove from selection">
                         <i class="fas fa-trash"></i>
@@ -676,8 +767,52 @@ window.SelectedDataPointsPanel = {
         }
     },
 
-    handleRemoveClick(fieldId) {
+    async handleRemoveClick(fieldId) {
         console.log('[SelectedDataPointsPanel] Remove clicked for:', fieldId);
+
+        // Check if DependencyManager is available and this field is a dependency
+        if (window.DependencyManager && window.DependencyManager.isReady()) {
+            const dependentFields = window.DependencyManager.getDependentFields(fieldId);
+
+            if (dependentFields && dependentFields.length > 0) {
+                // Check if any dependent computed fields are selected
+                const selectedDependents = dependentFields.filter(depFieldId =>
+                    window.AppState && AppState.isSelected(depFieldId)
+                );
+
+                if (selectedDependents.length > 0) {
+                    // Get field names for warning message
+                    const dependentNames = selectedDependents.map(depId => {
+                        const metadata = window.DependencyManager.getFieldMetadata(depId);
+                        return metadata ? metadata.field_name : depId;
+                    });
+
+                    // Emit event for DependencyManager to show warning
+                    AppEvents.emit('data-point-remove-requested', {fieldId});
+
+                    // Show warning and get confirmation
+                    const fieldMetadata = window.DependencyManager.getFieldMetadata(fieldId);
+                    const fieldName = fieldMetadata ? fieldMetadata.field_name : fieldId;
+
+                    const confirmed = await window.DependencyManager.showRemovalWarning(
+                        fieldName,
+                        dependentNames
+                    );
+
+                    if (!confirmed) {
+                        console.log('[SelectedDataPointsPanel] Removal cancelled by user');
+                        return; // Don't remove if user cancels
+                    }
+
+                    // If confirmed, also remove dependent computed fields
+                    console.log('[SelectedDataPointsPanel] Removing field and its dependents:', selectedDependents);
+                    selectedDependents.forEach(depId => {
+                        this.removeItem(depId);
+                    });
+                }
+            }
+        }
+
         this.removeItem(fieldId);
     },
 
@@ -738,6 +873,34 @@ window.SelectedDataPointsPanel = {
         }
     },
 
+    handleDataReloadComplete(data) {
+        console.log('[SelectedDataPointsPanel] Data reload complete:', data);
+
+        // Update display with new data
+        this.updateDisplay();
+
+        // Re-enable and update the toggle button
+        if (this.elements.toggleInactiveButton) {
+            this.elements.toggleInactiveButton.disabled = false;
+
+            if (this.showInactive) {
+                // Showing inactive - button should say "Hide Inactive" with eye icon
+                this.elements.toggleInactiveButton.innerHTML = '<i class="fas fa-eye" aria-hidden="true"></i> Hide Inactive';
+                this.elements.toggleInactiveButton.title = 'Hide inactive assignments';
+            } else {
+                // Hiding inactive - button should say "Show Inactive" with eye-slash icon
+                this.elements.toggleInactiveButton.innerHTML = '<i class="fas fa-eye-slash" aria-hidden="true"></i> Show Inactive';
+                this.elements.toggleInactiveButton.title = 'Show inactive assignments';
+            }
+        }
+
+        // Emit event to notify reload complete
+        AppEvents.emit('inactive-toggle-changed', {
+            showInactive: this.showInactive,
+            visibleItemCount: this.getVisibleItemCount()
+        });
+    },
+
     // Bulk operations
     handleSelectAll() {
         console.log('[SelectedDataPointsPanel] Select All clicked');
@@ -788,7 +951,7 @@ window.SelectedDataPointsPanel = {
         console.log('[SelectedDataPointsPanel] Deselect All completed. Items remain visible but unchecked.');
     },
 
-    handleToggleInactive() {
+    async handleToggleInactive() {
         console.log('[SelectedDataPointsPanel] Toggle Inactive clicked');
 
         this.showInactive = !this.showInactive;
@@ -796,27 +959,27 @@ window.SelectedDataPointsPanel = {
         // Update button state, text, and icon
         if (this.elements.toggleInactiveButton) {
             this.elements.toggleInactiveButton.classList.toggle('active', this.showInactive);
+            this.elements.toggleInactiveButton.disabled = true; // Disable during reload
 
             // Update button text and icon
             if (this.showInactive) {
                 // Showing inactive - button should say "Hide Inactive" with eye icon
-                this.elements.toggleInactiveButton.innerHTML = '<i class="fas fa-eye" aria-hidden="true"></i> Hide Inactive';
-                this.elements.toggleInactiveButton.title = 'Hide inactive assignments';
+                this.elements.toggleInactiveButton.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Loading...';
+                this.elements.toggleInactiveButton.title = 'Loading inactive assignments...';
             } else {
                 // Hiding inactive - button should say "Show Inactive" with eye-slash icon
-                this.elements.toggleInactiveButton.innerHTML = '<i class="fas fa-eye-slash" aria-hidden="true"></i> Show Inactive';
-                this.elements.toggleInactiveButton.title = 'Show inactive assignments';
+                this.elements.toggleInactiveButton.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Loading...';
+                this.elements.toggleInactiveButton.title = 'Loading active assignments...';
             }
         }
 
-        // Refresh display with new filter
-        this.updateDisplay();
-
-        // Emit event
-        AppEvents.emit('inactive-toggle-changed', {
-            showInactive: this.showInactive,
-            visibleItemCount: this.getVisibleItemCount()
+        // Emit event to request data reload with include_inactive parameter
+        AppEvents.emit('reload-data-points-requested', {
+            includeInactive: this.showInactive
         });
+
+        // Note: The display will be updated after the data reload completes
+        // The button will be re-enabled in the afterReloadComplete handler
     },
 
     updateBulkSelectionButtons() {
@@ -1048,6 +1211,392 @@ window.SelectedDataPointsPanel = {
         AppEvents.emit('selected-panel-cleared', {
             clearedItems: clearedItems
         });
+    },
+
+    // ============================================================================
+    // COLLAPSIBLE DEPENDENCY GROUPING FEATURE
+    // ============================================================================
+
+    /**
+     * Generates HTML with collapsible dependency grouping
+     * Groups dependencies under their computed fields with expand/collapse functionality
+     */
+    generateFlatHTMLWithDependencyGrouping() {
+        console.log('[SelectedDataPointsPanel] Generating flat HTML with dependency grouping...');
+
+        const items = Array.from(this.selectedItems.values());
+
+        // Build dependency map from ALL items first (before filtering)
+        // This ensures we know the relationships even for inactive items
+        const fullDependencyMap = this.buildDependencyMap(items);
+
+        // When hiding inactive, we need to handle orphaned active dependencies
+        let filteredItems = items;
+        let orphanedActiveDependencies = [];
+
+        if (!this.showInactive) {
+            // Separate inactive computed fields and collect their active dependencies
+            items.forEach(item => {
+                const fieldId = item.fieldId || item.field_id;
+                const isInactive = this.isInactiveItem(item);
+
+                // If this is an inactive computed field
+                if (isInactive && fullDependencyMap.has(fieldId)) {
+                    const depInfo = fullDependencyMap.get(fieldId);
+                    const dependencies = depInfo ? depInfo.dependencies : [];
+
+                    // Check each dependency - if it's active, it should be shown as standalone
+                    dependencies.forEach(dep => {
+                        if (dep && !this.isInactiveItem(dep)) {
+                            orphanedActiveDependencies.push(dep);
+                        }
+                    });
+                }
+            });
+
+            // Filter out inactive items
+            filteredItems = items.filter(item => !this.isInactiveItem(item));
+
+            // Add orphaned active dependencies back to filteredItems if not already present
+            orphanedActiveDependencies.forEach(dep => {
+                const depId = dep.fieldId || dep.field_id;
+                const alreadyInFiltered = filteredItems.some(item =>
+                    (item.fieldId || item.field_id) === depId
+                );
+                if (!alreadyInFiltered) {
+                    filteredItems.push(dep);
+                }
+            });
+        }
+
+        // Get dependency relationships for active items
+        const dependencyMap = this.buildDependencyMap(filteredItems);
+
+        // Separate computed fields and standalone fields
+        const { computedFields, standaloneFields } = this.categorizeFields(filteredItems, dependencyMap);
+
+        let html = '<div class="selected-items-flat with-dependency-grouping">';
+
+        // Render computed fields with their dependencies
+        computedFields.forEach(computedField => {
+            html += this.generateComputedFieldGroupHTML(computedField, dependencyMap);
+        });
+
+        // Render standalone fields (not computed, not dependencies)
+        standaloneFields.forEach(field => {
+            html += this.generateItemHTML(field);
+        });
+
+        html += '</div>';
+        return html;
+    },
+
+    /**
+     * Build dependency map from DependencyManager's API
+     */
+    buildDependencyMap(items) {
+        const dependencyMap = new Map();
+
+        if (!window.DependencyManager || !window.DependencyManager.isReady()) {
+            console.warn('[SelectedDataPointsPanel] DependencyManager not ready');
+            return dependencyMap;
+        }
+
+        // Get dependency data from DependencyManager's public API
+        const depMap = window.DependencyManager.getDependencyMap();
+
+        items.forEach(item => {
+            const fieldId = item.fieldId || item.field_id;
+
+            // Check if this field has dependencies in DependencyManager
+            const depIds = depMap.get(fieldId);
+
+            // Also check if the item itself has dependencies attached (from addItem enrichment)
+            const itemDependencies = item.dependencies;
+
+            if ((depIds && depIds.length > 0) || (itemDependencies && itemDependencies.length > 0)) {
+                // Prefer item dependencies if available (already enriched), otherwise use DependencyManager
+                let dependencies = [];
+
+                if (itemDependencies && itemDependencies.length > 0) {
+                    // Use enriched dependencies from item
+                    dependencies = itemDependencies;
+                } else if (depIds && depIds.length > 0) {
+                    // Build dependencies from DependencyManager
+                    dependencies = depIds.map(depId => {
+                        // First try to find in items
+                        let depField = items.find(i => (i.fieldId || i.field_id) === depId);
+
+                        // If not found in items, get from DependencyManager metadata
+                        if (!depField) {
+                            const depMetadata = window.DependencyManager.getFieldMetadata(depId);
+                            if (depMetadata) {
+                                depField = {
+                                    fieldId: depId,
+                                    field_id: depId,
+                                    name: depMetadata.field_name,
+                                    field_name: depMetadata.field_name,
+                                    is_computed: depMetadata.is_computed
+                                };
+                            }
+                        }
+
+                        return depField;
+                    }).filter(Boolean); // Remove undefined items
+                }
+
+                if (dependencies.length > 0) {
+                    dependencyMap.set(fieldId, {
+                        field: item,
+                        dependencies: dependencies
+                    });
+                }
+            }
+        });
+
+        return dependencyMap;
+    },
+
+    /**
+     * Categorize fields into computed and standalone
+     */
+    categorizeFields(items, dependencyMap) {
+        const computedFields = [];
+        const dependencyFieldIds = new Set();
+        const standaloneFields = [];
+
+        // Collect all dependency field IDs
+        dependencyMap.forEach(({ dependencies }) => {
+            dependencies.forEach(dep => {
+                const depId = dep.fieldId || dep.field_id;
+                dependencyFieldIds.add(depId);
+            });
+        });
+
+        items.forEach(item => {
+            const fieldId = item.fieldId || item.field_id;
+
+            if (dependencyMap.has(fieldId)) {
+                // This is a computed field
+                computedFields.push(item);
+            } else if (!dependencyFieldIds.has(fieldId)) {
+                // This is a standalone field (not computed, not a dependency)
+                standaloneFields.push(item);
+            }
+            // Dependencies are not added to standalone - they'll be rendered under their computed field
+        });
+
+        return { computedFields, standaloneFields };
+    },
+
+    /**
+     * Generate HTML for a computed field with collapsible dependencies
+     */
+    generateComputedFieldGroupHTML(computedField, dependencyMap) {
+        const fieldId = computedField.fieldId || computedField.field_id;
+        const depInfo = dependencyMap.get(fieldId);
+        const dependencies = depInfo ? depInfo.dependencies : [];
+        const isCollapsed = this.isGroupCollapsed(fieldId); // Check collapse state
+
+        let html = `
+            <div class="computed-field-group" data-field-id="${fieldId}">
+                <!-- Computed Field (Parent) -->
+                <div class="computed-field-parent">
+                    ${this.generateItemHTML(computedField)}
+                </div>
+
+                <!-- Dependencies (Children) - Collapsible -->
+                <div class="computed-field-dependencies ${isCollapsed ? 'collapsed' : 'expanded'}" data-parent-id="${fieldId}">
+        `;
+
+        dependencies.forEach(dependency => {
+            if (dependency) {
+                // Mark as dependency and add parent reference
+                const depItem = {
+                    ...dependency,
+                    isDependency: true,
+                    parentId: fieldId
+                };
+                html += this.generateItemHTML(depItem);
+            }
+        });
+
+        html += `
+                </div>
+            </div>
+        `;
+
+        return html;
+    },
+
+    /**
+     * Generate HTML for a computed field item with toggle button
+     */
+    generateComputedFieldHTML(item, depCount, isCollapsed) {
+        const fieldId = item.fieldId || item.field_id;
+        const configStatus = this.getConfigurationStatus(fieldId);
+        const assignmentStatus = this.getAssignmentStatus(fieldId);
+        const isInactive = this.isInactiveItem(item);
+
+        return `
+            <div class="topic-group-item selected-point-item is-computed${isInactive ? ' inactive' : ''}" data-field-id="${fieldId}">
+                <button class="dependency-toggle-btn" data-field-id="${fieldId}" aria-label="${isCollapsed ? 'Expand' : 'Collapse'} dependencies">
+                    <i class="fas fa-chevron-${isCollapsed ? 'right' : 'down'}"></i>
+                </button>
+                <div class="point-checkbox">
+                    <input type="checkbox" class="form-check-input point-select" id="selected_${fieldId}" data-field-id="${fieldId}">
+                </div>
+                <div class="point-content">
+                    <div class="point-header">
+                        <h6 class="point-title">
+                            <span class="computed-indicator" title="Computed Field">
+                                <i class="fas fa-calculator"></i>
+                            </span>
+                            ${item.name || item.field_name || 'Unnamed Field'}
+                            <span class="dependency-count-badge" title="${depCount} dependencies">${depCount}</span>
+                        </h6>
+                        ${isInactive ? '<span class="inactive-badge"><i class="fas fa-pause-circle"></i> Inactive</span>' : ''}
+                    </div>
+                    <div class="point-details">
+                        <div class="detail-item">
+                            <strong>Field Code:</strong> ${item.field_code || 'N/A'}
+                        </div>
+                        <div class="detail-item">
+                            <strong>Configuration:</strong>
+                            ${configStatus.text !== 'Not configured' ?
+                                `<span class="text-success">${configStatus.text}</span>` :
+                                '<span class="text-warning">Not configured</span>'
+                            }
+                        </div>
+                        <div class="detail-item">
+                            <strong>Entities:</strong>
+                            ${assignmentStatus.text !== 'No entities assigned' ?
+                                `<span class="text-success">${assignmentStatus.text}</span>` :
+                                '<span class="text-muted">No entities assigned</span>'
+                            }
+                        </div>
+                    </div>
+                </div>
+                <button class="remove-point-btn" data-field-id="${fieldId}" title="Remove field">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+    },
+
+    /**
+     * Generate HTML for a dependency item (child)
+     */
+    generateDependencyHTML(item, parentId) {
+        const fieldId = item.fieldId || item.field_id;
+        const configStatus = this.getConfigurationStatus(fieldId);
+        const assignmentStatus = this.getAssignmentStatus(fieldId);
+        const isInactive = this.isInactiveItem(item);
+
+        return `
+            <div class="topic-group-item selected-point-item is-dependency${isInactive ? ' inactive' : ''}"
+                 data-field-id="${fieldId}"
+                 data-parent-id="${parentId}">
+                <div class="dependency-indicator" title="Dependency">
+                    <i class="fas fa-arrow-turn-down-right"></i>
+                </div>
+                <div class="point-checkbox">
+                    <input type="checkbox" class="form-check-input point-select" id="selected_${fieldId}" data-field-id="${fieldId}">
+                </div>
+                <div class="point-content">
+                    <div class="point-header">
+                        <h6 class="point-title">
+                            ${item.name || item.field_name || 'Unnamed Field'}
+                        </h6>
+                        ${isInactive ? '<span class="inactive-badge"><i class="fas fa-pause-circle"></i> Inactive</span>' : ''}
+                    </div>
+                    <div class="point-details">
+                        <div class="detail-item">
+                            <strong>Field Code:</strong> ${item.field_code || 'N/A'}
+                        </div>
+                        <div class="detail-item">
+                            <strong>Configuration:</strong>
+                            ${configStatus.text !== 'Not configured' ?
+                                `<span class="text-success">${configStatus.text}</span>` :
+                                '<span class="text-warning">Not configured</span>'
+                            }
+                        </div>
+                        <div class="detail-item">
+                            <strong>Entities:</strong>
+                            ${assignmentStatus.text !== 'No entities assigned' ?
+                                `<span class="text-success">${assignmentStatus.text}</span>` :
+                                '<span class="text-muted">No entities assigned</span>'
+                            }
+                        </div>
+                    </div>
+                </div>
+                <button class="remove-point-btn" data-field-id="${fieldId}" title="Remove dependency">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+    },
+
+    /**
+     * Check if a group is collapsed (stored in sessionStorage)
+     */
+    isGroupCollapsed(fieldId) {
+        const collapseState = sessionStorage.getItem(`dependency-group-${fieldId}`);
+        return collapseState === 'collapsed';
+    },
+
+    /**
+     * Toggle collapse state for a computed field group
+     */
+    toggleDependencyGroup(fieldId) {
+        const group = document.querySelector(`.computed-field-dependencies[data-parent-id="${fieldId}"]`);
+        const toggleBtn = document.querySelector(`.dependency-toggle-btn[data-field-id="${fieldId}"]`);
+
+        if (!group || !toggleBtn) return;
+
+        const isCurrentlyCollapsed = group.classList.contains('collapsed');
+
+        if (isCurrentlyCollapsed) {
+            // Expand
+            group.classList.remove('collapsed');
+            group.classList.add('expanded');
+            toggleBtn.querySelector('i').className = 'fas fa-chevron-down';
+            toggleBtn.setAttribute('aria-label', 'Collapse dependencies');
+            sessionStorage.setItem(`dependency-group-${fieldId}`, 'expanded');
+        } else {
+            // Collapse
+            group.classList.add('collapsed');
+            group.classList.remove('expanded');
+            toggleBtn.querySelector('i').className = 'fas fa-chevron-right';
+            toggleBtn.setAttribute('aria-label', 'Expand dependencies');
+            sessionStorage.setItem(`dependency-group-${fieldId}`, 'collapsed');
+        }
+    },
+
+    /**
+     * Setup event delegation for toggle buttons
+     */
+    setupDependencyToggleListeners() {
+        const container = this.elements.selectedDataPointsList || this.elements.selectedPointsList;
+        if (!container) return;
+
+        // Remove existing listener if any
+        if (this._toggleListener) {
+            container.removeEventListener('click', this._toggleListener);
+        }
+
+        // Add new listener
+        this._toggleListener = (e) => {
+            const toggleBtn = e.target.closest('.dependency-toggle-btn');
+            if (toggleBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                const fieldId = toggleBtn.dataset.fieldId;
+                this.toggleDependencyGroup(fieldId);
+            }
+        };
+
+        container.addEventListener('click', this._toggleListener);
     },
 
 

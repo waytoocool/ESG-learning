@@ -135,7 +135,7 @@
                     <li><a href="{{ url_for('admin.data_review') }}" class="{% if request.endpoint == 'admin.data_review' %}active{% endif %}">Data Review</a></li>
                     <li><a href="{{ url_for('admin.audit_log') }}" class="{% if request.endpoint == 'admin.audit_log' %}active{% endif %}">Audit Log</a></li>
                 {% elif current_user.role == 'USER' %}
-                    <li><a href="{{ url_for('user.dashboard') }}" class="{% if request.endpoint == 'user.dashboard' %}active{% endif %}">Data Entry Dashboard</a></li>
+                    <li><a href="{{ url_for('user_v2.dashboard') }}" class="{% if request.endpoint == 'user_v2.dashboard' %}active{% endif %}">Data Entry Dashboard</a></li>
                     <!-- Add any other user-specific navigation items here -->
                 {% endif %}
                 <li class="logout-item"><a href="{{ url_for('auth.logout') }}">Logout</a></li>

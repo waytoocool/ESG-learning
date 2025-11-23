@@ -1,0 +1,99 @@
+[
+  {
+    "test_id": "TC-EH-007",
+    "test_name": "SQL Injection in Notes Field",
+    "phase": "Phase 1: Security",
+    "status": "FAIL",
+    "duration": 0.003973960876464844,
+    "errors": [
+      "Could not download template"
+    ],
+    "evidence": []
+  },
+  {
+    "test_id": "TC-EH-008",
+    "test_name": "XSS in Notes Field",
+    "phase": "Phase 1: Security",
+    "status": "FAIL",
+    "duration": 0.003462076187133789,
+    "errors": [
+      "Could not download template"
+    ],
+    "evidence": []
+  },
+  {
+    "test_id": "TC-UP-004",
+    "test_name": "Malicious File Upload",
+    "phase": "Phase 1: Security",
+    "status": "FAIL",
+    "duration": 0.0029730796813964844,
+    "errors": [
+      "File not rejected! Status: 404"
+    ],
+    "evidence": [
+      {
+        "type": "Upload Attempt",
+        "data": "Fake executable with .xlsx extension"
+      },
+      {
+        "type": "Response Status",
+        "data": "404"
+      }
+    ]
+  },
+  {
+    "test_id": "TC-DV-002",
+    "test_name": "Invalid Data Type - Text in Number Field",
+    "phase": "Phase 2: Input Validation",
+    "status": "FAIL",
+    "duration": 0.0030171871185302734,
+    "errors": [
+      "Could not download template"
+    ],
+    "evidence": []
+  },
+  {
+    "test_id": "TC-DV-015",
+    "test_name": "Empty Value Validation",
+    "phase": "Phase 2: Input Validation",
+    "status": "FAIL",
+    "duration": 0.0030982494354248047,
+    "errors": [
+      "Could not download template"
+    ],
+    "evidence": []
+  },
+  {
+    "test_id": "TC-DV-016",
+    "test_name": "Notes Length Limit",
+    "phase": "Phase 2: Input Validation",
+    "status": "FAIL",
+    "duration": 0.002851247787475586,
+    "errors": [
+      "Could not download template"
+    ],
+    "evidence": []
+  },
+  {
+    "test_id": "TC-EC-005",
+    "test_name": "Special Characters in Notes",
+    "phase": "Phase 2: Input Validation",
+    "status": "FAIL",
+    "duration": 0.0026061534881591797,
+    "errors": [
+      "Could not download template"
+    ],
+    "evidence": []
+  },
+  {
+    "test_id": "TC-EC-007",
+    "test_name": "Empty Notes (Optional Field)",
+    "phase": "Phase 2: Input Validation",
+    "status": "FAIL",
+    "duration": 0.002696990966796875,
+    "errors": [
+      "Could not download template"
+    ],
+    "evidence": []
+  }
+]

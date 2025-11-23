@@ -51,6 +51,7 @@
             modalCollectionMethod: null,
             modalValidationRules: null,
             modalApprovalRequired: null,
+            attachmentRequiredCheckbox: null,
             unitOverrideToggle: null,
             materialTopicToggle: null,
             configChangeSummary: null,
@@ -171,6 +172,7 @@
             this.elements.modalCollectionMethod = document.getElementById('modalCollectionMethod');
             this.elements.modalValidationRules = document.getElementById('modalValidationRules');
             this.elements.modalApprovalRequired = document.getElementById('modalApprovalRequired');
+            this.elements.attachmentRequiredCheckbox = document.getElementById('attachmentRequiredCheckbox');
             this.elements.unitOverrideToggle = document.getElementById('unitOverrideToggle');
             this.elements.materialTopicToggle = document.getElementById('materialTopicToggle');
             this.elements.configChangeSummary = document.getElementById('configChangeSummary');
@@ -560,6 +562,7 @@
                 collection_method: this.elements.modalCollectionMethod?.value || 'Manual Entry',
                 validation_rules: this.elements.modalValidationRules?.value || 'Required',
                 approval_required: this.elements.modalApprovalRequired?.value === 'Yes',
+                attachment_required: this.elements.attachmentRequiredCheckbox?.checked || false,
                 assigned_topic_id: topicValue && topicValue !== '__MIXED__' ? (topicValue || null) : null
             };
 

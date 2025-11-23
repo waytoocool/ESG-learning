@@ -241,6 +241,21 @@ body {
     transform: translateY(-1px);
 }
 
+/* Manage Dimensions Button - Green when dimensions are assigned */
+.action-btn.manage-dimensions-btn.status-dimensions-assigned {
+    background: #10b981 !important;
+    color: var(--white) !important;
+    border-color: #10b981 !important;
+}
+
+.action-btn.manage-dimensions-btn.status-dimensions-assigned:hover {
+    background: #059669 !important;
+    border-color: #059669 !important;
+    color: var(--white) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
 /* Primary Action Buttons (Configure, Assign Entity) - Bootstrap Classes Override */
 .btn.btn-outline-primary.configure-single,
 .btn.btn-outline-success.assign-single {
@@ -1569,4 +1584,626 @@ select:focus-visible {
 /* Ensure the animation is visible on the data point item */
 .selected-point-item.topic-change-highlight {
     transition: all 0.3s ease;
+}
+
+/* ============================================================================
+   COMPUTED FIELD DEPENDENCY MANAGEMENT STYLES
+   ============================================================================ */
+
+/* Computed Field Badge - Purple gradient badge with calculator icon */
+.computed-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+    padding: 3px 8px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    vertical-align: middle;
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+    transition: all 0.2s ease;
+}
+
+.computed-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(102, 126, 234, 0.3);
+}
+
+.computed-badge i {
+    font-size: 9px;
+}
+
+.computed-badge small {
+    opacity: 0.95;
+    font-weight: 500;
+}
+
+/* Computed field item styling */
+.field-item.is-computed {
+    background: linear-gradient(to right, #faf5ff 0%, #ffffff 100%);
+    border-left: 3px solid #8b5cf6;
+}
+
+.field-item.is-computed:hover {
+    background: linear-gradient(to right, #f5f3ff 0%, #ffffff 100%);
+    border-left-color: #7c3aed;
+}
+
+/* Dependency indicators in selected panel */
+.selected-point-item.is-dependency {
+    background: linear-gradient(to right, #f0f9ff 0%, #ffffff 100%);
+    border-left: 3px solid #3b82f6;
+    position: relative;
+}
+
+.selected-point-item.is-dependency::before {
+    content: "↳";
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #3b82f6;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.selected-point-item.is-dependency .field-name {
+    padding-left: 20px;
+}
+
+.selected-point-item.is-computed {
+    background: linear-gradient(to right, #faf5ff 0%, #ffffff 100%);
+    border-left: 3px solid #8b5cf6;
+}
+
+/* Dependency tree view */
+.dependency-tree {
+    padding: 20px;
+    background: #f9fafb;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+.dependency-tree-node {
+    margin: 10px 0;
+    padding: 12px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s ease;
+}
+
+.dependency-tree-node:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.dependency-tree-node.computed {
+    background: linear-gradient(to right, #faf5ff 0%, #ffffff 100%);
+    border-color: #8b5cf6;
+}
+
+.dependency-tree-children {
+    margin-left: 30px;
+    margin-top: 10px;
+    padding-left: 20px;
+    border-left: 2px dashed #d1d5db;
+}
+
+/* Frequency conflict warnings */
+.frequency-conflict {
+    background: #fef2f2;
+    border: 1px solid #ef4444;
+    color: #991b1b;
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin: 12px 0;
+    font-size: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.frequency-conflict i {
+    color: #ef4444;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.frequency-conflict-content {
+    flex: 1;
+}
+
+.frequency-conflict-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+/* Removal protection modal */
+.removal-warning {
+    padding: 20px;
+}
+
+.removal-warning h4 {
+    color: #dc2626;
+    margin-bottom: 15px;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.removal-warning p {
+    margin: 12px 0;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.removal-warning ul {
+    background: #fef2f2;
+    padding: 15px 15px 15px 35px;
+    border-radius: 6px;
+    margin: 15px 0;
+    border: 1px solid #fee2e2;
+}
+
+.removal-warning li {
+    margin: 6px 0;
+    color: #7f1d1d;
+    font-size: 13px;
+}
+
+/* Dependency count badge in field items */
+.dependency-count-badge {
+    display: inline-block;
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-left: 6px;
+}
+
+/* Notification styles for auto-added dependencies */
+.dependency-notification {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.dependency-notification.success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.dependency-notification.info {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.dependency-notification.warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+/* Loading state for dependency checks */
+.dependency-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #6b7280;
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+.dependency-loading .spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid #e5e7eb;
+    border-top-color: #8b5cf6;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Dependency relationship indicators */
+.field-relationship-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-left: 6px;
+}
+
+.field-relationship-badge.parent {
+    background: #f0e7ff;
+    color: #6b21a8;
+}
+
+.field-relationship-badge.child {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+/* Enhanced tooltip for computed fields - Rich hover tooltip system */
+.computed-field-tooltip {
+    position: absolute;
+    z-index: 10000;
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    max-width: 320px;
+    min-width: 220px;
+    line-height: 1.5;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(-5px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.computed-field-tooltip.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.computed-field-tooltip .tooltip-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.computed-field-tooltip .tooltip-icon {
+    font-size: 14px;
+    color: #a78bfa;
+}
+
+.computed-field-tooltip .tooltip-title {
+    font-weight: 700;
+    font-size: 13px;
+    color: #e5e7eb;
+    flex: 1;
+}
+
+.computed-field-tooltip .tooltip-section {
+    margin: 10px 0;
+}
+
+.computed-field-tooltip .tooltip-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #9ca3af;
+    margin-bottom: 4px;
+}
+
+.computed-field-tooltip .tooltip-formula {
+    font-family: 'Courier New', Consolas, monospace;
+    background: rgba(167, 139, 250, 0.15);
+    color: #c4b5fd;
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin: 4px 0;
+    font-size: 13px;
+    border-left: 2px solid #8b5cf6;
+    font-weight: 500;
+}
+
+.computed-field-tooltip .tooltip-dependencies {
+    margin-top: 8px;
+}
+
+.computed-field-tooltip .tooltip-dependencies ul {
+    list-style: none;
+    padding: 0;
+    margin: 4px 0 0 0;
+}
+
+.computed-field-tooltip .tooltip-dependencies li {
+    padding: 4px 0;
+    color: #d1d5db;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.computed-field-tooltip .tooltip-dependencies li::before {
+    content: "→";
+    color: #60a5fa;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.computed-field-tooltip .tooltip-metadata {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 10px;
+    color: #9ca3af;
+    display: flex;
+    gap: 12px;
+}
+
+.computed-field-tooltip .tooltip-metadata-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.computed-field-tooltip .tooltip-metadata-icon {
+    color: #60a5fa;
+}
+
+/* Tooltip positioning variants */
+.computed-field-tooltip.position-top {
+    margin-bottom: 10px;
+}
+
+.computed-field-tooltip.position-bottom {
+    margin-top: 10px;
+}
+
+.computed-field-tooltip.position-left {
+    margin-right: 10px;
+}
+
+.computed-field-tooltip.position-right {
+    margin-left: 10px;
+}
+
+/* Tooltip arrow */
+.computed-field-tooltip::before {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-style: solid;
+}
+
+.computed-field-tooltip.position-top::before {
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px 6px 0 6px;
+    border-color: #1f2937 transparent transparent transparent;
+}
+
+.computed-field-tooltip.position-bottom::before {
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 0 6px 6px 6px;
+    border-color: transparent transparent #1f2937 transparent;
+}
+
+/* Hover trigger for computed field badges and items */
+.computed-badge, .field-item.is-computed, .selected-point-item.is-computed {
+    position: relative;
+    cursor: help;
+}
+
+.computed-badge:hover, .field-item.is-computed:hover .computed-badge,
+.selected-point-item.is-computed:hover .computed-badge {
+    cursor: help;
+}
+
+/* ============================================================================
+   COLLAPSIBLE DEPENDENCY GROUPING STYLES
+   ============================================================================ */
+
+/* Computed field group container */
+.computed-field-group {
+    margin-bottom: var(--space-md);
+    border-radius: var(--btn-border-radius);
+    overflow: hidden;
+    transition: all var(--transition-fast);
+}
+
+/* Computed field parent - enhanced with toggle button */
+.computed-field-parent {
+    position: relative;
+}
+
+.computed-field-parent .selected-point-item.is-computed {
+    background: linear-gradient(to right, #faf5ff 0%, #ffffff 100%);
+    border-left: 3px solid #8b5cf6;
+    position: relative;
+    padding-left: 40px; /* Make room for toggle button */
+}
+
+.computed-field-parent .selected-point-item.is-computed:hover {
+    background: linear-gradient(to right, #f5f3ff 0%, #fefefe 100%);
+    border-left-color: #7c3aed;
+}
+
+/* Dependency toggle button */
+.dependency-toggle-btn {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: #8b5cf6;
+    color: var(--white);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+    z-index: 2;
+}
+
+.dependency-toggle-btn:hover {
+    background: #7c3aed;
+    transform: translateY(-50%) scale(1.1);
+}
+
+.dependency-toggle-btn:active {
+    transform: translateY(-50%) scale(0.95);
+}
+
+.dependency-toggle-btn i {
+    font-size: 10px;
+    transition: transform var(--transition-fast);
+}
+
+/* Computed indicator icon */
+.computed-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: var(--white);
+    border-radius: 4px;
+    margin-right: 6px;
+    font-size: 10px;
+}
+
+/* Dependency count badge - using website colors */
+.dependency-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    background: var(--primary-blue);
+    color: var(--white);
+    border-radius: 10px;
+    font-size: var(--fs-badge);
+    font-weight: var(--fw-semibold);
+    margin-left: 8px;
+}
+
+/* Dependencies container - collapsible */
+.computed-field-dependencies {
+    margin-left: 20px;
+    margin-top: var(--space-sm);
+    padding-left: var(--space-lg);
+    border-left: 2px solid var(--border-color);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.computed-field-dependencies.collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin-top: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.computed-field-dependencies.expanded {
+    max-height: 2000px; /* Large enough for most cases */
+    opacity: 1;
+    padding-top: var(--space-sm);
+    padding-bottom: var(--space-sm);
+}
+
+/* Dependency items styling */
+.selected-point-item.is-dependency {
+    background: linear-gradient(to right, #f0f9ff 0%, #ffffff 100%);
+    border-left: 3px solid var(--primary-blue);
+    margin-bottom: var(--space-sm);
+    padding-left: 40px; /* Make room for dependency indicator */
+    position: relative;
+}
+
+.selected-point-item.is-dependency:hover {
+    background: linear-gradient(to right, #e0f2fe 0%, #fefefe 100%);
+    border-left-color: #2563eb;
+}
+
+.selected-point-item.is-dependency:last-child {
+    margin-bottom: 0;
+}
+
+/* Dependency indicator icon */
+.dependency-indicator {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-blue);
+    color: var(--white);
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.dependency-indicator i {
+    font-size: 11px;
+}
+
+/* Visual connection line from parent to children */
+.computed-field-group::after {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border-color);
+    opacity: 0.5;
+}
+
+/* Hover effects for better interactivity */
+.computed-field-group:hover .computed-field-dependencies {
+    border-left-color: var(--primary-blue);
+}
+
+/* Empty state when no computed fields */
+.with-dependency-grouping:empty::after {
+    content: 'No fields selected';
+    display: block;
+    text-align: center;
+    padding: var(--space-xl);
+    color: var(--medium-text);
+    font-size: var(--fs-body);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .computed-field-dependencies {
+        margin-left: 10px;
+        padding-left: var(--space-md);
+    }
+
+    .dependency-toggle-btn {
+        width: 20px;
+        height: 20px;
+        left: 6px;
+    }
+
+    .dependency-toggle-btn i {
+        font-size: 8px;
+    }
 }

@@ -1,0 +1,70 @@
+
+################################################################################
+# BUG-ENH4-006 VERIFICATION: Template Status Column Fix
+################################################################################
+
+================================================================================
+OVERDUE ONLY TEMPLATE INSPECTION - BUG-ENH4-006 VERIFICATION
+================================================================================
+
+✓ Status column at index: 9
+✓ Rep_Date column at index: 3
+✓ Total rows in template: 115
+✓ Data rows: 114
+
+📊 Status Distribution:
+  - OVERDUE: 114 rows
+
+📋 First 10 rows (Status | Date | Field):
+--------------------------------------------------------------------------------
+  Row 2: OVERDUE    | 2025-05-31 | Total new hires
+  Row 3: OVERDUE    | 2025-05-31 | Total new hires
+  Row 4: OVERDUE    | 2025-05-31 | Total new hires
+  Row 5: OVERDUE    | 2025-05-31 | Total new hires
+  Row 6: OVERDUE    | 2025-05-31 | Total new hires
+  Row 7: OVERDUE    | 2025-05-31 | Total new hires
+  Row 8: OVERDUE    | 2025-06-30 | Total new hires
+  Row 9: OVERDUE    | 2025-06-30 | Total new hires
+  Row 10: OVERDUE    | 2025-06-30 | Total new hires
+  Row 11: OVERDUE    | 2025-06-30 | Total new hires
+
+🔍 Verification:
+  ✅ PASSED - All 114 rows have correct status based on date
+
+================================================================================
+OVERDUE + PENDING TEMPLATE INSPECTION - BUG-ENH4-006 VERIFICATION
+================================================================================
+
+✓ Status column at index: 9
+✓ Rep_Date column at index: 3
+✓ Total rows in template: 137
+✓ Data rows: 136
+
+📊 Status Distribution:
+  - OVERDUE: 114 rows
+  - PENDING: 22 rows
+
+📋 First 10 rows (Status | Date | Field):
+--------------------------------------------------------------------------------
+  Row 2: OVERDUE    | 2025-05-31 | Total new hires
+  Row 3: OVERDUE    | 2025-05-31 | Total new hires
+  Row 4: OVERDUE    | 2025-05-31 | Total new hires
+  Row 5: OVERDUE    | 2025-05-31 | Total new hires
+  Row 6: OVERDUE    | 2025-05-31 | Total new hires
+  Row 7: OVERDUE    | 2025-05-31 | Total new hires
+  Row 8: OVERDUE    | 2025-06-30 | Total new hires
+  Row 9: OVERDUE    | 2025-06-30 | Total new hires
+  Row 10: OVERDUE    | 2025-06-30 | Total new hires
+  Row 11: OVERDUE    | 2025-06-30 | Total new hires
+
+🔍 Verification:
+  ✅ PASSED - All 136 rows have correct status based on date
+
+================================================================================
+FINAL RESULTS - BUG-ENH4-006
+================================================================================
+Overdue Only Template: ✅ PASS
+Overdue + Pending Template: ✅ PASS
+
+🎉 BUG-ENH4-006 VERIFICATION: PASSED
+All templates show correct status values based on reporting dates

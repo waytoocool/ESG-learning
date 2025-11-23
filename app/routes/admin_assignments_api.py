@@ -1663,3 +1663,221 @@ def update_assignment_status(assignment_id):
             'success': False,
             'error': f'Failed to update status: {str(e)}'
         }), 500
+
+
+# ============================================================================
+# DEPENDENCY MANAGEMENT API ENDPOINTS
+# ============================================================================
+
+@assignment_api_bp.route('/validate-dependencies', methods=['POST'])
+@login_required
+@admin_or_super_admin_required
+@tenant_required
+def validate_dependencies():
+    """
+    Validate that all computed fields have required dependencies.
+
+    Expected payload:
+    {
+        "assignments": [
+            {"field_id": "xxx", "frequency": "Monthly", "entity_id": 1}
+        ]
+    }
+
+    Returns:
+    {
+        "is_valid": true/false,
+        "missing_dependencies": {},
+        "frequency_conflicts": [],
+        "warnings": []
+    }
+    """
+    try:
+        from ..services.dependency_service import dependency_service
+
+        data = request.get_json()
+        assignments = data.get('assignments', [])
+
+        # Validate completeness
+        completeness = dependency_service.validate_complete_assignment_set(assignments)
+
+        # Validate frequency compatibility
+        frequency_check = dependency_service.validate_frequency_compatibility(assignments)
+
+        return jsonify({
+            'is_valid': completeness['is_complete'] and frequency_check['is_valid'],
+            'missing_dependencies': completeness['missing_dependencies'],
+            'orphaned_computed_fields': completeness['orphaned_computed_fields'],
+            'frequency_conflicts': frequency_check['conflicts'],
+            'warnings': frequency_check['warnings']
+        })
+
+    except Exception as e:
+        current_app.logger.error(f'Error validating dependencies: {str(e)}')
+        return jsonify({
+            'success': False,
+            'error': f'Validation failed: {str(e)}'
+        }), 500
+
+
+@assignment_api_bp.route('/get-dependencies/<field_id>', methods=['GET'])
+@login_required
+@admin_or_super_admin_required
+def get_field_dependencies(field_id):
+    """
+    Get all dependencies for a specific field.
+
+    Returns:
+    {
+        "field_id": "xxx",
+        "is_computed": true,
+        "dependencies": [field objects],
+        "dependency_tree": {nested structure}
+    }
+    """
+    try:
+        field = FrameworkDataField.query.get(field_id)
+        if not field:
+            return jsonify({'error': 'Field not found'}), 404
+
+        if not field.is_computed:
+            return jsonify({
+                'field_id': field_id,
+                'is_computed': False,
+                'dependencies': [],
+                'dependency_tree': None
+            })
+
+        dependencies = field.get_all_dependencies()
+        dependency_tree = field.get_dependency_tree()
+
+        return jsonify({
+            'field_id': field_id,
+            'field_name': field.field_name,
+            'is_computed': True,
+            'formula': field.formula_expression,
+            'dependencies': [
+                {
+                    'field_id': dep.field_id,
+                    'field_name': dep.field_name,
+                    'is_computed': dep.is_computed
+                } for dep in dependencies
+            ],
+            'dependency_tree': dependency_tree
+        })
+
+    except Exception as e:
+        current_app.logger.error(f'Error getting dependencies for field {field_id}: {str(e)}')
+        return jsonify({'error': f'Failed to get dependencies: {str(e)}'}), 500
+
+
+@assignment_api_bp.route('/check-removal-impact', methods=['POST'])
+@login_required
+@admin_or_super_admin_required
+@tenant_required
+def check_removal_impact():
+    """
+    Check impact of removing fields from assignments.
+
+    Expected payload:
+    {
+        "field_ids": ["field_id1", "field_id2"]
+    }
+
+    Returns:
+    {
+        "can_remove": true/false,
+        "blocking_fields": [],
+        "affected_computed_fields": []
+    }
+    """
+    try:
+        from ..services.dependency_service import dependency_service
+
+        data = request.get_json()
+        field_ids = data.get('field_ids', [])
+
+        if not field_ids:
+            return jsonify({'error': 'No field IDs provided'}), 400
+
+        impact = dependency_service.check_removal_impact(field_ids)
+
+        return jsonify(impact)
+
+    except Exception as e:
+        current_app.logger.error(f'Error checking removal impact: {str(e)}')
+        return jsonify({'error': f'Failed to check impact: {str(e)}'}), 500
+
+
+@assignment_api_bp.route('/auto-include-dependencies', methods=['POST'])
+@login_required
+@admin_or_super_admin_required
+def auto_include_dependencies():
+    """
+    Get fields that should be auto-included based on selections.
+
+    Expected payload:
+    {
+        "selected_fields": ["field_id1", "field_id2"],
+        "existing_selections": ["field_id3", "field_id4"]
+    }
+
+    Returns:
+    {
+        "auto_include": [field_ids],
+        "notifications": [messages],
+        "total_added": count
+    }
+    """
+    try:
+        from ..services.dependency_service import dependency_service
+
+        data = request.get_json()
+        selected_fields = data.get('selected_fields', [])
+        existing_selections = set(data.get('existing_selections', []))
+
+        result = dependency_service.get_auto_include_fields(
+            selected_fields, existing_selections
+        )
+
+        return jsonify(result)
+
+    except Exception as e:
+        current_app.logger.error(f'Error getting auto-include fields: {str(e)}')
+        return jsonify({'error': f'Failed to get dependencies: {str(e)}'}), 500
+
+
+@assignment_api_bp.route('/dependency-tree', methods=['GET'])
+@login_required
+@admin_or_super_admin_required
+def get_dependency_tree():
+    """
+    Get complete dependency tree for all computed fields.
+
+    Query params:
+    - framework_id: Filter by framework (optional)
+
+    Returns hierarchical structure of all dependencies.
+    """
+    try:
+        framework_id = request.args.get('framework_id')
+
+        query = FrameworkDataField.query.filter_by(is_computed=True)
+        if framework_id:
+            query = query.filter_by(framework_id=framework_id)
+
+        computed_fields = query.all()
+
+        tree = []
+        for field in computed_fields:
+            tree.append(field.get_dependency_tree())
+
+        return jsonify({
+            'success': True,
+            'dependency_tree': tree,
+            'total_computed_fields': len(tree)
+        })
+
+    except Exception as e:
+        current_app.logger.error(f'Error getting dependency tree: {str(e)}')
+        return jsonify({'error': f'Failed to get tree: {str(e)}'}), 500

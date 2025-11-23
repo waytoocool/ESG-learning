@@ -1,0 +1,46 @@
+Loading template...
+
+================================================================================
+PENDING TEMPLATE INSPECTION - BUG-ENH4-004 VERIFICATION
+================================================================================
+
+Header Row:
+  Col 1: Field_Name
+  Col 2: Entity
+  Col 3: Rep_Date
+  Col 4: Value
+  Col 5: Unit
+  Col 6: Notes
+  Col 7: Status
+  Col 8: Field_ID
+  Col 9: Entity_ID
+  Col 10: Assignment_ID
+
+✓ Found Status column at index: 7
+
+First 5 rows Status values:
+--------------------------------------------------------------------------------
+Row 2: Status='PENDING' | Field='Low Coverage Framework Field 2' | Date=2026-03-31
+Row 3: Status='PENDING' | Field='Low Coverage Framework Field 3' | Date=2026-03-31
+Row 4: Status='PENDING' | Field='Complete Framework Field 1' | Date=2026-03-31
+
+✅ BUG-ENH4-004 VERIFICATION: PASS - All rows show 'PENDING' status
+
+================================================================================
+FILLING TEMPLATE WITH TEST DATA - BUG-ENH4-005 TEST PREPARATION
+================================================================================
+
+Filling rows with test data...
+  Row 2: Set value=102, notes added | Field: Low Coverage Framework Field 2
+  Row 3: Set value=103, notes added | Field: Low Coverage Framework Field 3
+  Row 4: Set value=104, notes added | Field: Complete Framework Field 1
+
+Saving filled template to: /Users/prateekgoyal/Desktop/Prateek/ESG DataVault Development/Claude/sakshi-learning/.playwright-mcp/enhancement4-test-2025-11-19-final/templates-filled/Template-pending-FILLED.xlsx
+✅ Template filled and saved successfully!
+
+================================================================================
+SUMMARY
+================================================================================
+Total rows in template: 4
+Filled rows: 2-4 (3 rows)
+Ready for upload test (BUG-ENH4-005)
