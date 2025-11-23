@@ -189,14 +189,24 @@ SESSION_COOKIE_DOMAIN=.nip.io               # Cross-subdomain sessions
 
 ## Testing Strategy
 
-All new and ongoing testing is now consolidated under the Visual Testing with Playwright MCP workflow.
+All new and ongoing testing is now consolidated under the Visual Testing with Playwright MCP workflow or Chrome DevTools MCP .
 
-### Visual Testing with Playwright MCP
+### Visual Testing with for ui-testing-agent to use Playwright MCP Tools
 - **Primary Test Suite**: All core and regression tests are implemented as Playwright MCP visual/UI tests.
-- **UI Testing Sub-Agent**: Use `@ui-testing-agent` for comprehensive post-implementation and pre-merge validation.
+- **UI Testing Sub-Agent**: Use `@ui-testing-agent` for comprehensive post-implementation and pre-merge validation. ui-testing-agent is supposed to only use Playwright MCP.
 - **On-Demand Validation**: UI testing agent should be invoked after each feature implementation and before merges.
-- **MCP Server Requirement**: Start with `npm run mcp:start` before running any UI testing agent tasks.
-- **For Browser error** if we get error "Browse already in use" do a pkill -f chrome
+- **MCP Server Requirement**: Refer to MCP documentations
+- **For Browser error** if we get error "Browse already in use" then force close the browser
+
+### Visual Testing with for non sub agent to use Chrome DevTools MCP
+- **Primary Test Suite**: Use Chrome DevTools MCP for all the tests non related to ui-testing-agent. If there are any issues with Chrome DevTools then fall back to use Playwright MCP if it is not in use.
+- **MCP Server Requirement**: Refer to MCP documentation for more details.
+
+### MCP Servers Configuration
+For detailed information about MCP server setup, configuration, and usage, see **[MCP_SERVERS_CONFIG.md](./MCP_SERVERS_CONFIG.md)**. This includes:
+- **Playwright MCP**: Automated browser testing and UI validation. Supports both Chrome and Firefox.
+- **Chrome DevTools MCP**: Browser debugging, performance profiling, and DevTools integration
+- Quick start guides, troubleshooting, and best practices. Supports Chrome.
 
 
 ## Claude Development Team Documentation Structure/ New Feature Documentaion
@@ -217,10 +227,7 @@ Claude Development Team/{feature-name}-{feature-start-date-YYYY-MM-DD}/
 │   ├── backend-reviewer/                           # Backend reviewer validation & findings
 │   │   ├── backend-reviewer-report.md
 │   │   ├── other files created by backend reviewer...
-│   ├── ui-developer-agent/                         # UI developer implementation notes & reports
-│   │   ├── ui-developer-report.md
-│   │   ├── other files created by ui developer...
-│   ├── ui-testing-agent/                           # UI testing results & screenshots
+│   ├── ui-testing-agent/                           # UI testing results & screenshots add version numbers of the test based on the previous tests
 │   │   ├── Reports_v{version-number}/
 │   │   │   ├── Testing_Summary_{feature-name}_Phase{number}_v{version-number}.md
 │   │   │   └── screenshots/

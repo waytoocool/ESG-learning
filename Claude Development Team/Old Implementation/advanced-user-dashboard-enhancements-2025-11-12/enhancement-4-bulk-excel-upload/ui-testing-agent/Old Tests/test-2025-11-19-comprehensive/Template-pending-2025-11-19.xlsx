@@ -1,0 +1,4 @@
+{
+  "error": "No valid pending assignments found. All assignments may be computed fields or have no valid reporting dates.",
+  "success": false
+}

@@ -120,8 +120,46 @@ def configure_fields():
                 ).all()
 
                 # Separate active and inactive assignments based on series_status
+                # NOTE: 'superseded' assignments should NEVER be reactivated during config changes
                 active_assignments = [a for a in all_assignments if a.series_status == 'active']
-                inactive_assignments = [a for a in all_assignments if a.series_status != 'active']
+                inactive_assignments = [a for a in all_assignments if a.series_status == 'inactive']  # Only truly inactive, NOT superseded
+
+                # DEFENSIVE FIX: Check for duplicate active assignments and auto-fix before versioning
+                # Group active assignments by entity_id to detect duplicates
+                from collections import defaultdict
+                active_by_entity = defaultdict(list)
+                for assignment in active_assignments:
+                    active_by_entity[assignment.entity_id].append(assignment)
+
+                # Check each entity has at most 1 active assignment
+                duplicates_fixed = 0
+                for entity_id, entity_assignments in active_by_entity.items():
+                    if len(entity_assignments) > 1:
+                        # CRITICAL: Multiple active assignments for same field-entity
+                        current_app.logger.error(
+                            f"[DUPLICATE-FIX] DETECTED: field={field_id}, entity={entity_id}, "
+                            f"count={len(entity_assignments)}, versions=[{', '.join(f'v{a.series_version}' for a in entity_assignments)}]"
+                        )
+
+                        # Auto-fix: Keep only highest version active, supersede others
+                        entity_assignments.sort(key=lambda x: x.series_version, reverse=True)
+                        highest = entity_assignments[0]
+
+                        for assignment in entity_assignments[1:]:
+                            assignment.series_status = 'superseded'
+                            duplicates_fixed += 1
+                            current_app.logger.warning(
+                                f"[DUPLICATE-FIX] Auto-superseded {assignment.id} (v{assignment.series_version}), "
+                                f"keeping {highest.id} (v{highest.series_version}) active"
+                            )
+
+                        # Flush changes immediately to ensure database consistency
+                        db.session.flush()
+
+                # Refresh active_assignments list after auto-fix
+                if duplicates_fixed > 0:
+                    active_assignments = [a for a in all_assignments if a.series_status == 'active']
+                    current_app.logger.info(f"[DUPLICATE-FIX] Fixed {duplicates_fixed} duplicate active assignments")
 
                 updated_assignments = []
                 reactivated_assignments = []
@@ -168,62 +206,22 @@ def configure_fields():
                             raise version_error
                         # Continue with other assignments even if one fails
 
-                # Process inactive assignments - only reactivate if no active assignment exists for same field+entity
-                for assignment in inactive_assignments:
-                    try:
-                        from ..services.assignment_versioning import AssignmentVersioningService
-                        from ..models.esg_data import ESGData
-
-                        # Check if there's already an active assignment for this field+entity combination
-                        existing_active = any(
-                            a.entity_id == assignment.entity_id and a.series_status == 'active'
-                            for a in all_assignments
-                        )
-
-                        if existing_active:
-                            # Skip reactivation if there's already an active assignment for this entity
-                            # The active assignment will be handled in the versioning section above
-                            current_app.logger.info(f'Skipping reactivation of assignment {assignment.id} - active assignment exists for field {assignment.field_id}, entity {assignment.entity_id}')
-                            continue
-
-                        # Check if inactive assignment has collected ESG data
-                        has_data = ESGData.query.filter_by(assignment_id=assignment.id).count() > 0
-
-                        if has_data:
-                            # Has data - use versioning system to reactivate with new configuration
-                            version_result = AssignmentVersioningService.create_assignment_version(
-                                assignment.id,
-                                config_changes,
-                                f"Reactivation with field configuration update via UI: {', '.join(config_changes.keys())}",
-                                current_user.id
-                            )
-
-                            reactivated_assignments.append({
-                                'assignment_id': version_result['new_assignment']['id'],
-                                'entity_id': assignment.entity_id,
-                                'version': version_result['new_assignment']['version'],
-                                'type': 'reactivated_with_data'
-                            })
-                        else:
-                            # No data - directly reactivate and update the assignment
-                            assignment.series_status = 'active'
-                            assignment.series_status = 'active'
-
-                            # Apply configuration changes directly
-                            for key, value in config_changes.items():
-                                if hasattr(assignment, key):
-                                    setattr(assignment, key, value)
-
-                            reactivated_assignments.append({
-                                'assignment_id': assignment.id,
-                                'entity_id': assignment.entity_id,
-                                'version': assignment.series_version,
-                                'type': 'reactivated_direct'
-                            })
-
-                    except Exception as reactivation_error:
-                        current_app.logger.error(f'Error reactivating assignment {assignment.id}: {str(reactivation_error)}')
-                        # Continue with other assignments even if one fails
+                # IMPORTANT: Configuration changes should ONLY affect ACTIVE assignments
+                # Inactive assignments should remain inactive - they are not part of configuration changes
+                # Reactivation is a separate operation and should NOT happen during configure_fields
+                #
+                # REMOVED: Inactive reactivation logic (lines 209-274 original)
+                # Reason: Configuration changes must maintain version history immutability
+                #         - Never reactivate old versions
+                #         - Always create forward versions
+                #         - Inactive assignments stay inactive
+                #
+                # If reactivation is needed, it should be a separate UI operation with its own endpoint
+                current_app.logger.info(
+                    f'Skipping {len(inactive_assignments)} inactive assignments - '
+                    f'configure_fields only affects active assignments. '
+                    f'Use separate reactivation operation if needed.'
+                )
 
                 # Build response message
                 total_processed = len(updated_assignments) + len(reactivated_assignments)

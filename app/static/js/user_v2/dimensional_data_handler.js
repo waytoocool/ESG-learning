@@ -117,7 +117,7 @@ class DimensionalDataHandler {
                                 <td>
                                     <input type="text"
                                            inputmode="numeric"
-                                           pattern="[0-9,.-]*"
+                                           pattern="[0-9,.\-]*"
                                            class="matrix-input"
                                            data-dim1="${v.value}"
                                            data-format="number"
@@ -176,7 +176,7 @@ class DimensionalDataHandler {
                     <td>
                         <input type="text"
                                inputmode="numeric"
-                               pattern="[0-9,.-]*"
+                               pattern="[0-9,.\-]*"
                                class="matrix-input"
                                data-dim1="${v1.value}"
                                data-dim2="${v2.value}"
@@ -224,7 +224,7 @@ class DimensionalDataHandler {
                     <label class="combination-label">${label}</label>
                     <input type="text"
                            inputmode="numeric"
-                           pattern="[0-9,.-]*"
+                           pattern="[0-9,.\-]*"
                            class="matrix-input"
                            data-combination='${JSON.stringify(combo)}'
                            data-index="${index}"
@@ -264,7 +264,14 @@ class DimensionalDataHandler {
     attachCalculationListeners() {
         const inputs = this.container.querySelectorAll('.matrix-input');
         inputs.forEach(input => {
-            input.addEventListener('input', () => this.calculateTotals());
+            input.addEventListener('input', () => {
+                this.calculateTotals();
+
+                // Notify auto-save handler about changes
+                if (window.autoSaveHandler && window.autoSaveHandler.handleFormChange) {
+                    window.autoSaveHandler.handleFormChange();
+                }
+            });
         });
 
         // Initial calculation
@@ -501,6 +508,66 @@ class DimensionalDataHandler {
     }
 
     /**
+     * Get current dimensional data state for auto-save
+     * Returns current dimensional data in the same format as collectDimensionalData()
+     * @returns {Object|null} - Current dimensional data or null if no matrix active
+     */
+    getCurrentData() {
+        if (!this.currentMatrix || !this.container) {
+            return null;
+        }
+        return this.collectDimensionalData();
+    }
+
+    /**
+     * Set dimensional data from restored draft
+     * Populates the dimensional grid inputs with saved values and recalculates totals
+     * @param {Object} dimensionalData - Dimensional data to restore
+     */
+    setCurrentData(dimensionalData) {
+        if (!dimensionalData || !dimensionalData.breakdowns || !this.container) {
+            console.warn('DimensionalDataHandler.setCurrentData: Invalid or missing dimensional data');
+            return;
+        }
+
+        console.log('DimensionalDataHandler: Restoring dimensional data', dimensionalData);
+
+        // Create a map of dimension combinations to values for fast lookup
+        const valueMap = new Map();
+        dimensionalData.breakdowns.forEach(breakdown => {
+            const key = JSON.stringify(breakdown.dimensions);
+            valueMap.set(key, breakdown.raw_value);
+        });
+
+        // Find all matrix inputs and populate with saved values
+        const inputs = this.container.querySelectorAll('.matrix-input');
+        let restoredCount = 0;
+
+        inputs.forEach(input => {
+            const dimensions = this.getInputDimensions(input);
+            const key = JSON.stringify(dimensions);
+
+            if (valueMap.has(key)) {
+                const value = valueMap.get(key);
+                if (value !== null && value !== undefined && value !== '') {
+                    input.value = value;
+                    // Set raw value for proper calculation
+                    input.dataset.rawValue = value;
+                    restoredCount++;
+                    console.log(`Restored value ${value} for dimensions:`, dimensions);
+                }
+            }
+        });
+
+        console.log(`DimensionalDataHandler: Restored ${restoredCount} dimensional values`);
+
+        // Recalculate totals after restoration
+        if (restoredCount > 0) {
+            this.calculateTotals();
+        }
+    }
+
+    /**
      * Get dimensions from input element
      * @param {HTMLInputElement} input - Input element
      * @returns {Object} - Dimension combination
@@ -547,11 +614,16 @@ class DimensionalDataHandler {
         try {
             const dimensionalData = this.collectDimensionalData();
 
+            // Enhancement #2: Include notes field from modal
+            const notesField = document.getElementById('fieldNotes');
+            const notes = notesField ? notesField.value : null;
+
             const payload = {
                 field_id: this.currentFieldId,
                 entity_id: this.currentEntityId,
                 reporting_date: this.currentReportingDate,
-                dimensional_data: dimensionalData
+                dimensional_data: dimensionalData,
+                notes: notes  // Enhancement #2: Add notes to payload
             };
 
             const response = await fetch('/user/v2/api/submit-dimensional-data', {
@@ -561,6 +633,11 @@ class DimensionalDataHandler {
                 },
                 body: JSON.stringify(payload)
             });
+
+            // SESSION FIX: Check for session expiration before parsing JSON
+            if (window.handleSessionExpiration) {
+                await window.handleSessionExpiration(response);
+            }
 
             if (!response.ok) {
                 throw new Error('Failed to submit dimensional data');
@@ -577,7 +654,10 @@ class DimensionalDataHandler {
 
         } catch (error) {
             console.error('Error submitting dimensional data:', error);
-            this.showError('Failed to save data: ' + error.message);
+            // Don't show error alert if it's a session expiration redirect
+            if (error.message !== 'Session expired - redirecting to login') {
+                this.showError('Failed to save data: ' + error.message);
+            }
             throw error;
         }
     }

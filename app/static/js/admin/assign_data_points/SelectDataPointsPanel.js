@@ -493,7 +493,8 @@ window.SelectDataPointsPanel = {
                     field_name: field.field_name,
                     unit: field.default_unit || field.unit,
                     description: field.description,
-                    topic_id: field.topic_id
+                    topic_id: field.topic_id,
+                    is_computed: field.is_computed || false  // BUG FIX: Include is_computed property for visual indicators
                 });
             }
         });
@@ -645,13 +646,24 @@ window.SelectDataPointsPanel = {
         const fieldCode = dataPoint.field_code || dataPoint.code || '';
         const description = dataPoint.description || '';
 
+        // BUG FIX: Check if field is computed and get dependency count
+        const isComputed = dataPoint.is_computed || false;
+        const dependencyCount = window.DependencyManager && isComputed ?
+            window.DependencyManager.getDependencies(dataPoint.id).length : 0;
+
+        const computedBadge = isComputed ?
+            `<span class="computed-badge" title="Computed field with ${dependencyCount} dependencies">
+                <i class="fas fa-calculator"></i> <small>(${dependencyCount})</small>
+            </span>` : '';
+
         return `
-            <div class="topic-data-point" data-field-id="${dataPoint.id}" data-topic-id="${topicId}">
+            <div class="topic-data-point ${isComputed ? 'is-computed' : ''}" data-field-id="${dataPoint.id}" data-topic-id="${topicId}">
                 <div class="field-info">
                     <div class="field-details">
                         <div class="field-display">
                             <div class="field-first-line">
                                 <span class="field-name">${fieldName}</span>
+                                ${computedBadge}
                             </div>
                             <div class="field-second-line">
                                 <span class="field-code">${fieldCode}</span>
@@ -1174,13 +1186,24 @@ window.SelectDataPointsPanel = {
                 const fieldCode = item.dataPoint.field_code || item.dataPoint.code || '';
                 const description = item.dataPoint.description || '';
 
+                // Check if field is computed and get dependency count
+                const isComputed = item.dataPoint.is_computed || false;
+                const dependencyCount = window.DependencyManager && isComputed ?
+                    window.DependencyManager.getDependencies(item.dataPoint.id).length : 0;
+
+                const computedBadge = isComputed ?
+                    `<span class="computed-badge" title="Computed field with ${dependencyCount} dependencies">
+                        <i class="fas fa-calculator"></i> <small>(${dependencyCount})</small>
+                    </span>` : '';
+
                 html += `
-                    <div class="field-item topic-data-point" data-field-id="${item.dataPoint.id}">
+                    <div class="field-item topic-data-point ${isComputed ? 'is-computed' : ''}" data-field-id="${item.dataPoint.id}">
                         <div class="field-info">
                             <div class="field-details">
                                 <div class="field-display">
                                     <div class="field-first-line">
                                         <span class="field-name">${fieldName}</span>
+                                        ${computedBadge}
                                     </div>
                                     <div class="field-second-line">
                                         <span class="field-code">${fieldCode}</span>

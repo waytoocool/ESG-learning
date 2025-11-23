@@ -242,6 +242,25 @@ document.addEventListener('DOMContentLoaded', function() {
         console.warn('[AppMain] VersioningModule not loaded or missing init method');
     }
 
+    // Phase 8: Initialize DependencyManager for computed field auto-cascade
+    if (window.DependencyManager && typeof window.DependencyManager.init === 'function') {
+        window.DependencyManager.init().then(() => {
+            console.log('[AppMain] DependencyManager initialized');
+
+            // Phase 8.5: Initialize TooltipManager after DependencyManager is ready
+            if (window.TooltipManager && typeof window.TooltipManager.init === 'function') {
+                window.TooltipManager.init();
+                console.log('[AppMain] TooltipManager initialized');
+            } else {
+                console.warn('[AppMain] TooltipManager not loaded or missing init method');
+            }
+        }).catch(error => {
+            console.error('[AppMain] Failed to initialize DependencyManager:', error);
+        });
+    } else {
+        console.warn('[AppMain] DependencyManager not loaded or missing init method');
+    }
+
     // Phase 8: Initialize ImportExportModule
     if (window.ImportExportModule && typeof window.ImportExportModule.init === 'function') {
         window.ImportExportModule.init();
@@ -274,6 +293,14 @@ document.addEventListener('DOMContentLoaded', function() {
         console.warn('[AppMain] HistoryModule not loaded or missing init method');
     }
 
+    // Phase 9.5: Initialize DimensionModule for dimension configuration
+    if (window.DimensionModule && typeof window.DimensionModule.init === 'function') {
+        window.DimensionModule.init();
+        console.log('[AppMain] DimensionModule initialized');
+    } else {
+        console.warn('[AppMain] DimensionModule not loaded or missing init method');
+    }
+
     // FIX BUG #1 (P0 CRITICAL): Auto-load existing assignments on page initialization
     // This matches the legacy behavior where OLD page shows 17 existing assignments immediately
     // NEW page was showing empty state, making users think all data was lost
@@ -284,6 +311,12 @@ document.addEventListener('DOMContentLoaded', function() {
     AppEvents.on('reload-configurations', () => {
         console.log('[AppMain] Reload configurations event received');
         reloadAssignmentConfigurations();
+    });
+
+    // Listen for reload-data-points event (triggered by Show Inactive toggle)
+    AppEvents.on('reload-data-points-requested', (data) => {
+        console.log('[AppMain] Reload data points event received:', data);
+        reloadDataPoints(data.includeInactive);
     });
 
     AppEvents.emit('app-initialized');
@@ -332,6 +365,15 @@ async function loadExistingAssignments() {
 
         console.log('[AppMain] Existing assignments loaded successfully:', dataPoints.length, 'data points');
 
+        // Phase 9.5: Load dimension badges for all loaded fields
+        if (window.DimensionModule && typeof window.DimensionModule.loadDimensionsForFields === 'function') {
+            const fieldIds = dataPoints.map(point => point.field_id || point.id);
+            console.log('[AppMain] Loading dimensions for', fieldIds.length, 'fields');
+            window.DimensionModule.loadDimensionsForFields(fieldIds);
+        } else {
+            console.warn('[AppMain] DimensionModule not available for loading dimension badges');
+        }
+
     } catch (error) {
         console.error('[AppMain] Error loading existing assignments:', error);
         // Don't show error to user - page should still be usable even if loading fails
@@ -371,6 +413,78 @@ async function reloadAssignmentConfigurations() {
 
     } catch (error) {
         console.error('[AppMain] Error reloading assignment configurations:', error);
+    }
+}
+
+/**
+ * Reload data points from the server with optional inactive items
+ * This function is called when the "Show Inactive" toggle is clicked
+ * @param {boolean} includeInactive - Whether to include inactive assignments
+ */
+async function reloadDataPoints(includeInactive = false) {
+    try {
+        console.log(`[AppMain] Reloading data points (includeInactive: ${includeInactive})...`);
+
+        // Use ServicesModule to load existing data points and assignments with include_inactive parameter
+        if (!window.ServicesModule || typeof window.ServicesModule.loadExistingDataPointsWithInactive !== 'function') {
+            console.error('[AppMain] ServicesModule not available, cannot reload data points');
+            return;
+        }
+
+        const { dataPoints, assignments } = await window.ServicesModule.loadExistingDataPointsWithInactive(includeInactive);
+
+        console.log('[AppMain] Reloaded data points:', dataPoints.length);
+        console.log('[AppMain] Reloaded assignments:', assignments.length);
+
+        // Clear existing state
+        window.AppState.selectedDataPoints.clear();
+        window.AppState.entityAssignments.clear();
+        window.AppState.configurations.clear();
+        window.AppState.topicAssignments.clear();
+
+        // Process each data point and add to AppState
+        dataPoints.forEach(point => {
+            // Ensure the data point has an 'id' property for AppState Map key
+            const fieldData = {
+                id: point.field_id || point.id,
+                field_id: point.field_id || point.id,
+                name: point.field_name || point.name,
+                field_name: point.field_name || point.name,
+                is_active: point.is_active !== undefined ? point.is_active : true, // Mark inactive status
+                ...point  // Spread all other properties
+            };
+
+            // Add to global state (this will trigger SelectedDataPointsPanel update)
+            window.AppState.addSelectedDataPoint(fieldData);
+        });
+
+        // Process assignments and configurations
+        if (assignments && assignments.length > 0) {
+            loadAssignmentConfigurations(assignments);
+        }
+
+        // Emit reload complete event
+        window.AppEvents.emit('data-points-reload-complete', {
+            includeInactive,
+            dataPointCount: dataPoints.length,
+            assignmentCount: assignments.length
+        });
+
+        console.log('[AppMain] Data points reloaded successfully:', dataPoints.length, 'data points');
+
+        // Phase 9.5: Load dimension badges for all reloaded fields
+        if (window.DimensionModule && typeof window.DimensionModule.loadDimensionsForFields === 'function') {
+            const fieldIds = dataPoints.map(point => point.field_id || point.id);
+            console.log('[AppMain] Loading dimensions for', fieldIds.length, 'reloaded fields');
+            window.DimensionModule.loadDimensionsForFields(fieldIds);
+        } else {
+            console.warn('[AppMain] DimensionModule not available for loading dimension badges');
+        }
+
+    } catch (error) {
+        console.error('[AppMain] Error reloading data points:', error);
+        // Emit error event so UI can handle it
+        window.AppEvents.emit('data-points-reload-error', { error: error.message });
     }
 }
 

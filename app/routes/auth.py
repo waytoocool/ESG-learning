@@ -35,7 +35,7 @@ def login():
             elif user.role == 'ADMIN':
                 redirect_url = url_for('admin.home')
             elif user.role == 'USER':
-                redirect_url = url_for('user.dashboard')
+                redirect_url = url_for('user_v2.dashboard')  # Redirect to new dashboard
             else:
                 # Fallback for unknown roles
                 redirect_url = url_for('auth.login')

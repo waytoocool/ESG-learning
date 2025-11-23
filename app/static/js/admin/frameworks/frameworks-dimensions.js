@@ -1,6 +1,7 @@
 /**
  * Frameworks Dimensions Module
  * Handles dimension management, assignment, and filtering functionality
+ * REFACTORED: Now uses shared dimension component from /static/js/shared/
  */
 
 window.FrameworksDimensions = (function() {
@@ -12,6 +13,7 @@ window.FrameworksDimensions = (function() {
     let drawerSaveCallback = null;
     let drawerAssignedDimensions = []; // Temporary storage for dimensions in drawer context
     let drawerInitialDimensions = [];
+    let useSharedComponent = true; // Feature flag for shared dimension component
 
     // Dimension Management Functions (exact copies from original)
     function setupDimensionManagement(row) {
@@ -612,5 +614,41 @@ document.addEventListener('DOMContentLoaded', function() {
         saveDimensionsBtn.removeEventListener('click', saveDrawerDimensionsAndHideModal);
         // Add the new event listener
         saveDimensionsBtn.addEventListener('click', saveDrawerDimensionsAndHideModal);
+    }
+
+    // Initialize Shared Dimension Component if available
+    if (typeof window.DimensionManagerShared !== 'undefined') {
+        console.log('[Frameworks] Initializing shared dimension component...');
+        try {
+            window.DimensionManagerShared.init({
+                context: 'frameworks',
+                containerId: 'dimensionManagementModal',
+
+                onDimensionAssigned: function(fieldId, dimensionData) {
+                    console.log('[Frameworks] Dimension assigned via shared component:', fieldId, dimensionData);
+                    // The shared component handles the assignment automatically
+                    // We just log it here for tracking
+                },
+
+                onDimensionRemoved: function(fieldId, dimensionId) {
+                    console.log('[Frameworks] Dimension removed via shared component:', fieldId, dimensionId);
+                    // The shared component handles the removal automatically
+                },
+
+                onDimensionCreated: function(dimensionData) {
+                    console.log('[Frameworks] New dimension created via shared component:', dimensionData);
+                },
+
+                onValidationError: function(errorData) {
+                    console.error('[Frameworks] Dimension validation error:', errorData);
+                    // Error modal is shown automatically by the shared component
+                }
+            });
+            console.log('[Frameworks] Shared dimension component initialized successfully');
+        } catch (error) {
+            console.error('[Frameworks] Error initializing shared dimension component:', error);
+        }
+    } else {
+        console.warn('[Frameworks] DimensionManagerShared not available - using legacy dimension management');
     }
 }); 

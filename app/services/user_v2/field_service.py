@@ -214,20 +214,15 @@ class FieldService:
         """
         from ...models.entity import Entity
 
-        # Get entity and its parent entities for hierarchical assignments
+        # Verify entity exists
         entity = Entity.query.get(entity_id)
         if not entity:
             return []
 
-        entity_ids = [entity_id]
-        current_entity = entity
-        while current_entity and current_entity.parent_id:
-            entity_ids.append(current_entity.parent_id)
-            current_entity = current_entity.parent
-
-        # Get active assignments for these entities
+        # Get active assignments for THIS SPECIFIC ENTITY ONLY
+        # Users should only see data points explicitly assigned to their entity
         assignments = DataPointAssignment.query.filter(
-            DataPointAssignment.entity_id.in_(entity_ids),
+            DataPointAssignment.entity_id == entity_id,
             DataPointAssignment.series_status == 'active'
         ).all()
 

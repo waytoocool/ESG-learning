@@ -17,10 +17,18 @@ class DataPointAssignment(db.Model, TenantScopedQueryMixin, TenantScopedModelMix
     
     # Removed value_type - now comes from FrameworkDataField.value_type
     unit = db.Column(db.String(10), nullable=True)  # Can override field's default_unit
-    
+
     # Data Collection Frequency
-    frequency = db.Column(Enum('Monthly', 'Quarterly', 'Annual', name='frequency_type'), 
+    frequency = db.Column(Enum('Monthly', 'Quarterly', 'Annual', name='frequency_type'),
                          nullable=False, default='Annual')
+
+    # Validation Configuration
+    attachment_required = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=False,
+        comment="Whether supporting documents are required for this assignment"
+    )
     
     # Material Topic Assignment
     assigned_topic_id = db.Column(db.String(36), db.ForeignKey('topics.topic_id'), nullable=True)
@@ -55,7 +63,7 @@ class DataPointAssignment(db.Model, TenantScopedQueryMixin, TenantScopedModelMix
         db.Index('idx_assignment_field_company_active', 'field_id', 'company_id', 'series_status'),  # Fast field+company lookup
     )
 
-    def __init__(self, field_id, entity_id, frequency, assigned_by, company_id=None, unit=None, assigned_topic_id=None, data_series_id=None, series_version=1):
+    def __init__(self, field_id, entity_id, frequency, assigned_by, company_id=None, unit=None, assigned_topic_id=None, data_series_id=None, series_version=1, attachment_required=False):
         self.field_id = field_id
         self.entity_id = entity_id
         self.company_id = company_id
@@ -66,6 +74,7 @@ class DataPointAssignment(db.Model, TenantScopedQueryMixin, TenantScopedModelMix
         self.data_series_id = data_series_id or str(uuid.uuid4())  # Auto-generate if not provided
         self.series_version = series_version
         self.series_status = 'active'  # FIX: Set default series_status to avoid validation errors
+        self.attachment_required = attachment_required
 
     @property
     def value_type(self):
@@ -116,7 +125,8 @@ class DataPointAssignment(db.Model, TenantScopedQueryMixin, TenantScopedModelMix
             List[date]: List of valid reporting dates for the fiscal year
         """
         if not self.company:
-            raise ValueError("Assignment must have a company to calculate reporting dates")
+            # Return empty list instead of raising exception for defensive programming
+            return []
         
         from datetime import date, timedelta
         from dateutil.relativedelta import relativedelta

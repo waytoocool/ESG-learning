@@ -181,7 +181,8 @@ def register_dimension_routes(admin_bp):
             if is_super_admin():
                 dimension = Dimension.query.get(dimension_id)
             else:
-                dimension = Dimension.get_for_tenant(db.session, dimension_id)
+                # Use query_for_tenant with correct primary key column name
+                dimension = Dimension.query_for_tenant(db.session).filter_by(dimension_id=dimension_id).first()
             
             if not dimension:
                 return jsonify({'success': False, 'message': 'Dimension not found'}), 404
@@ -231,29 +232,43 @@ def register_dimension_routes(admin_bp):
         try:
             data = request.get_json()
             dimension_ids = data.get('dimension_ids', [])
-            
+
+            current_app.logger.debug(f'[assign_field_dimensions] Received data: {data}')
+            current_app.logger.debug(f'[assign_field_dimensions] dimension_ids type: {type(dimension_ids)}, value: {dimension_ids}')
+
             # Check field exists and is accessible
             if is_super_admin():
                 field = FrameworkDataField.query.get(field_id)
             else:
-                field = FrameworkDataField.get_for_tenant(db.session, field_id)
-            
+                # FrameworkDataField doesn't have get_for_tenant, use standard query with company_id
+                from flask_login import current_user
+                company_id = current_user.company_id
+                field = FrameworkDataField.query.filter_by(
+                    field_id=field_id,
+                    company_id=company_id
+                ).first()
+
             if not field:
                 return jsonify({'success': False, 'message': 'Field not found'}), 404
-            
+
             # Remove existing field dimensions
             existing_assignments = FieldDimension.query.filter_by(field_id=field_id).all()
             for assignment in existing_assignments:
                 db.session.delete(assignment)
-            
+
             # Create new field dimension assignments
             for dimension_id in dimension_ids:
+                current_app.logger.debug(f'[assign_field_dimensions] Processing dimension_id type: {type(dimension_id)}, value: {dimension_id}')
+
                 # Verify dimension exists and is accessible
                 if is_super_admin():
                     dimension = Dimension.query.get(dimension_id)
                 else:
-                    dimension = Dimension.get_for_tenant(db.session, dimension_id)
-                
+                    # Use query_for_tenant with correct primary key column name
+                    dimension = Dimension.query_for_tenant(db.session).filter_by(dimension_id=dimension_id).first()
+
+                current_app.logger.debug(f'[assign_field_dimensions] Found dimension: {dimension is not None}, dimension_id: {dimension_id if dimension else "NOT FOUND"}')
+
                 if dimension:
                     field_dimension = FieldDimension(
                         field_id=field_id,
@@ -261,9 +276,11 @@ def register_dimension_routes(admin_bp):
                         company_id=field.company_id
                     )
                     db.session.add(field_dimension)
-            
+                    current_app.logger.debug(f'[assign_field_dimensions] Added FieldDimension to session')
+
             db.session.commit()
-            
+            current_app.logger.debug(f'[assign_field_dimensions] Committed changes successfully')
+
             return jsonify({
                 'success': True,
                 'message': 'Field dimensions updated successfully'
@@ -284,8 +301,14 @@ def register_dimension_routes(admin_bp):
             if is_super_admin():
                 field = FrameworkDataField.query.get(field_id)
             else:
-                field = FrameworkDataField.get_for_tenant(db.session, field_id)
-            
+                # FrameworkDataField doesn't have get_for_tenant, use standard query with company_id
+                from flask_login import current_user
+                company_id = current_user.company_id
+                field = FrameworkDataField.query.filter_by(
+                    field_id=field_id,
+                    company_id=company_id
+                ).first()
+
             if not field:
                 return jsonify({'success': False, 'message': 'Field not found'}), 404
             
@@ -307,6 +330,7 @@ def register_dimension_routes(admin_bp):
                 
                 dimensions_data.append({
                     'dimension_id': dimension.dimension_id,
+                    'field_dimension_id': fd.field_dimension_id,
                     'name': dimension.name,
                     'description': dimension.description,
                     'is_required': fd.is_required,
@@ -319,7 +343,9 @@ def register_dimension_routes(admin_bp):
             })
             
         except Exception as e:
+            import traceback
             current_app.logger.error(f'Error getting field dimensions: {str(e)}')
+            current_app.logger.error(f'Traceback: {traceback.format_exc()}')
             return jsonify({'success': False, 'message': 'Error getting field dimensions'}), 500
 
     @admin_bp.route('/validate_dimension_filter', methods=['POST'])
@@ -339,7 +365,13 @@ def register_dimension_routes(admin_bp):
             if is_super_admin():
                 field = FrameworkDataField.query.get(field_id)
             else:
-                field = FrameworkDataField.get_for_tenant(db.session, field_id)
+                # FrameworkDataField doesn't have get_for_tenant, use standard query with company_id
+                from flask_login import current_user
+                company_id = current_user.company_id
+                field = FrameworkDataField.query.filter_by(
+                    field_id=field_id,
+                    company_id=company_id
+                ).first()
             
             if not field:
                 return jsonify({'success': False, 'message': 'Field not found'}), 404
@@ -461,4 +493,232 @@ def register_dimension_routes(admin_bp):
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f'Error creating system dimensions: {str(e)}')
-            return jsonify({'success': False, 'message': 'Error creating system dimensions'}), 500 
+            return jsonify({'success': False, 'message': 'Error creating system dimensions'}), 500
+
+    @admin_bp.route('/fields/<field_id>/dimensions/validate', methods=['POST'])
+    @login_required
+    @admin_or_super_admin_required
+    def validate_field_dimension_operation(field_id):
+        """
+        Validate dimension operations for computed field consistency.
+
+        This endpoint enforces the business rule: when assigning dimensions to a computed field,
+        all dependencies (raw fields) MUST have AT LEAST the same dimensions. Dependencies can
+        have MORE dimensions but CANNOT have FEWER.
+
+        Args:
+            field_id (str): Field ID for the operation
+
+        Request Body:
+            action (str): 'assign' or 'remove'
+            dimension_ids (list): For 'assign' action - list of dimension IDs
+            dimension_id (str): For 'remove' action - single dimension ID
+
+        Returns:
+            JSON: Validation result with errors/conflicts if invalid
+        """
+        try:
+            data = request.get_json()
+            action = data.get('action')
+
+            if action not in ['assign', 'remove']:
+                return jsonify({
+                    'success': False,
+                    'valid': False,
+                    'error': 'Invalid action. Must be "assign" or "remove"'
+                }), 400
+
+            # Check field exists and is accessible
+            if is_super_admin():
+                field = FrameworkDataField.query.get(field_id)
+            else:
+                # FrameworkDataField doesn't have get_for_tenant, use standard query with company_id
+                from flask_login import current_user
+                company_id = current_user.company_id
+                field = FrameworkDataField.query.filter_by(
+                    field_id=field_id,
+                    company_id=company_id
+                ).first()
+
+            if not field:
+                return jsonify({
+                    'success': False,
+                    'valid': False,
+                    'error': 'Field not found'
+                }), 404
+
+            # Validate based on action
+            if action == 'assign':
+                dimension_ids = data.get('dimension_ids', [])
+                result = validate_dimension_assignment(field, dimension_ids)
+            else:  # remove
+                dimension_id = data.get('dimension_id')
+                if not dimension_id:
+                    return jsonify({
+                        'success': False,
+                        'valid': False,
+                        'error': 'dimension_id is required for remove action'
+                    }), 400
+                result = validate_dimension_removal(field, dimension_id)
+
+            return jsonify(result)
+
+        except Exception as e:
+            current_app.logger.error(f'Error validating dimension operation: {str(e)}')
+            return jsonify({
+                'success': False,
+                'valid': False,
+                'error': 'Error validating dimension operation'
+            }), 500
+
+
+def validate_dimension_assignment(field, dimension_ids):
+    """
+    Validate assigning dimensions to a computed field.
+
+    Business Rule: All dependencies must have AT LEAST the dimensions being assigned.
+    Dependencies can have MORE dimensions, but cannot have FEWER.
+
+    Args:
+        field (FrameworkDataField): The computed field
+        dimension_ids (list): List of dimension IDs to assign
+
+    Returns:
+        dict: Validation result with errors if invalid
+    """
+    # If not a computed field, always valid
+    if not field.is_computed:
+        return {
+            'success': True,
+            'valid': True,
+            'message': 'Raw fields can have any dimensions'
+        }
+
+    # Get all dependencies recursively
+    dependencies = field.get_all_dependencies()
+
+    if not dependencies:
+        return {
+            'success': True,
+            'valid': True,
+            'message': 'No dependencies to validate'
+        }
+
+    # Convert dimension_ids to set for comparison
+    required_dimension_ids = set(dimension_ids)
+
+    # Get dimension names for better error messages
+    dimensions_map = {dim.dimension_id: dim for dim in Dimension.query.filter(
+        Dimension.dimension_id.in_(dimension_ids)
+    ).all()}
+
+    errors = []
+
+    # Check each dependency
+    for dep in dependencies:
+        # Get current dimensions for this dependency
+        dep_field_dims = FieldDimension.query.filter_by(field_id=dep.field_id).all()
+        dep_dimension_ids = set(fd.dimension_id for fd in dep_field_dims)
+
+        # Check if dependency has all required dimensions
+        missing_dimension_ids = required_dimension_ids - dep_dimension_ids
+
+        if missing_dimension_ids:
+            # Get dimension names for error message
+            missing_dimensions = [dimensions_map.get(dim_id) for dim_id in missing_dimension_ids]
+            current_dimensions = [fd.dimension for fd in dep_field_dims]
+
+            errors.append({
+                'field_id': dep.field_id,
+                'field_name': dep.field_name,
+                'missing_dimension_ids': list(missing_dimension_ids),
+                'missing_dimension_names': [d.name for d in missing_dimensions if d],
+                'current_dimension_ids': list(dep_dimension_ids),
+                'current_dimension_names': [d.name for d in current_dimensions if d]
+            })
+
+    if errors:
+        return {
+            'success': True,
+            'valid': False,
+            'errors': errors,
+            'message': f'Cannot assign dimensions: {len(errors)} dependencies are missing required dimensions'
+        }
+
+    return {
+        'success': True,
+        'valid': True,
+        'message': 'All dependencies have required dimensions'
+    }
+
+
+def validate_dimension_removal(field, dimension_id):
+    """
+    Validate removing a dimension from a raw field.
+
+    Business Rule: Cannot remove a dimension if any computed fields that depend on this
+    field require that dimension.
+
+    Args:
+        field (FrameworkDataField): The raw field
+        dimension_id (str): Dimension ID to remove
+
+    Returns:
+        dict: Validation result with conflicts if invalid
+    """
+    # If this is a computed field, just check if it has dependencies requiring it
+    # (though typically we assign to computed fields, not remove from them)
+
+    # Get all computed fields that depend on this field
+    dependent_fields = field.get_fields_depending_on_this()
+
+    if not dependent_fields:
+        return {
+            'success': True,
+            'valid': True,
+            'message': 'No computed fields depend on this field'
+        }
+
+    # Get dimension for error messages
+    dimension = Dimension.query.get(dimension_id)
+    if not dimension:
+        return {
+            'success': False,
+            'valid': False,
+            'error': 'Dimension not found'
+        }
+
+    conflicts = []
+
+    # Check each dependent computed field
+    for computed_field in dependent_fields:
+        # Get dimensions for this computed field
+        computed_field_dims = FieldDimension.query.filter_by(
+            field_id=computed_field.field_id
+        ).all()
+        computed_dimension_ids = set(fd.dimension_id for fd in computed_field_dims)
+
+        # If the computed field requires this dimension, it's a conflict
+        if dimension_id in computed_dimension_ids:
+            all_dimensions = [fd.dimension for fd in computed_field_dims]
+
+            conflicts.append({
+                'field_id': computed_field.field_id,
+                'field_name': computed_field.field_name,
+                'required_dimension_ids': list(computed_dimension_ids),
+                'required_dimension_names': [d.name for d in all_dimensions if d]
+            })
+
+    if conflicts:
+        return {
+            'success': True,
+            'valid': False,
+            'conflicts': conflicts,
+            'message': f'Cannot remove dimension "{dimension.name}": {len(conflicts)} computed fields require it'
+        }
+
+    return {
+        'success': True,
+        'valid': True,
+        'message': f'Dimension "{dimension.name}" can be safely removed'
+    } 

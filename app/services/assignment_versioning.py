@@ -95,12 +95,56 @@ class AssignmentVersioningService:
                 print(f"[DEBUG create_assignment_version] Validation failed: {validation_result['error']}")
                 raise ValueError(f"Invalid changes: {validation_result['error']}")
 
+            # DEFENSIVE FIX: Before proceeding, check for and fix any duplicate active assignments
+            # This prevents the bug where old versions remain active after versioning
+            from sqlalchemy import and_
+            duplicate_actives = DataPointAssignment.query.filter(
+                and_(
+                    DataPointAssignment.field_id == current_assignment.field_id,
+                    DataPointAssignment.entity_id == current_assignment.entity_id,
+                    DataPointAssignment.company_id == current_assignment.company_id,
+                    DataPointAssignment.series_status == 'active',
+                    DataPointAssignment.id != assignment_id  # Exclude current assignment being versioned
+                )
+            ).all()
+
+            if duplicate_actives:
+                # CRITICAL: Other active assignments exist! Auto-supersede them before proceeding
+                from flask import current_app
+                current_app.logger.error(
+                    f"[VERSIONING-DUPLICATE-FIX] DETECTED {len(duplicate_actives)} duplicate active assignments: "
+                    f"field={current_assignment.field_id}, entity={current_assignment.entity_id}, "
+                    f"versions=[{', '.join(f'v{a.series_version}' for a in duplicate_actives)}]"
+                )
+
+                for dup in duplicate_actives:
+                    dup.series_status = 'superseded'
+                    current_app.logger.warning(
+                        f"[VERSIONING-DUPLICATE-FIX] Auto-superseded duplicate: {dup.id} (v{dup.series_version})"
+                    )
+
+                # Flush the supersede operations immediately
+                db.session.flush()
+                current_app.logger.info(
+                    f"[VERSIONING-DUPLICATE-FIX] Fixed {len(duplicate_actives)} duplicate active assignments"
+                )
+
             print(f"[DEBUG create_assignment_version] About to mark assignment {assignment_id} as superseded")
             # Use existing session transaction (don't start a new one)
             # Mark current assignment as superseded
             current_assignment.series_status = 'superseded'
             current_assignment.series_status = 'superseded'  # Mark previous version as superseded
             print(f"[DEBUG create_assignment_version] Marked assignment {assignment_id} as superseded")
+
+            # TWO-PHASE FLUSH FIX: Flush supersede to database BEFORE creating new version
+            # This ensures the validation query sees the old assignment as superseded
+            # when validating the new active assignment during the second flush.
+            try:
+                db.session.flush()
+                print(f"[DEBUG create_assignment_version] Phase 1: Flushed supersede of assignment {assignment_id} to database")
+            except Exception as flush_error:
+                print(f"[ERROR create_assignment_version] Phase 1 flush failed: {str(flush_error)}")
+                raise RuntimeError(f"Failed to supersede assignment {assignment_id}: {str(flush_error)}")
 
             # Set versioning context to bypass validation for this field+entity+company combination
             from ..models.data_assignment import set_versioning_context, clear_versioning_context
@@ -145,12 +189,13 @@ class AssignmentVersioningService:
 
                 # Add to session and flush to get ID without committing transaction
                 db.session.add(new_assignment)
-                print(f"[DEBUG create_assignment_version] Added new assignment to session, about to flush")
+                print(f"[DEBUG create_assignment_version] Added new assignment to session, about to flush (Phase 2)")
 
-                # Flush to get the new assignment ID without committing
+                # TWO-PHASE FLUSH: Phase 2 - Flush new active assignment
+                # Validation will now see the old assignment as superseded (from Phase 1)
                 try:
                     db.session.flush()  # Get new assignment ID without committing
-                    print(f"[DEBUG create_assignment_version] Successfully flushed, new assignment ID: {new_assignment.id}")
+                    print(f"[DEBUG create_assignment_version] Phase 2: Successfully flushed new assignment, ID: {new_assignment.id}")
                 except Exception as flush_error:
                     print(f"[DEBUG create_assignment_version] Flush error: {str(flush_error)}")
                     # If flush fails due to transaction state, try to handle gracefully

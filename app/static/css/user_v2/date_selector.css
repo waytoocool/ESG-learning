@@ -1,0 +1,381 @@
+/**
+ * Mini Calendar Popup Date Selector Styles
+ * Ultra-compact design with floating calendar overlay
+ */
+
+.date-selector-component {
+    width: 100%;
+    position: relative;
+}
+
+.date-selector-header {
+    margin-bottom: 0.5rem;
+}
+
+/* Compact Date Picker Button */
+.date-picker-button {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.625rem 1rem;
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+}
+
+.date-picker-button:hover {
+    border-color: #3b82f6;
+    background: #f9fafb;
+}
+
+.date-picker-button .material-icons:first-child {
+    color: #6b7280;
+    font-size: 1.25rem;
+}
+
+.date-picker-button .date-picker-text {
+    flex: 1;
+    text-align: left;
+    color: #374151;
+    font-weight: 500;
+}
+
+.date-picker-button .material-icons:last-child {
+    color: #9ca3af;
+    font-size: 1.25rem;
+}
+
+/* Dark mode button */
+.dark .date-picker-button {
+    background: #1f2937;
+    border-color: #374151;
+}
+
+.dark .date-picker-button:hover {
+    border-color: #3b82f6;
+    background: #111827;
+}
+
+.dark .date-picker-button .date-picker-text {
+    color: #e5e7eb;
+}
+
+/* Mini Calendar Popup */
+.date-calendar-popup {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    padding: 1rem;
+    animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dark .date-calendar-popup {
+    background: #1f2937;
+    border-color: #374151;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+}
+
+.date-calendar-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* Calendar Header */
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+    color: #374151;
+}
+
+.dark .calendar-header {
+    border-bottom-color: #374151;
+    color: #e5e7eb;
+}
+
+/* Calendar Grid Layouts */
+.calendar-grid {
+    min-height: 60px;
+}
+
+/* Annual Calendar (single date) */
+.calendar-annual {
+    display: flex;
+    justify-content: center;
+}
+
+.calendar-annual .date-chip {
+    min-width: 150px;
+}
+
+/* Quarterly Calendar (2x2 grid) */
+.calendar-quarterly {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+}
+
+.quarter-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.quarter-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-align: center;
+}
+
+.dark .quarter-label {
+    color: #9ca3af;
+}
+
+/* Monthly Calendar (3x4 grid) */
+.calendar-monthly {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.month-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.month-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-align: center;
+}
+
+.dark .month-label {
+    color: #9ca3af;
+}
+
+/* Date Chips (Used in calendar) */
+.date-chip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    border: 2px solid transparent;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 2.25rem;
+    text-align: center;
+}
+
+.date-chip .date-label {
+    white-space: nowrap;
+}
+
+/* Status Colors */
+.date-chip.pending {
+    background-color: #fef3c7;
+    color: #92400e;
+    border-color: #fbbf24;
+}
+
+.date-chip.pending:hover {
+    background-color: #fde68a;
+    border-color: #f59e0b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.date-chip.overdue {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border-color: #ef4444;
+}
+
+.date-chip.overdue:hover {
+    background-color: #fecaca;
+    border-color: #dc2626;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);
+}
+
+.date-chip.complete {
+    background-color: #d1fae5;
+    color: #065f46;
+    border-color: #34d399;
+}
+
+.date-chip.complete:hover {
+    background-color: #a7f3d0;
+    border-color: #10b981;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.date-chip.selected {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.date-chip.selected:hover {
+    background-color: #bfdbfe;
+    border-color: #2563eb;
+}
+
+/* Dark Mode Status Colors */
+.dark .date-chip.pending {
+    background-color: #78350f;
+    color: #fef3c7;
+    border-color: #f59e0b;
+}
+
+.dark .date-chip.pending:hover {
+    background-color: #92400e;
+}
+
+.dark .date-chip.overdue {
+    background-color: #7f1d1d;
+    color: #fee2e2;
+    border-color: #ef4444;
+}
+
+.dark .date-chip.overdue:hover {
+    background-color: #991b1b;
+}
+
+.dark .date-chip.complete {
+    background-color: #064e3b;
+    color: #d1fae5;
+    border-color: #10b981;
+}
+
+.dark .date-chip.complete:hover {
+    background-color: #065f46;
+}
+
+.dark .date-chip.selected {
+    background-color: #1e3a8a;
+    color: #dbeafe;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+.dark .date-chip.selected:hover {
+    background-color: #1e40af;
+}
+
+/* Status Dots for Legend */
+.status-dot {
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-dot.complete {
+    background-color: #34d399;
+}
+
+.status-dot.pending {
+    background-color: #fbbf24;
+}
+
+.status-dot.overdue {
+    background-color: #ef4444;
+}
+
+.status-dot.selected {
+    background-color: #3b82f6;
+}
+
+/* Error State */
+.date-selector-error {
+    padding: 1rem;
+    background-color: #fee2e2;
+    border: 1px solid #fca5a5;
+    border-radius: 0.5rem;
+}
+
+.dark .date-selector-error {
+    background-color: #7f1d1d;
+    border-color: #991b1b;
+}
+
+/* Scrollbar for Monthly Calendar */
+.calendar-monthly::-webkit-scrollbar {
+    width: 6px;
+}
+
+.calendar-monthly::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 3px;
+}
+
+.calendar-monthly::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+}
+
+.calendar-monthly::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+.dark .calendar-monthly::-webkit-scrollbar-track {
+    background: #374151;
+}
+
+.dark .calendar-monthly::-webkit-scrollbar-thumb {
+    background: #6b7280;
+}
+
+.dark .calendar-monthly::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+    .calendar-monthly {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .date-picker-button {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    .date-calendar-popup {
+        padding: 0.75rem;
+    }
+}

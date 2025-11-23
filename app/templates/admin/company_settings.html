@@ -34,6 +34,18 @@
                 </span>
             </div>
             <div class="info-item">
+                <label>Data Due Period:</label>
+                <span class="value">
+                    {{ company.data_due_days }} days after period end
+                </span>
+            </div>
+            <div class="info-item">
+                <label>Validation Threshold:</label>
+                <span class="value">
+                    {{ company.validation_trend_threshold_pct if company.validation_trend_threshold_pct is not none else 20.0 }}% variance
+                </span>
+            </div>
+            <div class="info-item">
                 <label>Example Current FY:</label>
                 <span class="value example-fy" id="current-fy-example">
                     {% if company %}
@@ -77,17 +89,64 @@
                         Fiscal Year End Day
                         <span class="required">*</span>
                     </label>
-                    <input 
-                        type="number" 
-                        id="fy_end_day" 
-                        name="fy_end_day" 
-                        class="form-control" 
-                        min="1" 
-                        max="31" 
+                    <input
+                        type="number"
+                        id="fy_end_day"
+                        name="fy_end_day"
+                        class="form-control"
+                        min="1"
+                        max="31"
                         value="{{ company.fy_end_day if company else 31 }}"
                         required
                     >
                     <small class="form-help">Day will be adjusted for months with fewer days (e.g., February)</small>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="data_due_days" class="form-label">
+                        Data Submission Due Period (Days)
+                        <span class="required">*</span>
+                    </label>
+                    <input
+                        type="number"
+                        id="data_due_days"
+                        name="data_due_days"
+                        class="form-control"
+                        min="1"
+                        max="90"
+                        value="{{ company.data_due_days if company else 10 }}"
+                        required
+                    >
+                    <small class="form-help">Number of days after the reporting period end when data becomes overdue (e.g., 10 means monthly data for January is due by February 10)</small>
+                </div>
+            </div>
+
+            <!-- Validation Settings -->
+            <div class="settings-divider"></div>
+            <h4 class="section-subtitle">Automated Validation Settings</h4>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="validation_trend_threshold_pct" class="form-label">
+                        Trend Variance Threshold (%)
+                        <span class="required">*</span>
+                        <i class="fas fa-info-circle" data-toggle="tooltip"
+                           title="When submitted data differs from historical values by more than this percentage, users will be prompted to review and add explanatory notes. Default is 20%."></i>
+                    </label>
+                    <input
+                        type="number"
+                        id="validation_trend_threshold_pct"
+                        name="validation_trend_threshold_pct"
+                        class="form-control"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value="{{ company.validation_trend_threshold_pct if company and company.validation_trend_threshold_pct is not none else 20.0 }}"
+                        required
+                    >
+                    <small class="form-help">Percentage threshold for triggering validation warnings. Lower values = stricter validation. (e.g., 20% means values differing by more than ±20% from historical data will trigger a review prompt)</small>
                 </div>
             </div>
 
@@ -223,9 +282,11 @@ function resetForm() {
     {% if company %}
     document.getElementById('fy_end_month').value = '{{ company.fy_end_month }}';
     document.getElementById('fy_end_day').value = '{{ company.fy_end_day }}';
+    document.getElementById('data_due_days').value = '{{ company.data_due_days }}';
     {% else %}
     document.getElementById('fy_end_month').value = '3';
     document.getElementById('fy_end_day').value = '31';
+    document.getElementById('data_due_days').value = '10';
     {% endif %}
     updateLivePreview();
 }
@@ -233,24 +294,26 @@ function resetForm() {
 // Form submission with confirmation
 function handleFormSubmit(event) {
     event.preventDefault();
-    
+
     const month = parseInt(document.getElementById('fy_end_month').value);
     const day = parseInt(document.getElementById('fy_end_day').value);
-    
-    if (!month || !day) {
-        alert('Please select both month and day.');
+    const dueDays = parseInt(document.getElementById('data_due_days').value);
+
+    if (!month || !day || !dueDays) {
+        alert('Please fill in all required fields.');
         return;
     }
-    
+
     // Show confirmation modal
     const confirmDetails = document.getElementById('confirm-details');
     const actualDay = Math.min(day, daysInMonth[month] || 31);
     confirmDetails.innerHTML = `
         <div class="confirm-item">End Month: ${monthNames[month]}</div>
         <div class="confirm-item">End Day: ${actualDay}</div>
+        <div class="confirm-item">Data Due Period: ${dueDays} days</div>
         <div class="confirm-item">Example FY: ${document.getElementById('live-preview').textContent}</div>
     `;
-    
+
     document.getElementById('confirmModal').style.display = 'block';
 }
 

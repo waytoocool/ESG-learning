@@ -33,6 +33,33 @@ class ESGData(db.Model, TenantScopedQueryMixin, TenantScopedModelMixin):
     is_draft = db.Column(db.Boolean, default=False, nullable=False)  # Flag to mark draft entries
     draft_metadata = db.Column(db.JSON, nullable=True)  # Store additional draft metadata
 
+    # Enhancement #2: Notes/Comments functionality for data context
+    notes = db.Column(db.Text, nullable=True)  # User notes/comments for data entry
+
+    # Validation Engine: Review workflow fields
+    review_status = db.Column(
+        db.Enum('draft', 'submitted', 'pending_review',
+                'approved', 'rejected', 'needs_revision',
+                name='review_status_type'),
+        default='draft',
+        nullable=False,
+        index=True,
+        comment="Current review status of the data submission"
+    )
+
+    submitted_at = db.Column(
+        db.DateTime,
+        nullable=True,
+        comment="Timestamp when data was submitted for review"
+    )
+
+    # Validation Engine: Validation results storage
+    validation_results = db.Column(
+        db.JSON,
+        nullable=True,
+        comment="Automated validation check results and warnings"
+    )
+
     reporting_date = db.Column(db.Date, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
@@ -59,6 +86,15 @@ class ESGData(db.Model, TenantScopedQueryMixin, TenantScopedModelMixin):
 
     # Add indexes for better query performance
     __table_args__ = (
+        # Uniqueness constraint: Prevent duplicate entries for same field/entity/date/company
+        # Note: is_draft is NOT included to allow multiple draft versions
+        db.UniqueConstraint(
+            'field_id',
+            'entity_id',
+            'reporting_date',
+            'company_id',
+            name='uq_esg_single_entry_per_date'
+        ),
         db.Index('idx_esg_entity_date', 'entity_id', 'reporting_date'),
         db.Index('idx_esg_field_date', 'field_id', 'reporting_date'),
         db.Index('idx_esg_company', 'company_id'),  # Index for tenant filtering
@@ -67,9 +103,12 @@ class ESGData(db.Model, TenantScopedQueryMixin, TenantScopedModelMixin):
         db.Index('idx_esg_dimensions', 'field_id', 'reporting_date', 'dimension_values'),
         # Phase 4: Add index for draft queries
         db.Index('idx_esg_draft_lookup', 'field_id', 'entity_id', 'reporting_date', 'is_draft'),
+        # Validation Engine: Add index for review status queries
+        db.Index('idx_esg_review_status', 'review_status', 'company_id'),
+        db.Index('idx_esg_review_pending', 'review_status', 'submitted_at'),
     )
 
-    def __init__(self, entity_id, field_id, raw_value, reporting_date, company_id=None, calculated_value=None, unit=None, dimension_values=None, assignment_id=None):
+    def __init__(self, entity_id, field_id, raw_value, reporting_date, company_id=None, calculated_value=None, unit=None, dimension_values=None, assignment_id=None, notes=None):
         self.entity_id = entity_id
         self.field_id = field_id
         self.company_id = company_id
@@ -79,6 +118,7 @@ class ESGData(db.Model, TenantScopedQueryMixin, TenantScopedModelMixin):
         self.reporting_date = reporting_date
         self.dimension_values = dimension_values or {}
         self.unit = unit  # Phase 1: Support for user-selected units
+        self.notes = notes  # Enhancement #2: Support for notes/comments
 
     @property
     def effective_unit(self):
@@ -137,15 +177,42 @@ class ESGData(db.Model, TenantScopedQueryMixin, TenantScopedModelMixin):
 
     def get_dimension_key(self):
         """Get a string key representing the dimensional breakdown.
-        
+
         Returns:
             str: Sorted dimension key like "age:<30,gender:Male"
         """
         if not self.dimension_values:
             return ""
-        
+
         sorted_items = sorted(self.dimension_values.items())
         return ",".join([f"{k}:{v}" for k, v in sorted_items])
+
+    # Enhancement #2: Notes helper methods
+    def has_notes(self):
+        """Check if this data entry has notes.
+
+        Returns:
+            bool: True if notes exist and are not empty
+        """
+        return bool(self.notes and self.notes.strip())
+
+    def get_notes_preview(self, max_length=50):
+        """Get a preview of notes (first N characters).
+
+        Args:
+            max_length (int): Maximum length of preview
+
+        Returns:
+            str: Preview of notes with ellipsis if truncated
+        """
+        if not self.has_notes():
+            return ""
+
+        notes_text = self.notes.strip()
+        if len(notes_text) <= max_length:
+            return notes_text
+
+        return notes_text[:max_length] + "..."
 
     # Phase 4: Assignment resolution methods for dual compatibility
     def resolve_assignment(self) -> Optional['DataPointAssignment']:
@@ -300,16 +367,45 @@ class ESGData(db.Model, TenantScopedQueryMixin, TenantScopedModelMixin):
 
 class ESGDataAuditLog(db.Model):
     """Audit log for tracking changes to ESG data."""
-    
+
     __tablename__ = 'esg_data_audit_log'
-    
+
     log_id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     data_id = db.Column(db.String(36), db.ForeignKey('esg_data.data_id'), nullable=False)
-    change_type = db.Column(db.Enum('Create', 'Update', 'Delete', 'On-demand Computation', 'Smart Computation', 'CSV Upload', 'Admin Recompute', 'Admin Bulk Recompute', name='change_type'), nullable=False)
+    change_type = db.Column(db.Enum(
+        'Create',
+        'Update',
+        'Delete',
+        'On-demand Computation',
+        'Smart Computation',
+        'CSV Upload',
+        'Admin Recompute',
+        'Admin Bulk Recompute',
+        'Excel Upload',              # Enhancement #4: Bulk Excel upload new entry
+        'Excel Upload Update',       # Enhancement #4: Bulk Excel upload overwrite
+        'Data_Submitted',            # Validation Engine: User submits data for review
+        'Validation_Passed',         # Validation Engine: Validation checks passed
+        'Validation_Warning',        # Validation Engine: Validation warnings generated
+        'User_Acknowledged_Warning', # Validation Engine: User acknowledged warnings with notes
+        name='change_type'
+    ), nullable=False)
     old_value = db.Column(db.Float, nullable=True)
     new_value = db.Column(db.Float, nullable=True)
     changed_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     change_date = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
+
+    # Enhancement #4: Additional metadata column for tracking (bulk upload, etc.)
+    # Note: Cannot use 'metadata' as it's reserved by SQLAlchemy
+    change_metadata = db.Column(db.JSON, nullable=True)
+    # Example for bulk upload: {
+    #     "source": "bulk_upload",
+    #     "filename": "Template_2025-11-14.xlsx",
+    #     "row_number": 5,
+    #     "batch_id": "batch-abc-123",  # Optional: group related uploads
+    #     "has_attachment": true,
+    #     "has_notes": true,
+    #     "previous_submission_date": "2024-04-05T10:30:00Z"  # For updates
+    # }
 
     # Relationship with User
     user = db.relationship('User', backref='esg_audit_logs')
@@ -317,12 +413,13 @@ class ESGDataAuditLog(db.Model):
     # Updated relationship
     esg_data = db.relationship('ESGData', back_populates='audit_logs')
 
-    def __init__(self, data_id, change_type, changed_by, old_value=None, new_value=None):
+    def __init__(self, data_id, change_type, changed_by, old_value=None, new_value=None, change_metadata=None):
         self.data_id = data_id
         self.change_type = change_type
         self.old_value = old_value
         self.new_value = new_value
         self.changed_by = changed_by
+        self.change_metadata = change_metadata
 
     def __repr__(self):
         return f'<ESGDataAuditLog {self.log_id}>'
@@ -330,9 +427,9 @@ class ESGDataAuditLog(db.Model):
 
 class ESGDataAttachment(db.Model):
     """Model for storing ESG data attachments."""
-    
+
     __tablename__ = 'esg_data_attachments'
-    
+
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     data_id = db.Column(db.String(36), db.ForeignKey('esg_data.data_id'), nullable=False)
     filename = db.Column(db.String(255), nullable=False)
@@ -341,6 +438,9 @@ class ESGDataAttachment(db.Model):
     mime_type = db.Column(db.String(127), nullable=False)
     uploaded_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
     uploaded_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    # Enhancement #4: File hash for deduplication (SHA256)
+    file_hash = db.Column(db.String(64), nullable=True, index=True)
 
     # Relationships
     esg_data = db.relationship('ESGData', back_populates='attachments')

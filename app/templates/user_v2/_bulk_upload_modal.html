@@ -1,0 +1,192 @@
+<!-- Enhancement #4: Bulk Excel Upload Modal -->
+<div id="bulk-upload-modal" class="bulk-upload-modal">
+    <div class="bulk-upload-container">
+        <!-- Header -->
+        <div class="bulk-upload-header">
+            <h2>Bulk Upload Data</h2>
+            <p>Upload multiple data entries via Excel template</p>
+            <button class="bulk-upload-close" style="position: absolute; top: 20px; right: 24px; background: none; border: none; color: white; font-size: 28px; cursor: pointer;">&times;</button>
+        </div>
+
+        <!-- Progress Steps -->
+        <div class="upload-progress-steps">
+            <div class="progress-step active">
+                <div class="progress-step-circle">1</div>
+                <div class="progress-step-label">Select Template</div>
+            </div>
+            <div class="progress-step">
+                <div class="progress-step-circle">2</div>
+                <div class="progress-step-label">Upload File</div>
+            </div>
+            <div class="progress-step">
+                <div class="progress-step-circle">3</div>
+                <div class="progress-step-label">Validate</div>
+            </div>
+            <div class="progress-step">
+                <div class="progress-step-circle">4</div>
+                <div class="progress-step-label">Attachments</div>
+            </div>
+            <div class="progress-step">
+                <div class="progress-step-circle">5</div>
+                <div class="progress-step-label">Confirm</div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="bulk-upload-content">
+            <!-- Step 1: Template Selection -->
+            <div class="upload-step active" id="step-1">
+                <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Select Template Type</h3>
+                <p style="margin: 0 0 24px 0; color: #6b7280;">Choose which assignments to include in your template</p>
+
+                <div class="filter-selection">
+                    <div class="filter-option">
+                        <label>
+                            <input type="radio" name="upload-filter" value="overdue" />
+                            Overdue Only
+                        </label>
+                        <div class="filter-description">
+                            Download template with only overdue assignments (past reporting dates)
+                        </div>
+                    </div>
+
+                    <div class="filter-option selected">
+                        <label>
+                            <input type="radio" name="upload-filter" value="pending" checked />
+                            Pending Only
+                        </label>
+                        <div class="filter-description">
+                            Download template with pending assignments (not yet submitted)
+                        </div>
+                    </div>
+
+                    <div class="filter-option">
+                        <label>
+                            <input type="radio" name="upload-filter" value="overdue_and_pending" />
+                            Overdue + Pending
+                        </label>
+                        <div class="filter-description">
+                            Download template with all outstanding assignments
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: File Upload -->
+            <div class="upload-step" id="step-2">
+                <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Upload Completed Template</h3>
+                <p style="margin: 0 0 24px 0; color: #6b7280;">Drag and drop your Excel file or click to browse</p>
+
+                <input type="file" id="bulk-file-input" accept=".xlsx,.xls,.csv" style="display: none;" />
+
+                <div id="file-drop-zone" class="file-drop-zone">
+                    <div class="upload-icon">📄</div>
+                    <h3>Drag & Drop File Here</h3>
+                    <p>or click to browse</p>
+                    <p style="margin-top: 8px; font-size: 12px;">Supported formats: .xlsx, .xls, .csv (Max 5MB)</p>
+                </div>
+
+                <div id="file-info" class="file-info">
+                    <div class="file-info-header">
+                        <div>
+                            <div id="file-name" class="file-name">template.xlsx</div>
+                            <div id="file-size" class="file-size">2.5 MB</div>
+                        </div>
+                    </div>
+                    <div class="upload-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="upload-progress-fill"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Validation Results -->
+            <div class="upload-step" id="step-3">
+                <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Validation Results</h3>
+
+                <div class="validation-summary">
+                    <div class="validation-stat success">
+                        <div class="validation-stat-label">Valid Rows</div>
+                        <div id="valid-count" class="validation-stat-value">0</div>
+                    </div>
+                    <div class="validation-stat error">
+                        <div class="validation-stat-label">Errors</div>
+                        <div id="invalid-count" class="validation-stat-value">0</div>
+                    </div>
+                    <div class="validation-stat warning">
+                        <div class="validation-stat-label">Warnings</div>
+                        <div id="warning-count" class="validation-stat-value">0</div>
+                    </div>
+                    <div class="validation-stat">
+                        <div class="validation-stat-label">Overwrites</div>
+                        <div id="overwrite-count" class="validation-stat-value">0</div>
+                    </div>
+                </div>
+
+                <div id="overwrite-warning" class="overwrite-warning" style="display: none;">
+                    <h4>⚠️ Some data will be overwritten</h4>
+                    <p>This upload will overwrite existing data entries. Previous values will be replaced with new values from your upload.</p>
+                </div>
+
+                <div class="validation-issues">
+                    <!-- Errors -->
+                    <div id="error-section" class="issue-section" style="display: none;">
+                        <h4>Errors (Must Fix)</h4>
+                        <div id="error-list" class="issue-list"></div>
+                    </div>
+
+                    <!-- Warnings -->
+                    <div id="warning-section" class="issue-section" style="display: none;">
+                        <h4>Warnings (Review Recommended)</h4>
+                        <div id="warning-list" class="issue-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Attachments (Simplified - Skip for MVP) -->
+            <div class="upload-step" id="step-4">
+                <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Attachments (Optional)</h3>
+                <p style="margin: 0 0 24px 0; color: #6b7280;">Attachment upload will be available after submission. You can add files to individual data points from the dashboard.</p>
+            </div>
+
+            <!-- Step 5: Confirmation & Success -->
+            <div class="upload-step" id="step-5">
+                <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Confirm Submission</h3>
+
+                <div class="submission-summary">
+                    <div class="summary-row">
+                        <div class="summary-label">New Entries:</div>
+                        <div id="confirm-new-count" class="summary-value">0</div>
+                    </div>
+                    <div class="summary-row">
+                        <div class="summary-label">Updates:</div>
+                        <div id="confirm-update-count" class="summary-value">0</div>
+                    </div>
+                    <div class="summary-row">
+                        <div class="summary-label">Total:</div>
+                        <div id="confirm-total-count" class="summary-value success">0</div>
+                    </div>
+                </div>
+
+                <div id="success-step"></div>
+            </div>
+
+            <!-- Loading Overlay -->
+            <div id="loading-overlay" class="loading-overlay" style="display: none;">
+                <div class="loading-spinner"></div>
+                <div id="loading-text" class="loading-text">Processing...</div>
+            </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="bulk-upload-footer">
+            <button id="btn-cancel" class="btn-bulk btn-bulk-secondary">Cancel</button>
+            <div class="footer-actions">
+                <button id="btn-prev" class="btn-bulk btn-bulk-secondary" style="display: none;">Previous</button>
+                <button id="btn-next" class="btn-bulk btn-bulk-primary">Download Template</button>
+                <button id="btn-submit" class="btn-bulk btn-bulk-primary" style="display: none;">Submit Data</button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -125,7 +125,7 @@ class AutoSaveHandler {
     }
 
     /**
-     * Save draft to server and localStorage
+     * Save draft to localStorage only
      */
     async saveDraft() {
         if (this.isSaving || !this.isDirty) return;
@@ -137,38 +137,18 @@ class AutoSaveHandler {
             // Get current form data
             const formData = this.getFormData();
 
-            // Save to localStorage first (immediate backup)
+            // Save to localStorage
             this.saveToLocalStorage(formData);
 
-            // Save to server
-            const response = await fetch(`${this.apiEndpoint}/save-draft`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    field_id: this.fieldId,
-                    entity_id: this.entityId,
-                    reporting_date: this.reportingDate,
-                    form_data: formData
-                })
-            });
+            this.lastSaveTimestamp = new Date();
+            this.isDirty = false;
 
-            const result = await response.json();
+            this.updateStatus('saved', `Saved at ${this.formatTime(this.lastSaveTimestamp)}`);
+            this.onSaveSuccess({ success: true, timestamp: this.lastSaveTimestamp });
 
-            if (result.success) {
-                this.draftId = result.draft_id;
-                this.lastSaveTimestamp = new Date(result.timestamp);
-                this.isDirty = false;
-
-                this.updateStatus('saved', `Saved at ${this.formatTime(this.lastSaveTimestamp)}`);
-                this.onSaveSuccess(result);
-            } else {
-                throw new Error(result.message || 'Failed to save draft');
-            }
         } catch (error) {
             console.error('Error saving draft:', error);
-            this.updateStatus('error', 'Auto-save failed (saved locally)');
+            this.updateStatus('error', 'Auto-save failed');
             this.onSaveError(error);
         } finally {
             this.isSaving = false;
@@ -201,24 +181,10 @@ class AutoSaveHandler {
     }
 
     /**
-     * Check for existing draft (from server or localStorage)
+     * Check for existing draft from localStorage
      */
     async checkForDraft() {
         try {
-            // Check server first
-            const response = await fetch(
-                `${this.apiEndpoint}/get-draft/${this.fieldId}?entity_id=${this.entityId}&reporting_date=${this.reportingDate}`
-            );
-
-            const result = await response.json();
-
-            if (result.has_draft) {
-                // Found server draft
-                this.showDraftRestorePrompt(result.draft_data, 'server', result.timestamp);
-                this.draftId = result.draft_id;
-                return;
-            }
-
             // Check localStorage
             const localDraft = this.getFromLocalStorage();
             if (localDraft) {
@@ -226,12 +192,6 @@ class AutoSaveHandler {
             }
         } catch (error) {
             console.error('Error checking for draft:', error);
-
-            // Fallback to localStorage
-            const localDraft = this.getFromLocalStorage();
-            if (localDraft) {
-                this.showDraftRestorePrompt(localDraft.formData, 'local', localDraft.timestamp);
-            }
         }
     }
 
@@ -449,6 +409,31 @@ class AutoSaveHandler {
 
         this.isDirty = true;
         return this.saveDraft();
+    }
+
+    /**
+     * Update reporting date and migrate localStorage key
+     * Used when date is selected after modal opens
+     * @param {string} newDate - New reporting date (YYYY-MM-DD)
+     */
+    updateReportingDate(newDate) {
+        if (!newDate) {
+            console.warn('AutoSaveHandler.updateReportingDate: Invalid date provided');
+            return;
+        }
+
+        const oldKey = this.localStorageKey;
+
+        // Update reporting date
+        this.reportingDate = newDate;
+        this.localStorageKey = `draft_${this.fieldId}_${this.entityId}_${this.reportingDate}`;
+
+        console.log(`Auto-save: Updated date from ${oldKey} to ${this.localStorageKey}`);
+
+        // If there was data in memory with undefined date, save it now with proper date
+        if (this.isDirty) {
+            this.forceSave();
+        }
     }
 }
 

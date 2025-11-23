@@ -566,3 +566,61 @@ td.keyboard-selected {
         border-color: #444;
     }
 }
+
+/* ===================================================================
+   Historical Data Pagination
+   =================================================================== */
+
+.historical-data .load-more-btn {
+    margin-top: 15px;
+    min-width: 120px;
+}
+
+.historical-data .load-more-btn i {
+    margin-left: 5px;
+}
+
+.historical-data h5 {
+    margin-bottom: 15px;
+    font-weight: 600;
+    color: #495057;
+}
+
+/* ===================================================================
+   Historical Data Export Buttons
+   =================================================================== */
+
+.historical-data .export-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.historical-data .export-buttons button {
+    font-size: 0.875rem;
+    padding: 6px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.historical-data .export-buttons button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.historical-data .export-buttons button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.historical-data .export-buttons button i {
+    font-size: 1rem;
+}
+
+.historical-data .export-buttons .spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.15em;
+}

@@ -43,11 +43,8 @@ def toggle_interface():
             f'User {current_user.id} toggled interface to {"new" if new_preference else "old"}'
         )
 
-        # Determine redirect URL based on preference
-        if new_preference:
-            redirect_url = url_for('user_v2.dashboard')
-        else:
-            redirect_url = url_for('user.dashboard')
+        # Always redirect to V2 dashboard (legacy dashboard removed)
+        redirect_url = url_for('user_v2.dashboard')
 
         return jsonify({
             'success': True,

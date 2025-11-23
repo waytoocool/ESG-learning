@@ -216,3 +216,39 @@ class FiscalYearService:
             quarters.append((quarter_start, quarter_end))
         
         return quarters
+
+    @staticmethod
+    def calculate_due_date(reporting_date: date, company: Company) -> date:
+        """
+        Calculate the due date for a reporting period based on company settings.
+
+        Args:
+            reporting_date (date): The reporting period end date
+            company (Company): The company with due_days configuration
+
+        Returns:
+            date: The due date (reporting_date + data_due_days)
+        """
+        from datetime import timedelta
+
+        due_days = getattr(company, 'data_due_days', 10)  # Default to 10 if not set
+        return reporting_date + timedelta(days=due_days)
+
+    @staticmethod
+    def is_overdue(reporting_date: date, company: Company, today: Optional[date] = None) -> bool:
+        """
+        Check if a reporting period is overdue based on company settings.
+
+        Args:
+            reporting_date (date): The reporting period end date
+            company (Company): The company with due_days configuration
+            today (date, optional): Date to check against (defaults to today)
+
+        Returns:
+            bool: True if the reporting period is overdue
+        """
+        if today is None:
+            today = date.today()
+
+        due_date = FiscalYearService.calculate_due_date(reporting_date, company)
+        return today > due_date

@@ -50,6 +50,14 @@ class Config:
     # Ensure upload directory exists
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+    # Enhancement #4: Bulk Excel Upload Configuration
+    BULK_UPLOAD_MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB for Excel file
+    BULK_UPLOAD_MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024  # 20MB per attachment (reuses MAX_CONTENT_LENGTH)
+    BULK_UPLOAD_MAX_TOTAL_SIZE = 200 * 1024 * 1024  # 200MB total per batch
+    BULK_UPLOAD_MAX_ROWS = 1000  # Maximum rows per upload
+    BULK_UPLOAD_ALLOWED_FORMATS = {'.xlsx', '.xls', '.csv'}  # Allowed file formats
+    BULK_UPLOAD_SESSION_TIMEOUT = 30 * 60  # 30 minutes session timeout
+
     # Phase 0: Feature Flags for User Dashboard Enhancements
     # Global kill switch - can disable new interface entirely
     FEATURE_NEW_DATA_ENTRY_ENABLED = os.environ.get('FEATURE_NEW_DATA_ENTRY_ENABLED', 'True').lower() == 'true'
