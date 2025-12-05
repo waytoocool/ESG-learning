@@ -35,15 +35,67 @@ jobs:
       - name: Install Node.js dependencies
         run: npm install
 
+      # Install Playwright and browsers for MCP
+      - name: Install Playwright Browsers
+        run: |
+          npx playwright install --with-deps chromium
+          echo "Playwright browsers installed"
+
+      # Create necessary directories
+      - name: Create working directories
+        run: |
+          mkdir -p test-reports
+          mkdir -p screenshots
+          mkdir -p instance
+          mkdir -p .playwright-mcp
+
+      # Ensure database exists
+      - name: Check database
+        run: |
+          if [ ! -f instance/esg_data.db ]; then
+            echo "Database file not found, will be created by Flask"
+          else
+            echo "Database exists"
+          fi
+
       - name: Start Flask Application
         run: |
+          DATABASE_URL="sqlite:///instance/esg_data.db" \
+          SECRET_KEY="${{ secrets.SECRET_KEY || 'test-secret-key-for-ci' }}" \
+          FLASK_ENV=development \
           python3 run.py &
-          sleep 10
-          echo "Flask app started"
-        env:
-          DATABASE_URL: sqlite:///instance/esg_data.db
-          SECRET_KEY: ${{ secrets.SECRET_KEY || 'test-secret-key-for-ci' }}
-          FLASK_ENV: development
+          
+          FLASK_PID=$!
+          echo "FLASK_PID=$FLASK_PID" >> $GITHUB_ENV
+          
+          # Wait for Flask to be ready
+          echo "Waiting for Flask to start..."
+          for i in {1..30}; do
+            if curl -s http://127.0.0.1:8000 > /dev/null 2>&1; then
+              echo "Flask app started successfully"
+              exit 0
+            fi
+            echo "Attempt $i/30: Flask not ready yet..."
+            sleep 2
+          done
+          
+          echo "Flask failed to start within timeout"
+          exit 1
+
+      - name: Verify Flask is running
+        run: |
+          curl -f http://127.0.0.1:8000 || (echo "Flask not responding" && exit 1)
+
+      # Start MCP server in background
+      - name: Start MCP Server
+        run: |
+          npm run mcp:start &
+          MCP_PID=$!
+          echo "MCP_PID=$MCP_PID" >> $GITHUB_ENV
+          
+          # Give MCP server time to start
+          sleep 5
+          echo "MCP server started with PID $MCP_PID"
 
       - name: Run Claude Code Issue Validation
         id: claude-validation
@@ -58,50 +110,146 @@ jobs:
 
             You are the Issue Validation Agent for the ESG DataVault application.
 
-            IMPORTANT: A live Flask application is running at http://127-0-0-1.nip.io:8000
+            IMPORTANT: A live Flask application is running at http://127.0.0.1:8000
+            IMPORTANT: Playwright MCP server is running and ready for UI testing
 
-            Test environments available:
-            - Super Admin: http://127-0-0-1.nip.io:8000/login (admin@yourdomain.com / changeme)
-            - Test Company Alpha Admin: http://test-company-alpha.127-0-0-1.nip.io:8000/
-            - Test Company Beta Admin: http://test-company-beta.127-0-0-1.nip.io:8000/
-            - Test Company Gamma Admin: http://test-company-gamma.127-0-0-1.nip.io:8000/
+            Available test credentials (from seed data):
+            - Super Admin: admin@yourdomain.com / changeme
+            - Test Company Alpha Admin: alice@alpha.com / admin123
+            - Test Company Beta Admin: bob@beta.com / admin123
+            - Test Company Gamma Admin: carol@gamma.com / admin123
+
+            Test URLs:
+            - Super Admin: http://127.0.0.1:8000/login
+            - Test Company Alpha: http://test-company-alpha.127-0-0-1.nip.io:8000/
+            - Test Company Beta: http://test-company-beta.127-0-0-1.nip.io:8000/
+            - Test Company Gamma: http://test-company-gamma.127-0-0-1.nip.io:8000/
 
             Your task is to:
             1. Analyze the reported issue thoroughly
             2. Determine if it's a bug report, feature request, or question
-            3. **For bug reports: MUST test against the LIVE environment using ui-testing-agent**
+            3. **For bug reports: Use BOTH code analysis AND ui-testing-agent to validate**
             4. Assess the criticality: CRITICAL / HIGH / MEDIUM / LOW
             5. Identify affected components and potential impact
-            6. Suggest initial troubleshooting steps or validation tests
+            6. Provide evidence (screenshots, logs, code analysis)
 
-            Testing Instructions:
-            - Start MCP server with: npm run mcp:start
-            - Use the ui-testing-agent (via Task tool) to reproduce the issue on the live environment
-            - Navigate to the affected page/component mentioned in the issue
-            - Attempt to reproduce the exact steps described in the issue
-            - Capture screenshots of the issue if reproduced
-            - Document your testing process in your analysis
+            ## Testing Workflow
+
+            ### Step 1: Code Analysis (Always start here)
+            - Use Read, Grep, Glob tools to examine the codebase
+            - Trace the issue through: frontend → routes → services → models
+            - Identify specific files and line numbers involved
+            - Check API endpoints, database queries, and data models
+
+            ### Step 2: UI Testing (For bug reports with user-facing issues)
+            - Use Task tool with subagent_type="ui-testing-agent"
+            - Navigate to the affected page
+            - Reproduce the exact steps described in the issue
+            - Capture screenshots showing the issue
+            - Check browser console for errors
+            - Monitor network requests and API responses
+
+            ### Step 3: Database Verification (If data-related)
+            - Query database: python3 -c "import sqlite3; conn = sqlite3.connect('instance/esg_data.db'); ..."
+            - Verify data exists and is in expected format
+
+            ### Step 4: API Testing (If backend-related)
+            - Test endpoints: curl -X GET http://127.0.0.1:8000/api/endpoint
+            - Verify response codes and data structure
+
+            ## Example UI Testing with Playwright MCP
+
+            ```javascript
+            // Use the Task tool like this:
+            Task({
+              subagent_type: "ui-testing-agent",
+              description: "Reproduce issue XYZ",
+              prompt: `
+                Test the reported issue step by step:
+                
+                1. Navigate to http://127.0.0.1:8000/login
+                2. Login as alice@alpha.com / admin123
+                3. Navigate to the affected page: /admin/assign-data-points
+                4. Perform the action that triggers the bug
+                5. Take screenshots showing:
+                   - The initial state
+                   - The action being performed
+                   - The error or unexpected behavior
+                   - Browser console errors
+                6. Save screenshots to: screenshots/issue-${{ github.event.issue.number }}/
+                
+                Provide a detailed report of what you observed.
+              `
+            })
+            ```
+
+            ## Analysis Output Format
 
             Based on your analysis, provide:
             - **Issue Type**: [Bug/Feature/Question/Documentation]
             - **Criticality**: [Critical/High/Medium/Low]
             - **Reproducibility**: [Confirmed/Cannot Reproduce/Needs More Info]
+            - **Root Cause**: Technical explanation with code locations
             - **Affected Area**: [Component/Module names]
             - **Impact Assessment**: Brief description
-            - **Testing Evidence**: Screenshots or test results
-            - **Recommended Action**: Next steps
+            - **Testing Evidence**: 
+              - Code analysis findings (file:line references)
+              - Screenshots (if UI tested)
+              - Console errors (if any)
+              - API responses (if tested)
+            - **Recommended Fix**: Specific solution with code suggestions
 
-            **CRITICAL BUG PROTOCOL**:
+            ## CRITICAL BUG PROTOCOL
+
             If you determine this is a CRITICAL bug:
-            1. Add a "🚨 CRITICAL" label to the issue using `gh issue edit`
-            2. Set output variable `critical_bug=true` for email notification
-            3. Include detailed reproduction steps and impact assessment in your comment
+            1. Add "critical" label: `gh issue edit ${{ github.event.issue.number }} --add-label "critical"`
+            2. Include:
+               - Detailed root cause with code references
+               - Screenshots showing the critical failure
+               - Immediate mitigation steps
+               - Security implications (if any)
+            3. Set output: `echo "critical_bug=true" >> $GITHUB_OUTPUT`
 
-            After your analysis, use `gh issue comment` to post your findings on issue #${{ github.event.issue.number }}.
+            ## Important Notes
 
-            Format your comment professionally with clear sections and markdown formatting.
+            - Save all screenshots to: screenshots/issue-${{ github.event.issue.number }}/
+            - Save test reports to: test-reports/
+            - Use headless browser mode (already configured in CI)
+            - The MCP server is running in background
+            - Focus on reproducing the EXACT issue reported
 
-          claude_args: '--allowed-tools "Bash(npm run mcp:*),Bash(gh issue comment:*),Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh issue label:*),Bash(python3:*),Bash(node:*),Bash(pkill:*),Task(*)"'
+            After your complete analysis (code + UI testing), use `gh issue comment` to post findings.
+            Format professionally with clear sections, code blocks, and screenshot references.
+
+          # Tool permissions for code analysis + UI testing
+          claude_args: '--allowed-tools "Bash(curl *),Bash(python3 *),Bash(sqlite3 *),Bash(gh issue *),Bash(cat *),Bash(grep *),Bash(find *),Bash(ls *),Bash(head *),Bash(tail *),Bash(mkdir *),Read(*),Write(test-reports/*),Write(screenshots/*),Grep(*),Glob(*),Task(*)"'
+
+      - name: Stop MCP Server
+        if: always()
+        run: |
+          if [ ! -z "$MCP_PID" ]; then
+            kill $MCP_PID || true
+          fi
+          pkill -f "mcp:start" || true
+
+      - name: Stop Flask Application
+        if: always()
+        run: |
+          if [ ! -z "$FLASK_PID" ]; then
+            kill $FLASK_PID || true
+          fi
+          pkill -f "python3 run.py" || true
+
+      - name: Upload Test Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-artifacts-${{ github.event.issue.number }}
+          path: |
+            test-reports/
+            screenshots/
+            *.log
+          retention-days: 30
 
       - name: Send Critical Bug Email Notification
         if: steps.claude-validation.outputs.critical_bug == 'true'
@@ -121,9 +269,10 @@ jobs:
             Reporter: @${{ github.event.issue.user.login }}
 
             View Issue: ${{ github.event.issue.html_url }}
+            View Validation Artifacts: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-            The issue has been automatically validated by Claude Code.
-            Please review the issue and validation report immediately.
+            The issue has been automatically validated by Claude Code with UI testing.
+            Please review the issue, validation report, and screenshots immediately.
 
             ---
             This is an automated notification from ESG DataVault CI/CD
