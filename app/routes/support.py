@@ -80,7 +80,11 @@ def save_screenshot(base64_data, ticket_number):
 
         # Create uploads directory if it doesn't exist
         upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'screenshots')
-        os.makedirs(upload_dir, exist_ok=True)
+        try:
+            os.makedirs(upload_dir, exist_ok=True)
+        except OSError as e:
+            # Handle read-only filesystem (e.g., serverless environments)
+            raise ValueError(f"Cannot create upload directory (read-only filesystem): {str(e)}")
 
         # Generate unique filename
         file_id = str(uuid.uuid4())[:8]
@@ -488,7 +492,14 @@ def upload_screenshot():
 
         # Create uploads directory if it doesn't exist
         upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'screenshots')
-        os.makedirs(upload_dir, exist_ok=True)
+        try:
+            os.makedirs(upload_dir, exist_ok=True)
+        except OSError as e:
+            # Handle read-only filesystem (e.g., serverless environments)
+            return jsonify({
+                'success': False,
+                'error': f'Cannot create upload directory (read-only filesystem): {str(e)}'
+            }), 503
 
         # Generate unique filename
         file_id = str(uuid.uuid4())[:8]

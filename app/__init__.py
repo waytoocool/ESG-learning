@@ -19,6 +19,23 @@ def create_app(config_object=DevelopmentConfig):
     # Load configuration
     app.config.from_object(config_object)
 
+    # Ensure upload directory exists (with error handling for serverless environments)
+    # Skip in serverless environments like Vercel where filesystem is read-only
+    upload_folder = app.config.get('UPLOAD_FOLDER')
+    if upload_folder:
+        try:
+            # Check if we're in a serverless environment (Vercel sets VERCEL env var)
+            is_serverless = os.environ.get('VERCEL') == '1' or os.environ.get('LAMBDA_TASK_ROOT') or '/var/task' in os.path.abspath(__file__)
+            if not is_serverless:
+                os.makedirs(upload_folder, exist_ok=True)
+                app.logger.info(f"Upload directory ensured: {upload_folder}")
+            else:
+                app.logger.warning(f"Skipping upload directory creation in serverless environment: {upload_folder}")
+        except OSError as e:
+            # Handle read-only filesystem gracefully
+            app.logger.warning(f"Could not create upload directory (read-only filesystem?): {str(e)}")
+            app.logger.warning("File uploads may not work in this environment. Consider using cloud storage.")
+
     # Initialize utility helpers
     init_url_versioning(app)
     init_caching(app)

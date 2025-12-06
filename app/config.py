@@ -47,8 +47,7 @@ class Config:
         'ppt', 'pptx'
     }
     
-    # Ensure upload directory exists
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    # Note: Directory creation moved to app initialization to handle serverless environments
 
     # Enhancement #4: Bulk Excel Upload Configuration
     BULK_UPLOAD_MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB for Excel file

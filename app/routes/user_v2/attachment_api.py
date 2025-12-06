@@ -129,11 +129,24 @@ def upload_attachment():
             str(current_user.company_id),
             str(esg_data.entity_id)
         )
-        os.makedirs(company_dir, exist_ok=True)
+        try:
+            os.makedirs(company_dir, exist_ok=True)
+        except OSError as e:
+            # Handle read-only filesystem (e.g., serverless environments)
+            return jsonify({
+                'success': False,
+                'error': 'File upload not available in this environment. Please use cloud storage.'
+            }), 503
 
         # Save file
         file_path = os.path.join(company_dir, unique_filename)
-        file.save(file_path)
+        try:
+            file.save(file_path)
+        except (OSError, IOError) as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to save file: {str(e)}'
+            }), 500
 
         # Create attachment record
         attachment = ESGDataAttachment(

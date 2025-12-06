@@ -194,7 +194,12 @@ class BulkSubmissionService:
             else:
                 # Save new file
                 upload_folder = current_app.config['UPLOAD_FOLDER']
-                os.makedirs(upload_folder, exist_ok=True)
+                try:
+                    os.makedirs(upload_folder, exist_ok=True)
+                except OSError as e:
+                    # Handle read-only filesystem (e.g., serverless environments)
+                    current_app.logger.error(f"Cannot create upload directory (read-only filesystem): {str(e)}")
+                    raise
 
                 # Generate unique filename
                 timestamp = datetime.now(UTC).strftime('%Y%m%d_%H%M%S')
