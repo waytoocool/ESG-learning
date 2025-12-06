@@ -1,0 +1,85 @@
+# Exclude large directories that shouldn't be deployed
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Exclude development and test files
+test-folder/
+tests/
+test_*.py
+*_test.py
+comprehensive_*.py
+quick_*.py
+debug_*.html
+
+# Exclude documentation and old implementations
+Claude Development Team/
+Old Documentation/
+docs/
+*.md
+!README.md
+
+# Exclude database files and backups
+instance/
+*.db
+*.sqlite
+*.sqlite3
+*.db.backup*
+esg_data_backup.json
+
+# Exclude uploads and user-generated content
+uploads/
+test_results/
+*.xlsx
+*.csv
+*.pdf
+quick_test_*.xlsx
+assignments_export_*.csv
+
+# Exclude backup directories
+backups/
+
+# Exclude environment and config files
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Exclude build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Exclude IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Exclude OS files
+.DS_Store
+Thumbs.db
+
+# Exclude logs
+*.log
+npm-debug.log*
+
+# Exclude cookies and temporary files
+cookies.txt
+
+# Exclude Playwright and testing artifacts
+playwright-report/
+playwright/.cache/
+test-results/
+
+# Exclude package manager files (not needed for Python deployment)
+package.json
+package-lock.json
+playwright.config.js
+playwright.mcp.config.js
+
