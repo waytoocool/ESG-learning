@@ -51,19 +51,22 @@ def allowed_file(filename):
 
 def save_screenshot(base64_data, ticket_number):
     """
-    Save base64-encoded screenshot to file.
+    Save base64-encoded screenshot to S3.
 
     Args:
         base64_data (str): Base64 encoded image data (with or without data URI prefix)
         ticket_number (str): Ticket number for filename
 
     Returns:
-        str: Relative file path where screenshot was saved
+        str: Storage key/path
 
     Raises:
         ValueError: If base64 data is invalid or file size exceeds limit
     """
     try:
+        from io import BytesIO
+        from app.services.s3_service import get_s3_service
+        
         # Remove data URI prefix if present
         if ',' in base64_data:
             base64_data = base64_data.split(',', 1)[1]
@@ -77,26 +80,22 @@ def save_screenshot(base64_data, ticket_number):
                 f"Screenshot size ({len(image_data) / 1024 / 1024:.2f}MB) "
                 f"exceeds maximum allowed size ({MAX_SCREENSHOT_SIZE_MB}MB)"
             )
+            
+        file_io = BytesIO(image_data)
 
-        # Create uploads directory if it doesn't exist
-        upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'screenshots')
-        try:
-            os.makedirs(upload_dir, exist_ok=True)
-        except OSError as e:
-            # Handle read-only filesystem (e.g., serverless environments)
-            raise ValueError(f"Cannot create upload directory (read-only filesystem): {str(e)}")
-
-        # Generate unique filename
+        # Generate unique filename/key
         file_id = str(uuid.uuid4())[:8]
         filename = f"{ticket_number}_{file_id}.png"
-        filepath = os.path.join(upload_dir, filename)
+        
+        # S3 key format: screenshots/BUG-YYYY-XXXX_abcdef.png
+        key = f"screenshots/{filename}"
 
-        # Save file
-        with open(filepath, 'wb') as f:
-            f.write(image_data)
+        # Upload using service
+        s3 = get_s3_service()
+        s3.upload_file(file_io, key, content_type='image/png')
 
-        # Return relative path
-        return os.path.join('screenshots', filename)
+        # Return key (matches what we stored essentially)
+        return key
 
     except Exception as e:
         current_app.logger.error(f"Failed to save screenshot: {str(e)}")
@@ -490,33 +489,26 @@ def upload_screenshot():
                         f'allowed size ({MAX_SCREENSHOT_SIZE_MB}MB)'
             }), 413
 
-        # Create uploads directory if it doesn't exist
-        upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'screenshots')
-        try:
-            os.makedirs(upload_dir, exist_ok=True)
-        except OSError as e:
-            # Handle read-only filesystem (e.g., serverless environments)
-            return jsonify({
-                'success': False,
-                'error': f'Cannot create upload directory (read-only filesystem): {str(e)}'
-            }), 503
-
         # Generate unique filename
         file_id = str(uuid.uuid4())[:8]
         extension = file.filename.rsplit('.', 1)[1].lower()
         filename = f"temp_{file_id}.{extension}"
-        filepath = os.path.join(upload_dir, filename)
+        
+        # S3 key
+        key = f"screenshots/{filename}"
 
-        # Save file
-        file.save(filepath)
+        # Upload using service
+        from app.services.s3_service import get_s3_service
+        s3 = get_s3_service()
+        s3.upload_file(file, key, content_type=file.content_type)
 
         current_app.logger.info(
             f"Screenshot uploaded by user {current_user.id}: {filename} "
             f"({file_size / 1024:.2f}KB)"
         )
 
-        # Return relative path
-        relative_path = os.path.join('screenshots', filename)
+        # Return path (key)
+        relative_path = key
 
         return jsonify({
             'success': True,

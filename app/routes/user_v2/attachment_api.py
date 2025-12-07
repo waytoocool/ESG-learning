@@ -121,38 +121,27 @@ def upload_attachment():
         file_extension = original_filename.rsplit('.', 1)[1].lower()
         unique_filename = f"{uuid.uuid4()}_{original_filename}"
 
-        # Create multi-tenant directory structure
+        # Create multi-tenant directory structure (as S3 key)
         # uploads/{company_id}/{entity_id}/
-        upload_base = current_app.config.get('UPLOAD_FOLDER', 'uploads')
-        company_dir = os.path.join(
-            upload_base,
-            str(current_user.company_id),
-            str(esg_data.entity_id)
-        )
-        try:
-            os.makedirs(company_dir, exist_ok=True)
-        except OSError as e:
-            # Handle read-only filesystem (e.g., serverless environments)
-            return jsonify({
-                'success': False,
-                'error': 'File upload not available in this environment. Please use cloud storage.'
-            }), 503
-
-        # Save file
-        file_path = os.path.join(company_dir, unique_filename)
-        try:
-            file.save(file_path)
-        except (OSError, IOError) as e:
-            return jsonify({
-                'success': False,
-                'error': f'Failed to save file: {str(e)}'
-            }), 500
-
+        # Keep consistent structure for S3 logical paths
+        company_dir_key = f"{current_user.company_id}/{esg_data.entity_id}"
+        
+        # Save file using S3 Service
+        from app.services.s3_service import get_s3_service
+        s3_service = get_s3_service()
+        
+        # Prepare object key
+        file_key = f"{company_dir_key}/{unique_filename}"
+        
+        # Upload
+        s3_service.upload_file(file, file_key, content_type=file.content_type)
+        
         # Create attachment record
+        # Note: file_path now stores the S3 key (or relative local path)
         attachment = ESGDataAttachment(
             data_id=data_id,
             filename=original_filename,
-            file_path=file_path,
+            file_path=file_key,  # Store the key
             file_size=file_size,
             mime_type=file.content_type or 'application/octet-stream',
             uploaded_by=current_user.id
@@ -285,10 +274,13 @@ def delete_attachment(attachment_id):
                 'error': 'Permission denied'
             }), 403
 
-        # Delete file from filesystem
-        if os.path.exists(attachment.file_path):
-            os.remove(attachment.file_path)
-            logger.info(f"[Delete] File removed from filesystem: {attachment.file_path}")
+        # Delete file from storage (S3 or local)
+        from app.services.s3_service import get_s3_service
+        s3_service = get_s3_service()
+        
+        # Try to delete using the stored path as key
+        s3_service.delete_file(attachment.file_path)
+        logger.info(f"[Delete] File storage cleanup requested for: {attachment.file_path}")
 
         # Delete database record
         db.session.delete(attachment)
@@ -346,20 +338,25 @@ def download_attachment(attachment_id):
                 'error': 'Permission denied'
             }), 403
 
-        # Check if file exists
-        if not os.path.exists(attachment.file_path):
-            return jsonify({
-                'success': False,
-                'error': 'File not found on server'
-            }), 404
-
-        # Send file
-        return send_file(
-            attachment.file_path,
-            as_attachment=True,
-            download_name=attachment.filename,
-            mimetype=attachment.mime_type
-        )
+        # Get file from S3 service
+        from app.services.s3_service import get_s3_service
+        s3_service = get_s3_service()
+        
+        try:
+            file_body = s3_service.download_file(attachment.file_path)
+            
+            return send_file(
+                file_body,
+                as_attachment=True,
+                download_name=attachment.filename,
+                mimetype=attachment.mime_type
+            )
+        except Exception as e:
+             logger.error(f"[Download] Storage Error: {str(e)}")
+             return jsonify({
+                 'success': False,
+                 'error': 'File not found / Retrieval failed'
+             }), 404
 
     except Exception as e:
         logger.error(f"[Download] Error: {str(e)}", exc_info=True)

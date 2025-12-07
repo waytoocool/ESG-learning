@@ -193,21 +193,22 @@ class BulkSubmissionService:
                 file_path = existing_attachment.file_path
             else:
                 # Save new file
-                upload_folder = current_app.config['UPLOAD_FOLDER']
-                try:
-                    os.makedirs(upload_folder, exist_ok=True)
-                except OSError as e:
-                    # Handle read-only filesystem (e.g., serverless environments)
-                    current_app.logger.error(f"Cannot create upload directory (read-only filesystem): {str(e)}")
-                    raise
-
-                # Generate unique filename
+                # Generate unique filename/key
                 timestamp = datetime.now(UTC).strftime('%Y%m%d_%H%M%S')
                 unique_filename = f"{timestamp}_{file_hash[:8]}_{file_data.filename}"
-                file_path = os.path.join(upload_folder, unique_filename)
-
-                # Save file
-                file_data.save(file_path)
+                
+                # S3 Key Structure: uploads/bulk_attachments/{unique_filename}
+                # Since we don't know the exact entity yet or multiple might share it, 
+                # we can use a shared bucket folder or simple path. 
+                # However, to be consistent with main uploads, we typically want organization.
+                # But here we are processing potentially many. Let's stick to a 'bulk' or 'attachments' prefix.
+                # Or better, replicate the user_id context if needed. 
+                # Let's use a flat structure for deduplicated attachments:
+                file_path = f"bulk_attachments/{unique_filename}"
+                
+                from app.services.s3_service import get_s3_service
+                s3 = get_s3_service()
+                s3.upload_file(file_data, file_path, content_type=file_data.content_type)
 
             # Create attachment record (always create new, even if file reused)
             attachment = ESGDataAttachment(

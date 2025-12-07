@@ -32,7 +32,7 @@ class Config:
     REDIS_ENABLED = os.environ.get('REDIS_ENABLED', 'False').lower() == 'true'
 
     # File Upload Configuration
-    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
+    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads'))
     MAX_CONTENT_LENGTH = 20 * 1024 * 1024  # 20MB max file size
     ALLOWED_EXTENSIONS = {
         # Documents
@@ -47,7 +47,14 @@ class Config:
         'ppt', 'pptx'
     }
     
-    # Note: Directory creation moved to app initialization to handle serverless environments
+    # AWS S3 Configuration
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
+    AWS_S3_BUCKET_NAME = os.environ.get('AWS_S3_BUCKET_NAME')
+    
+    # Ensure upload directory exists (only if used locally and writable)
+    # os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # <-- REMOVED for Read-only FS compatibility
 
     # Enhancement #4: Bulk Excel Upload Configuration
     BULK_UPLOAD_MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB for Excel file
