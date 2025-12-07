@@ -1,20 +1,17 @@
 #// ./requirements.txt
 # To install all libraries use pip install -r requirements.txt
 pandas
-plotly
 Flask
 Flask-SQLAlchemy
 Flask-Login
 Werkzeug
 flask_mail
 itsdangerous
-hypercorn
 redis>=4.0.0
 python-dotenv
 python-dateutil
-psutil
 PyGithub==2.1.1
-Pillow==10.1.0
+Pillow>=10.2.0
 openpyxl>=3.1.0
 python-magic>=0.4.27
 boto3>=1.34.0
