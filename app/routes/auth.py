@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, session
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 from ..models.user import User
@@ -19,7 +19,7 @@ def login():
     if request.method == 'POST':
         # DEBUG LOGGING for Production Login Issue
         print(f"DEBUG: Login attempting on Host: {request.host}, Scheme: {request.scheme}")
-        print(f"DEBUG: Computed Session Cookie Domain: {app.config.get('SESSION_COOKIE_DOMAIN')}")
+        print(f"DEBUG: Computed Session Cookie Domain: {current_app.config.get('SESSION_COOKIE_DOMAIN')}")
         print(f"DEBUG: Headers: {dict(request.headers)}")
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         email = request.form['email'].lower().strip() if request.form['email'] else ''
