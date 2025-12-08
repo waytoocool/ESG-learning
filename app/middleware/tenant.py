@@ -62,12 +62,19 @@ def load_tenant():
             subdomain = parts[0]
         # proceed with normal flow below using updated subdomain
     else:
+        # Extract host parts once to support apex domains gracefully
+        parts = host.split('.')
+        # Handle apex/root domains like esgdatavault.online by allowing them as non-tenant hosts
+        if len(parts) == 2:  # e.g., example.com
+            g.tenant = None
+            return
         # Extract subdomain (first part before first dot)
-        subdomain = host.split('.')[0]
+        subdomain = parts[0]
 
     # Handle root domain, localhost access, and nip.io development URLs
     # Allow non-tenant access for marketing pages, admin panels, etc.
-    if subdomain in ("localhost", "127", "127-0-0-1") or re.fullmatch(r"\d+-\d+-\d+-\d+", subdomain):
+    # Treat common root-domain prefixes as non-tenant hosts (e.g., www.esgdatavault.online)
+    if subdomain in ("localhost", "127", "127-0-0-1", "www") or re.fullmatch(r"\d+-\d+-\d+-\d+", subdomain):
         g.tenant = None
         return
     
