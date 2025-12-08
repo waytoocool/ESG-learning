@@ -30,7 +30,11 @@ def create_app(config_object=DevelopmentConfig):
     mail.init_app(app)
 
     # Initialize ProxyFix
-    app.wsgi_app = ProxyFix(app.wsgi_app)
+    # Initialize ProxyFix for Vercel
+    # Vercel provides X-Forwarded-Proto, X-Forwarded-Host, etc.
+    # We must explicitly tell ProxyFix to trust these headers (1 level of proxy)
+    # so that request.scheme is 'https' and request.host is the custom domain.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
     # Initialize Redis
     from .services.redis import init_redis

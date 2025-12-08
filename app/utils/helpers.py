@@ -78,6 +78,16 @@ def _compute_cookie_domain(hostname: str) -> str | None:
     if hostname in {"localhost", "127.0.0.1"} or re.match(r"^\d+\.\d+\.\d+\.\d+$", hostname):
         return None
 
+    # CRITICAL FIX: Prevent setting cookie domain to public suffixes (like .vercel.app)
+    # Browsers block cookies set for public suffixes for security.
+    # If the hostname IS "something.vercel.app", we must NOT set domain=".vercel.app".
+    # We should return None to keep it host-only ("something.vercel.app").
+    public_suffixes = {".vercel.app", ".herokuapp.com", ".onrender.com"}
+    for suffix in public_suffixes:
+        if hostname.endswith(suffix):
+             # Ensure we don't accidentally try to share cookies across all vercel apps
+             return None
+
     # 2. nip.io domains (e.g. tenant.127-0-0-1.nip.io or 127-0-0-1.nip.io)
     if hostname.endswith(".nip.io"):
         parts = hostname.split(".")

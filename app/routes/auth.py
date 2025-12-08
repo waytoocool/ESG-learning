@@ -17,6 +17,10 @@ def root():
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
+        # DEBUG LOGGING for Production Login Issue
+        print(f"DEBUG: Login attempting on Host: {request.host}, Scheme: {request.scheme}")
+        print(f"DEBUG: Computed Session Cookie Domain: {app.config.get('SESSION_COOKIE_DOMAIN')}")
+        print(f"DEBUG: Headers: {dict(request.headers)}")
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         email = request.form['email'].lower().strip() if request.form['email'] else ''
         password = request.form['password']
