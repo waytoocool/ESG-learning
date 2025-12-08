@@ -66,7 +66,7 @@ def restrict_superadmin():
             parts = host.split('.')
             if len(parts) >= 4:  # tenant.127-0-0-1.nip.io format
                 is_tenant_subdomain = True
-        elif subdomain not in ("localhost", "127", "127-0-0-1") and not re.fullmatch(r"\d+-\d+-\d+-\d+", subdomain):
+        elif subdomain not in ("localhost", "127", "127-0-0-1", "www") and not re.fullmatch(r"\d+-\d+-\d+-\d+", subdomain):
             # Production or other environments with regular subdomains
             is_tenant_subdomain = True
         

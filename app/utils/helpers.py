@@ -77,6 +77,10 @@ def _compute_cookie_domain(hostname: str) -> str | None:
     # 1. Plain localhost or raw IP → keep host-only cookies
     if hostname in {"localhost", "127.0.0.1"} or re.match(r"^\d+\.\d+\.\d+\.\d+$", hostname):
         return None
+        
+    # 1b. WWW subdomain -> keep host-only cookies (safest for login)
+    if hostname.startswith("www."):
+        return None
 
     # CRITICAL FIX: Prevent setting cookie domain to public suffixes (like .vercel.app)
     # Browsers block cookies set for public suffixes for security.
