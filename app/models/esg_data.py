@@ -100,7 +100,7 @@ class ESGData(db.Model, TenantScopedQueryMixin, TenantScopedModelMixin):
         db.Index('idx_esg_company', 'company_id'),  # Index for tenant filtering
         db.Index('idx_esg_assignment', 'assignment_id'),  # Index for assignment relationship
         # Phase 2.5: Add index for dimensional queries
-        db.Index('idx_esg_dimensions', 'field_id', 'reporting_date', 'dimension_values'),
+        # Note: Removed idx_esg_dimensions as JSON columns cannot be indexed with B-tree in Postgres
         # Phase 4: Add index for draft queries
         db.Index('idx_esg_draft_lookup', 'field_id', 'entity_id', 'reporting_date', 'is_draft'),
         # Validation Engine: Add index for review status queries

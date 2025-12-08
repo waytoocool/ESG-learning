@@ -99,7 +99,8 @@ def _validate_super_admin_uniqueness(mapper, connection, target):  # pylint: dis
     if target.role and target.role.upper() == 'SUPER_ADMIN':
         # Check if there's already a SUPER_ADMIN user
         existing_super_admin = connection.execute(
-            db.text("SELECT COUNT(*) FROM user WHERE role = 'SUPER_ADMIN'")
+            db.text('SELECT COUNT(*) FROM "user" WHERE role = :role'),
+            {"role": "SUPER_ADMIN"}
         ).scalar()
         
         if existing_super_admin > 0:
@@ -115,14 +116,15 @@ def _validate_super_admin_role_change(mapper, connection, target):  # pylint: di
     if target.role and target.role.upper() == 'SUPER_ADMIN':
         # Get the current role of this user
         current_role = connection.execute(
-            db.text("SELECT role FROM user WHERE id = :user_id"),
+            db.text('SELECT role FROM "user" WHERE id = :user_id'),
             {"user_id": target.id}
         ).scalar()
         
         # If this user is not currently a SUPER_ADMIN, check if another one exists
         if current_role != 'SUPER_ADMIN':
             existing_super_admin = connection.execute(
-                db.text("SELECT COUNT(*) FROM user WHERE role = 'SUPER_ADMIN'")
+                db.text('SELECT COUNT(*) FROM "user" WHERE role = :role'),
+                {"role": "SUPER_ADMIN"}
             ).scalar()
             
             if existing_super_admin > 0:

@@ -447,7 +447,7 @@ def validate_single_active_assignment(mapper, connection, target):
             'field_id': target.field_id,
             'entity_id': target.entity_id,
             'company_id': target.company_id,
-            'assignment_id': target.id if target.id is not None else -1
+            'assignment_id': target.id if target.id is not None else '-1'
         }
         print(f"[DEBUG validate_single_active_assignment] Query parameters: {params}")
         print(f"[DEBUG validate_single_active_assignment] Parameter types: field_id={type(target.field_id)}, entity_id={type(target.entity_id)}, company_id={type(target.company_id)}, assignment_id={type(target.id)}")
