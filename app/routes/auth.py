@@ -16,15 +16,6 @@ def root():
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        # DEBUG LOGGING for Production Login Issue
-        print(f"DEBUG: Login attempting on Host: {request.host}, Scheme: {request.scheme}")
-        print(f"DEBUG: Computed Session Cookie Domain: {current_app.config.get('SESSION_COOKIE_DOMAIN')}")
-        print(f"DEBUG: Headers: {dict(request.headers)}")
-        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-        email = request.form['email'].lower().strip() if request.form['email'] else ''
-        password = request.form['password']
-        
         if not email or not password:
             message = 'Email and password are required'
             return jsonify({'success': False, 'message': message}) if is_ajax else flash(message)
@@ -48,13 +39,7 @@ def login():
                 return jsonify({
                     'success': True,
                     'message': 'Login successful',
-                    'redirect': redirect_url,
-                    'debug': {
-                        'cookie_domain': current_app.config.get('SESSION_COOKIE_DOMAIN'),
-                        'session_secure': current_app.config.get('SESSION_COOKIE_SECURE'),
-                        'request_host': request.host,
-                        'request_scheme': request.scheme
-                    }
+                    'redirect': redirect_url
                 })
             return redirect(redirect_url)
         else:

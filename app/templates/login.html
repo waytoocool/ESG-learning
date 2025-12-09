@@ -1,6 +1,7 @@
 <!-- // templates/login.html -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,13 +12,14 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/common/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/common/popup.css') }}">
 </head>
+
 <body>
     <div class="login-container">
         <div class="login-card">
             <h1 class="login-header">Welcome to <span>ESG Datavault</span></h1>
-            <form class="login-form" method="POST" action="{{ url_for('auth.login') }}" 
-                  data-login-url="{{ url_for('auth.login') }}"
-                  data-registration-success="{% if session.pop('registration_success', False) %}true{% else %}false{% endif %}">
+            <form class="login-form" method="POST" action="{{ url_for('auth.login') }}"
+                data-login-url="{{ url_for('auth.login') }}"
+                data-registration-success="{% if session.pop('registration_success', False) %}true{% else %}false{% endif %}">
                 <div class="form-group">
                     <label for="email">Email</label>
                     <input type="text" id="email" name="email" required>
@@ -37,11 +39,11 @@
     <!-- Flash messages container (hidden) -->
     <div id="flash-messages" style="display: none;">
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div data-category="{{ category }}" data-message="{{ message|e }}"></div>
-                {% endfor %}
-            {% endif %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div data-category="{{ category }}" data-message="{{ message|e }}"></div>
+        {% endfor %}
+        {% endif %}
         {% endwith %}
     </div>
 
@@ -56,7 +58,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             // Initialize popup system
             PopupManager.init();
-            
+
             // Show flash messages
             const flashContainer = document.getElementById('flash-messages');
             if (flashContainer) {
@@ -64,8 +66,8 @@
                 flashMessages.forEach(msg => {
                     const category = msg.getAttribute('data-category');
                     const message = msg.getAttribute('data-message');
-                    
-                    switch(category) {
+
+                    switch (category) {
                         case 'success':
                             PopupManager.showSuccess('Success', message);
                             break;
@@ -80,7 +82,7 @@
                     }
                 });
             }
-            
+
             // Handle form submission
             const loginForm = document.querySelector('.login-form');
             if (loginForm) {
@@ -88,14 +90,14 @@
                 if (loginForm.getAttribute('data-registration-success') === 'true') {
                     PopupManager.showSuccess('Success', 'Registration successful! You can now log in.');
                 }
-                
+
                 loginForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
-                    
+
                     try {
                         const formData = new FormData(e.target);
                         const loginUrl = loginForm.getAttribute('data-login-url');
-                        
+
                         const response = await fetch(loginUrl, {
                             method: 'POST',
                             body: formData,
@@ -110,22 +112,15 @@
                         }
 
                         const data = await response.json();
-                        
+
                         console.log('Login response:', data);
-                        
+
                         if (data.success) {
                             PopupManager.showSuccess('Success', 'Login successful! Redirecting...');
                             console.log('Redirecting to:', data.redirect);
-                            
-                            // Log debug info if available
-                            if (data.debug) {
-                                console.log('Login Debug Info:', data.debug);
-                                console.log('Current Cookie:', document.cookie);
-                            }
-                            
+
                             // Redirect after a short delay to show the success message
                             setTimeout(() => {
-                                console.log('Executing redirect now to:', data.redirect);
                                 try {
                                     window.location.replace(data.redirect || '/');
                                 } catch (e) {
@@ -146,4 +141,5 @@
     </script>
 
 </body>
+
 </html>
