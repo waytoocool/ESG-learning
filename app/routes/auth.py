@@ -48,7 +48,13 @@ def login():
                 return jsonify({
                     'success': True,
                     'message': 'Login successful',
-                    'redirect': redirect_url
+                    'redirect': redirect_url,
+                    'debug': {
+                        'cookie_domain': current_app.config.get('SESSION_COOKIE_DOMAIN'),
+                        'session_secure': current_app.config.get('SESSION_COOKIE_SECURE'),
+                        'request_host': request.host,
+                        'request_scheme': request.scheme
+                    }
                 })
             return redirect(redirect_url)
         else:

@@ -117,10 +117,21 @@
                             PopupManager.showSuccess('Success', 'Login successful! Redirecting...');
                             console.log('Redirecting to:', data.redirect);
                             
+                            // Log debug info if available
+                            if (data.debug) {
+                                console.log('Login Debug Info:', data.debug);
+                                console.log('Current Cookie:', document.cookie);
+                            }
+                            
                             // Redirect after a short delay to show the success message
                             setTimeout(() => {
-                                console.log('Executing redirect now...');
-                                window.location.href = data.redirect || '/';
+                                console.log('Executing redirect now to:', data.redirect);
+                                try {
+                                    window.location.replace(data.redirect || '/');
+                                } catch (e) {
+                                    console.error('Redirect failed, trying assign:', e);
+                                    window.location.assign(data.redirect || '/');
+                                }
                             }, 1500);
                         } else {
                             PopupManager.showError('Error', data.message || 'Invalid credentials');
