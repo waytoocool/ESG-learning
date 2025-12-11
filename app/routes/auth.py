@@ -16,9 +16,17 @@ def root():
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
+
         if not email or not password:
             message = 'Email and password are required'
-            return jsonify({'success': False, 'message': message}) if is_ajax else flash(message)
+            if is_ajax:
+                return jsonify({'success': False, 'message': message})
+            flash(message)
+            return render_template('login.html')
 
         user = User.query.filter_by(email=email).first()
         if user and check_password_hash(user.password, password):
@@ -50,6 +58,7 @@ def login():
                     'message': message
                 })
             flash(message)
+            
     return render_template('login.html')
 
 @auth_bp.route('/logout')
